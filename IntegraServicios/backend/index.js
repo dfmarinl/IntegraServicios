@@ -4,7 +4,7 @@ const cors = require("cors");
 const { sequelize } = require("./models");
 const PORT = process.env.PORT || 3001;
 const authRoutes = require("./services/user/src/api/routes/authRoutes");
-//const userRoutes = require("./services/user/src/api/routes/userRoutes");
+const userRoutes = require("./services/user/src/api/routes/userRoutes");
 
 const app = express();
 app.use(cors());
@@ -18,8 +18,8 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 //app.use("/api/pets", require("./routes/pets")); // ejemplo
-//app.use("/api/users", userRoutes);
 
 sequelize.sync({ alter: true }).then(() => {
   app.listen(PORT, () => {
