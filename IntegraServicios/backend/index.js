@@ -19,10 +19,15 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-//app.use("/api/pets", require("./routes/pets")); // ejemplo
 
-sequelize.sync({ alter: true }).then(() => {
-  app.listen(PORT, () => {
-    console.log(`Servidor escuchando en el puerto ${PORT}`);
+// Export app for testing
+module.exports = app;
+
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== "test") {
+  sequelize.sync({ alter: true }).then(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor escuchando en el puerto ${PORT}`);
+    });
   });
-});
+}
