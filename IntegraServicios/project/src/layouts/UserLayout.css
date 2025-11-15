@@ -1,0 +1,145 @@
+.user-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.user-header {
+  background-color: white;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.user-header-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.user-nav {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.user-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  color: #6b7280;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.user-nav-item:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.user-nav-item-active {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.user-nav-icon {
+  font-size: 1.1rem;
+}
+
+.user-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.user-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.user-profile-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.user-profile-role {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: capitalize;
+}
+
+.user-logout-btn {
+  padding: 0.5rem 1rem;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.user-logout-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.user-content {
+  flex: 1;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.user-footer {
+  background-color: #1f2937;
+  color: #d1d5db;
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+
+.user-footer p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .user-header-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .user-nav {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .user-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .user-content {
+    padding: 1rem;
+  }
+}

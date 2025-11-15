@@ -1,0 +1,72 @@
+.my-reservations-page {
+  max-width: 1200px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rating-display {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ea580c;
+}
+
+.rating-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.rating-stars label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.stars {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+  padding: 0;
+}
+
+.star:hover {
+  opacity: 0.6;
+}
+
+.star-active {
+  opacity: 1;
+}
+
+.rating-comment label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.rating-comment textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.rating-comment textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
