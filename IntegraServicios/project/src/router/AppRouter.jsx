@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import AdminLayout from "../layouts/AdminLayout";
 import UserLayout from "../layouts/UserLayout";
 import Login from "../pages/Login/Login";
+import Registration from "../pages/Registration/Registration";
 import AdminHome from "../pages/Home/AdminHome";
 import UserHome from "../pages/Home/UserHome";
 import ResourcesList from "../pages/Resources/ResourcesList";
@@ -45,6 +46,7 @@ const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rutas públicas */}
         <Route
           path="/login"
           element={
@@ -54,6 +56,16 @@ const AppRouter = () => {
           }
         />
 
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <Registration />
+            </PublicRoute>
+          }
+        />
+
+        {/* Rutas de administrador */}
         <Route
           path="/admin"
           element={
@@ -146,6 +158,7 @@ const AppRouter = () => {
           />
         </Route>
 
+        {/* Rutas de usuario normal */}
         <Route
           path="/app"
           element={
@@ -168,6 +181,7 @@ const AppRouter = () => {
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 
+        {/* Rutas por defecto */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

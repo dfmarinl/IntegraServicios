@@ -1,0 +1,155 @@
+* {
+  box-sizing: border-box;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  padding: 1rem;
+}
+
+.input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* SOLUCIÓN: Envolver en un contenedor con overflow hidden */
+.register-container {
+  border-radius: 16px;
+  overflow: hidden; /* CRÍTICO: esto asegura que el border-radius se respete */
+  max-width: 600px;
+  width: 100%;
+}
+
+.register-card {
+  background: white;
+  padding: 2.5rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.register-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.register-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* ESTILOS PARA LOS INPUTS */
+.register-form input,
+.register-form select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  background-color: white;
+}
+
+/* Estilos para el enfoque */
+.register-form input:focus,
+.register-form select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Estilos para el placeholder */
+.register-form input::placeholder {
+  color: #9ca3af;
+}
+
+/* Asegurar que los botones también tengan bordes redondeados */
+.register-form button {
+  border-radius: 8px;
+}
+
+.register-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 0.5rem 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.register-divider::before,
+.register-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.register-divider span {
+  padding: 0 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .register-container {
+    max-width: 100%;
+  }
+
+  .register-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .register-title {
+    font-size: 1.5rem;
+  }
+}

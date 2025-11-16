@@ -3,35 +3,39 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
   padding: 1rem;
 }
 
 .login-container {
   width: 100%;
-  max-width: 450px;
+  max-width: 420px;
 }
 
 .login-card {
-  background-color: white;
+  background: white;
   padding: 2.5rem;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .login-title {
   margin: 0 0 0.5rem 0;
   font-size: 1.875rem;
   font-weight: 700;
-  color: #111827;
-  text-align: center;
+  color: #1f2937;
 }
 
 .login-subtitle {
-  margin: 0 0 2rem 0;
+  margin: 0;
   color: #6b7280;
-  text-align: center;
   font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .login-form {
@@ -40,33 +44,52 @@
   gap: 1.25rem;
 }
 
-.login-demo {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e5e7eb;
+.login-options {
+  display: flex;
+  justify-content: center;
+  margin-top: -0.5rem;
 }
 
-.demo-title {
-  margin: 0 0 0.75rem 0;
+.forgot-link {
+  color: #3b82f6;
+  text-decoration: none;
   font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
+  font-weight: 500;
+  transition: color 0.2s;
 }
 
-.demo-list {
-  margin: 0 0 1rem 0;
-  padding-left: 1.5rem;
-  font-size: 0.875rem;
+.forgot-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 0.5rem 0;
   color: #6b7280;
+  font-size: 0.875rem;
 }
 
-.demo-list li {
-  margin-bottom: 0.5rem;
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.demo-note {
-  margin: 0;
-  font-size: 0.75rem;
-  color: #9ca3af;
-  font-style: italic;
+.login-divider span {
+  padding: 0 1rem;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+  }
 }
