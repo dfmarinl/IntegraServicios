@@ -1,36 +1,39 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useUI } from '../context/UIContext';
-import Alert from '../components/common/Alert';
-import './AdminLayout.css';
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { useUI } from "../context/UIContext";
+import Alert from "../components/common/Alert";
+import "./AdminLayout.css";
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
-  const { notification, closeNotification, sidebarOpen, toggleSidebar } = useUI();
+  const { notification, closeNotification, sidebarOpen, toggleSidebar } =
+    useUI();
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const menuItems = [
-    { path: '/admin', label: 'Dashboard', icon: '📊' },
-    { path: '/admin/resource-types', label: 'Tipos de Recurso', icon: '📋' },
-    { path: '/admin/resources', label: 'Recursos', icon: '🏢' },
-    { path: '/admin/availability', label: 'Disponibilidad', icon: '⏰' },
-    { path: '/admin/reservations', label: 'Reservas', icon: '📅' },
-    { path: '/admin/loans', label: 'Préstamos', icon: '📦' },
-    { path: '/admin/users', label: 'Usuarios', icon: '👥' },
-    { path: '/admin/employees', label: 'Empleados', icon: '👷' },
-    { path: '/admin/units', label: 'Unidades', icon: '🏛️' },
-    { path: '/admin/reports', label: 'Reportes', icon: '📈' },
+    { path: "/admin", label: "Dashboard", icon: "📊" },
+    { path: "/admin/resource-types", label: "Tipos de Recurso", icon: "📋" },
+    { path: "/admin/resources", label: "Recursos", icon: "🏢" },
+    { path: "/admin/availability", label: "Disponibilidad", icon: "⏰" },
+    { path: "/admin/reservations", label: "Reservas", icon: "📅" },
+    { path: "/admin/loans", label: "Préstamos", icon: "📦" },
+    { path: "/admin/users", label: "Usuarios", icon: "👥" },
+    { path: "/admin/employees", label: "Empleados", icon: "👷" },
+    { path: "/admin/units", label: "Unidades", icon: "🏛️" },
+    { path: "/admin/reports", label: "Reportes", icon: "📈" },
   ];
 
   return (
     <div className="admin-layout">
-      <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+      <aside
+        className={`sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
+      >
         <div className="sidebar-header">
           <h2 className="sidebar-title">Sistema de Reservas</h2>
         </div>
@@ -40,7 +43,9 @@ const AdminLayout = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`nav-item ${location.pathname === item.path ? 'nav-item-active' : ''}`}
+              className={`nav-item ${
+                location.pathname === item.path ? "nav-item-active" : ""
+              }`}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>

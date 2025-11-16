@@ -1,22 +1,29 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useUI } from '../../context/UIContext';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import Table from '../../components/common/Table';
-import Modal from '../../components/common/Modal';
-import Loader from '../../components/common/Loader';
-import { getReservations, cancelReservation, rateReservation } from '../../api/reservations';
-import './MyReservations.css';
+import { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { useUI } from "../../context/UIContext";
+import Card from "../../components/common/Card";
+import Button from "../../components/common/Button";
+import Table from "../../components/common/Table";
+import Modal from "../../components/common/Modal";
+import Loader from "../../components/common/Loader";
+import {
+  getReservations,
+  cancelReservation,
+  rateReservation,
+} from "../../api/reservations";
+import "./MyReservations.css";
 
 const MyReservations = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useUI();
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [ratingModal, setRatingModal] = useState({ open: false, reservation: null });
+  const [ratingModal, setRatingModal] = useState({
+    open: false,
+    reservation: null,
+  });
   const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
 
   useEffect(() => {
     loadReservations();
@@ -31,7 +38,7 @@ const MyReservations = () => {
   };
 
   const handleCancel = async (id) => {
-    if (!confirm('¿Estás seguro de cancelar esta reserva?')) return;
+    if (!confirm("¿Estás seguro de cancelar esta reserva?")) return;
 
     const response = await cancelReservation(id);
     if (response.success) {
@@ -45,11 +52,15 @@ const MyReservations = () => {
   const handleOpenRating = (reservation) => {
     setRatingModal({ open: true, reservation });
     setRating(5);
-    setComment('');
+    setComment("");
   };
 
   const handleSubmitRating = async () => {
-    const response = await rateReservation(ratingModal.reservation.id, rating, comment);
+    const response = await rateReservation(
+      ratingModal.reservation.id,
+      rating,
+      comment
+    );
     if (response.success) {
       showSuccess(response.message);
       setRatingModal({ open: false, reservation: null });
@@ -60,34 +71,46 @@ const MyReservations = () => {
   };
 
   const columns = [
-    { key: 'resourceName', label: 'Recurso' },
-    { key: 'date', label: 'Fecha' },
+    { key: "resourceName", label: "Recurso" },
+    { key: "date", label: "Fecha" },
     {
-      key: 'time',
-      label: 'Horario',
+      key: "time",
+      label: "Horario",
       render: (row) => `${row.startTime} - ${row.endTime}`,
     },
     {
-      key: 'status',
-      label: 'Estado',
+      key: "status",
+      label: "Estado",
       render: (row) => (
         <span className={`status-badge status-${row.status}`}>
-          {row.status === 'confirmed' ? 'Confirmada' : row.status === 'cancelled' ? 'Cancelada' : row.status}
+          {row.status === "confirmed"
+            ? "Confirmada"
+            : row.status === "cancelled"
+            ? "Cancelada"
+            : row.status}
         </span>
       ),
     },
     {
-      key: 'actions',
-      label: 'Acciones',
+      key: "actions",
+      label: "Acciones",
       render: (row) => (
         <div className="table-actions">
-          {row.status === 'confirmed' && (
-            <Button size="small" variant="danger" onClick={() => handleCancel(row.id)}>
+          {row.status === "confirmed" && (
+            <Button
+              size="small"
+              variant="danger"
+              onClick={() => handleCancel(row.id)}
+            >
               Cancelar
             </Button>
           )}
-          {row.status === 'completed' && !row.rating && (
-            <Button size="small" variant="success" onClick={() => handleOpenRating(row)}>
+          {row.status === "completed" && !row.rating && (
+            <Button
+              size="small"
+              variant="success"
+              onClick={() => handleOpenRating(row)}
+            >
               Calificar
             </Button>
           )}
@@ -129,7 +152,7 @@ const MyReservations = () => {
                 <button
                   key={star}
                   type="button"
-                  className={`star ${rating >= star ? 'star-active' : ''}`}
+                  className={`star ${rating >= star ? "star-active" : ""}`}
                   onClick={() => setRating(star)}
                 >
                   ⭐
