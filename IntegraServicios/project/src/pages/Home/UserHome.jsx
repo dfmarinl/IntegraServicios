@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import { getReservations } from '../../api/reservations';
-import './UserHome.css';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import Card from "../../components/common/Card";
+import Button from "../../components/common/Button";
+import { getReservations } from "../../api/reservations";
+import "./UserHome.css";
 
 const UserHome = () => {
   const { user } = useAuth();
@@ -17,7 +17,10 @@ const UserHome = () => {
   }, []);
 
   const loadMyReservations = async () => {
-    const response = await getReservations({ userId: user?.id, status: 'confirmed' });
+    const response = await getReservations({
+      userId: user?.id,
+      status: "confirmed",
+    });
     if (response.success) {
       setMyReservations(response.data.slice(0, 3));
     }
@@ -41,7 +44,7 @@ const UserHome = () => {
               <h3>Buscar Recursos</h3>
               <p>Encuentra y reserva aulas, laboratorios y equipos</p>
             </div>
-            <Button onClick={() => navigate('/app/resources')}>
+            <Button onClick={() => navigate("/app/resources")}>
               Ver Recursos
             </Button>
           </div>
@@ -54,7 +57,10 @@ const UserHome = () => {
               <h3>Mis Reservas</h3>
               <p>Consulta y gestiona tus reservas activas</p>
             </div>
-            <Button onClick={() => navigate('/app/reservations')} variant="secondary">
+            <Button
+              onClick={() => navigate("/app/reservations")}
+              variant="secondary"
+            >
               Ver Reservas
             </Button>
           </div>
@@ -73,11 +79,14 @@ const UserHome = () => {
                 <div className="reservation-info">
                   <h4>{reservation.resourceName}</h4>
                   <p className="reservation-date">
-                    {reservation.date} • {reservation.startTime} - {reservation.endTime}
+                    {reservation.date} • {reservation.startTime} -{" "}
+                    {reservation.endTime}
                   </p>
                 </div>
                 <span className={`status-badge status-${reservation.status}`}>
-                  {reservation.status === 'confirmed' ? 'Confirmada' : reservation.status}
+                  {reservation.status === "confirmed"
+                    ? "Confirmada"
+                    : reservation.status}
                 </span>
               </div>
             ))}

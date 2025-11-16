@@ -1,83 +1,95 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { login as loginAPI } from '../api/users';
+import React, { useState, useEffect, useRef, createContext } from "react";
+import { saveToken, getToken, removeToken } from "../utils/token";
+import { getMeApi, loginApi } from "../api/user/auth";
 
-const AuthContext = createContext();
+export const AuthContext = createContext({
+  auth: null,
+  loading: true,
+  login: () => null,
+  logout: () => null,
+  updateUser: () => null,
+  isAdmin: () => false,
+  isAuthenticated: false,
+});
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+export function AuthProvider({ children }) {
+  const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
+    const initializeAuth = async () => {
+      const token = getToken();
+      console.log("Token encontrado:", token);
 
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+      if (token) {
+        try {
+          const user = await getMeApi(token);
+          console.log("Usuario obtenido:", user);
+          setAuth({ token, user });
+        } catch (error) {
+          console.error("Error al obtener datos del usuario:", error);
+          removeToken();
+          setAuth(null);
+        }
+      } else {
+        setAuth(null);
+      }
+      setLoading(false);
+    };
+
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      initializeAuth();
     }
-
-    setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await loginAPI(email, password);
+      const response = await loginApi(email, password);
+      const { token, user } = response;
 
-      if (response.success) {
-        setUser(response.data.user);
-        setToken(response.data.token);
-
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('token', response.data.token);
-
-        return { success: true };
-      }
-
-      return { success: false, message: response.message };
+      saveToken(token);
+      setAuth({ token, user });
+      return user;
     } catch (error) {
-      return { success: false, message: 'Error al iniciar sesión' };
+      console.error("Error en el inicio de sesión:", error);
+      setAuth(null);
+      throw error;
     }
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    removeToken();
+    setAuth(null);
+  };
+
+  const updateUser = (updatedUser) => {
+    setAuth((prevAuth) => ({
+      ...prevAuth,
+      user: { ...prevAuth.user, ...updatedUser },
+    }));
   };
 
   const isAdmin = () => {
-    return user?.role === 'admin';
+    return auth?.user?.rol === "administrador";
   };
 
-  const isProfesor = () => {
-    return user?.role === 'profesor';
+  const isAuthenticated = () => {
+    return auth !== null && auth.token !== null;
   };
 
-  const isEstudiante = () => {
-    return user?.role === 'estudiante';
-  };
-
-  const value = {
-    user,
-    token,
+  const contextValue = {
+    auth,
     loading,
     login,
     logout,
-    isAuthenticated: !!user,
+    updateUser,
     isAdmin,
-    isProfesor,
-    isEstudiante,
+    isAuthenticated: isAuthenticated(),
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
+}

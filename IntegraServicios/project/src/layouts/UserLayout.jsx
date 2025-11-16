@@ -1,8 +1,8 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useUI } from '../context/UIContext';
-import Alert from '../components/common/Alert';
-import './UserLayout.css';
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { useUI } from "../context/UIContext";
+import Alert from "../components/common/Alert";
+import "./UserLayout.css";
 
 const UserLayout = () => {
   const { user, logout } = useAuth();
@@ -12,13 +12,13 @@ const UserLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const menuItems = [
-    { path: '/app', label: 'Inicio', icon: '🏠' },
-    { path: '/app/resources', label: 'Recursos', icon: '🔍' },
-    { path: '/app/reservations', label: 'Mis Reservas', icon: '📅' },
+    { path: "/app", label: "Inicio", icon: "🏠" },
+    { path: "/app/resources", label: "Recursos", icon: "🔍" },
+    { path: "/app/reservations", label: "Mis Reservas", icon: "📅" },
   ];
 
   return (
@@ -34,7 +34,9 @@ const UserLayout = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`user-nav-item ${location.pathname === item.path ? 'user-nav-item-active' : ''}`}
+                className={`user-nav-item ${
+                  location.pathname === item.path ? "user-nav-item-active" : ""
+                }`}
               >
                 <span className="user-nav-icon">{item.icon}</span>
                 <span>{item.label}</span>
