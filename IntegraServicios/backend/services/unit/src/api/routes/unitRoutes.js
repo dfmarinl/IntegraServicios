@@ -8,8 +8,8 @@ const {
 } = require("../views/unitController");
 const { verifyToken } = require("../../../../user/src/middleware/authentication");
 
-router.post("/", verifyToken, createUnit);
-router.get("/", verifyToken, getUnits);
+router.post("/", createUnit);
+router.get("/",  getUnits);
 router.put("/:id", verifyToken, updateUnit);
 router.delete("/:id", verifyToken, deleteUnit);
 
