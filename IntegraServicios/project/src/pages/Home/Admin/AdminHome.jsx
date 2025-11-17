@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import Card from '../../components/common/Card';
-import { getReservations } from '../../api/reservations';
-import { getResources } from '../../api/resources';
-import { getUsers } from '../../api/users';
-import './AdminHome.css';
+import { useEffect, useState } from "react";
+import Card from "../../../components/common/Card";
+import { getReservations } from "../../../api/reservations";
+import { getResources } from "../../../api/resources";
+import { getUsers } from "../../../api/users";
+import "./AdminHome.css";
 
 const AdminHome = () => {
   const [stats, setStats] = useState({
@@ -24,9 +24,8 @@ const AdminHome = () => {
       getUsers(),
     ]);
 
-    const activeReservations = reservationsRes.data?.filter(
-      (r) => r.status === 'confirmed'
-    ).length || 0;
+    const activeReservations =
+      reservationsRes.data?.filter((r) => r.status === "confirmed").length || 0;
 
     setStats({
       totalReservations: reservationsRes.data?.length || 0,
@@ -37,22 +36,47 @@ const AdminHome = () => {
   };
 
   const statCards = [
-    { title: 'Total Reservas', value: stats.totalReservations, icon: '📅', color: '#2563eb' },
-    { title: 'Reservas Activas', value: stats.activeReservations, icon: '✅', color: '#16a34a' },
-    { title: 'Recursos', value: stats.totalResources, icon: '🏢', color: '#ea580c' },
-    { title: 'Usuarios', value: stats.totalUsers, icon: '👥', color: '#7c3aed' },
+    {
+      title: "Total Reservas",
+      value: stats.totalReservations,
+      icon: "📅",
+      color: "#2563eb",
+    },
+    {
+      title: "Reservas Activas",
+      value: stats.activeReservations,
+      icon: "✅",
+      color: "#16a34a",
+    },
+    {
+      title: "Recursos",
+      value: stats.totalResources,
+      icon: "🏢",
+      color: "#ea580c",
+    },
+    {
+      title: "Usuarios",
+      value: stats.totalUsers,
+      icon: "👥",
+      color: "#7c3aed",
+    },
   ];
 
   return (
     <div className="admin-home">
       <h1 className="page-title">Dashboard</h1>
-      <p className="page-subtitle">Bienvenido al sistema de gestión de reservas</p>
+      <p className="page-subtitle">
+        Bienvenido al sistema de gestión de reservas
+      </p>
 
       <div className="stats-grid">
         {statCards.map((stat) => (
           <Card key={stat.title} className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon" style={{ backgroundColor: stat.color }}>
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: stat.color }}
+              >
                 {stat.icon}
               </div>
               <div className="stat-details">

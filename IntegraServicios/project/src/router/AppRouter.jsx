@@ -4,7 +4,8 @@ import AdminLayout from "../layouts/AdminLayout";
 import UserLayout from "../layouts/UserLayout";
 import Login from "../pages/Login/Login";
 import Registration from "../pages/Registration/Registration";
-import AdminHome from "../pages/Home/AdminHome";
+import AdminHome from "../pages/Home/Admin/AdminHome";
+import EmployeeHome from "../pages/Home/Employee/EmployeeHome";
 import UserHome from "../pages/Home/UserHome";
 import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
@@ -175,13 +176,32 @@ const AppRouter = () => {
           path="/employee"
           element={
             <ProtectedRoute allowedRoles={["empleado_unidad"]}>
-              <UserLayout /> {/* Puedes crear EmployeeLayout después */}
+              <UserLayout />
             </ProtectedRoute>
           }
         >
-          <Route index element={<UserHome />} />
+          <Route index element={<EmployeeHome />} />{" "}
+          {/* Cambiado a EmployeeHome */}
           <Route path="resources" element={<ResourcesList />} />
           <Route path="reservations" element={<MyReservations />} />
+          <Route
+            path="loans"
+            element={
+              <div className="page-placeholder">
+                <h1>Gestión de Préstamos</h1>
+                <p>Página en construcción</p>
+              </div>
+            }
+          />
+          <Route
+            path="returns"
+            element={
+              <div className="page-placeholder">
+                <h1>Registro de Devoluciones</h1>
+                <p>Página en construcción</p>
+              </div>
+            }
+          />
         </Route>
 
         {/* Ruta de docente */}
