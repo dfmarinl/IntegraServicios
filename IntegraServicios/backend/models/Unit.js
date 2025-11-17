@@ -2,33 +2,32 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
 const Unit = sequelize.define("Unit", {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+
   name: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
   },
-  description: {
-    type: DataTypes.STRING,
-  },
-  globalStartTime: {
-    type: DataTypes.TIME,
+
+  description: { type: DataTypes.TEXT },
+
+  granularity: {
+    type: DataTypes.INTEGER, // Minutos
     allowNull: false,
-    defaultValue: "06:00:00",
+    defaultValue: 30,
   },
-  globalEndTime: {
-    type: DataTypes.TIME,
-    allowNull: false,
-    defaultValue: "23:00:00",
-  },
+
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
 });
 
+Unit.associate = (models) => {
+  Unit.hasMany(models.UnitSchedule, { foreignKey: "unitId", onDelete: "CASCADE" });
+  Unit.hasMany(models.TypeResource, { foreignKey: "unitId", onDelete: "CASCADE" });
+};
+
 module.exports = Unit;
+

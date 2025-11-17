@@ -6,7 +6,7 @@ const { sequelize } = require("./models");
 // Rutas principales (ajusta los paths según tu estructura de carpetas)
 const authRoutes = require("./services/user/src/api/routes/authRoutes");
 const userRoutes = require("./services/user/src/api/routes/userRoutes");
-const unitRoutes = require("./services/user/src/api/routes/unitRoutes");
+const unitRoutes = require("./services/unit/src/api/routes/unitRoutes");
 const resourceTypeRoutes = require("./services/user/src/api/routes/resourceTypeRoutes");
 const resourceRoutes = require("./services/user/src/api/routes/resourceRoutes");
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
