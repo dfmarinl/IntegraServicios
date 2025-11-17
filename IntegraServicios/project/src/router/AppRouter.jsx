@@ -10,8 +10,17 @@ import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
 import Loader from "../components/common/Loader";
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+// Objeto de mapeo de roles a rutas
+const roleRoutes = {
+  administrador: "/admin",
+  empleado_unidad: "/employee",
+  docente: "/teacher",
+  personal_administrativo: "/staff",
+  estudiante: "/app",
+};
+
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { isAuthenticated, auth, loading } = useAuth();
 
   if (loading) {
     return <Loader fullScreen />;
@@ -21,22 +30,25 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requireAdmin && !isAdmin()) {
-    return <Navigate to="/app" replace />;
+  // Si se especificaron roles permitidos, verificar
+  if (allowedRoles.length > 0 && !allowedRoles.includes(auth?.user?.rol)) {
+    const route = roleRoutes[auth?.user?.rol] || "/app";
+    return <Navigate to={route} replace />;
   }
 
   return children;
 };
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+  const { isAuthenticated, auth, loading } = useAuth();
 
   if (loading) {
     return <Loader fullScreen />;
   }
 
-  if (isAuthenticated) {
-    return <Navigate to={isAdmin() ? "/admin" : "/app"} replace />;
+  if (isAuthenticated && auth?.user) {
+    const route = roleRoutes[auth.user.rol] || "/app";
+    return <Navigate to={route} replace />;
   }
 
   return children;
@@ -65,11 +77,11 @@ const AppRouter = () => {
           }
         />
 
-        {/* Rutas de administrador */}
+        {/* Ruta de administrador */}
         <Route
           path="/admin"
           element={
-            <ProtectedRoute requireAdmin>
+            <ProtectedRoute allowedRoles={["administrador"]}>
               <AdminLayout />
             </ProtectedRoute>
           }
@@ -158,11 +170,53 @@ const AppRouter = () => {
           />
         </Route>
 
-        {/* Rutas de usuario normal */}
+        {/* Ruta de empleado de unidad */}
+        <Route
+          path="/employee"
+          element={
+            <ProtectedRoute allowedRoles={["empleado_unidad"]}>
+              <UserLayout /> {/* Puedes crear EmployeeLayout después */}
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<UserHome />} />
+          <Route path="resources" element={<ResourcesList />} />
+          <Route path="reservations" element={<MyReservations />} />
+        </Route>
+
+        {/* Ruta de docente */}
+        <Route
+          path="/teacher"
+          element={
+            <ProtectedRoute allowedRoles={["docente"]}>
+              <UserLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<UserHome />} />
+          <Route path="resources" element={<ResourcesList />} />
+          <Route path="reservations" element={<MyReservations />} />
+        </Route>
+
+        {/* Ruta de personal administrativo */}
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute allowedRoles={["personal_administrativo"]}>
+              <UserLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<UserHome />} />
+          <Route path="resources" element={<ResourcesList />} />
+          <Route path="reservations" element={<MyReservations />} />
+        </Route>
+
+        {/* Ruta de estudiante (mantiene /app por compatibilidad) */}
         <Route
           path="/app"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["estudiante"]}>
               <UserLayout />
             </ProtectedRoute>
           }
