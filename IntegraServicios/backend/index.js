@@ -3,10 +3,10 @@ const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./models");
 
-// Rutas principales (ajusta los paths según tu estructura de carpetas)
 const authRoutes = require("./services/user/src/api/routes/authRoutes");
 const userRoutes = require("./services/user/src/api/routes/userRoutes");
 const unitRoutes = require("./services/unit/src/api/routes/unitRoutes");
+
 const resourceTypeRoutes = require("./services/user/src/api/routes/resourceTypeRoutes");
 const resourceRoutes = require("./services/user/src/api/routes/resourceRoutes");
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
@@ -25,7 +25,9 @@ app.use(express.json());
 
 // Ruta base para verificar conexión
 app.get("/", (req, res) => {
-  res.send("API de IntegraServicios funcionando correctamente en localhost 3001");
+  res.send(
+    "API de IntegraServicios funcionando correctamente en localhost 3001"
+  );
 });
 
 // =====================
@@ -34,6 +36,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/units", unitRoutes);
+
 app.use("/api/resource-types", resourceTypeRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/availabilities", availabilityRoutes);
@@ -42,7 +45,6 @@ app.use("/api/loans", loanRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/failures", failureRoutes);
-
 
 // Export app for testing
 module.exports = app;
