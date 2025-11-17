@@ -6,8 +6,8 @@ const { sequelize } = require("./models");
 const authRoutes = require("./services/user/src/api/routes/authRoutes");
 const userRoutes = require("./services/user/src/api/routes/userRoutes");
 const unitRoutes = require("./services/unit/src/api/routes/unitRoutes");
+const resourceTypeRoutes = require("./services/resource/src/api/routes/resourceTypeRoutes");
 
-const resourceTypeRoutes = require("./services/user/src/api/routes/resourceTypeRoutes");
 const resourceRoutes = require("./services/user/src/api/routes/resourceRoutes");
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
 const reservationRoutes = require("./services/user/src/api/routes/reservationRoutes");
