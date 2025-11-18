@@ -8,6 +8,9 @@ const Unit = sequelize.define("Unit", {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
+    set(value) {
+      this.setDataValue("name", value.toLowerCase().trim());
+    },
   },
 
   description: { type: DataTypes.TEXT },
@@ -25,9 +28,14 @@ const Unit = sequelize.define("Unit", {
 });
 
 Unit.associate = (models) => {
-  Unit.hasMany(models.UnitSchedule, { foreignKey: "unitId", onDelete: "CASCADE" });
-  Unit.hasMany(models.TypeResource, { foreignKey: "unitId", onDelete: "CASCADE" });
+  Unit.hasMany(models.UnitSchedule, {
+    foreignKey: "unitId",
+    onDelete: "CASCADE",
+  });
+  Unit.hasMany(models.TypeResource, {
+    foreignKey: "unitId",
+    onDelete: "CASCADE",
+  });
 };
 
 module.exports = Unit;
-

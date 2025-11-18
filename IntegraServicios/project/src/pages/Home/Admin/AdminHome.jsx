@@ -91,6 +91,10 @@ const AdminHome = () => {
       <div className="quick-actions">
         <h2>Acciones Rápidas</h2>
         <div className="actions-grid">
+          <a href="/admin/units" className="action-card">
+            <span className="action-icon">🏛️</span>
+            <span>Gestionar Unidades</span>
+          </a>
           <a href="/admin/resources" className="action-card">
             <span className="action-icon">🏢</span>
             <span>Gestionar Recursos</span>
@@ -99,13 +103,13 @@ const AdminHome = () => {
             <span className="action-icon">📅</span>
             <span>Ver Reservas</span>
           </a>
-          <a href="/admin/reports" className="action-card">
-            <span className="action-icon">📈</span>
-            <span>Generar Reportes</span>
-          </a>
           <a href="/admin/users" className="action-card">
             <span className="action-icon">👥</span>
             <span>Gestionar Usuarios</span>
+          </a>
+          <a href="/admin/reports" className="action-card">
+            <span className="action-icon">📈</span>
+            <span>Generar Reportes</span>
           </a>
         </div>
       </div>
