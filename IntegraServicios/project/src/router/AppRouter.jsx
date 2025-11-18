@@ -9,6 +9,7 @@ import EmployeeHome from "../pages/Home/Employee/EmployeeHome";
 import UserHome from "../pages/Home/UserHome";
 import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
+import UnitsManagement from "../pages/Admin/UnitsManagement/UnitsManagement";
 import Loader from "../components/common/Loader";
 
 // Objeto de mapeo de roles a rutas
@@ -88,6 +89,8 @@ const AppRouter = () => {
           }
         >
           <Route index element={<AdminHome />} />
+          {/* ← NUEVA RUTA PARA GESTIÓN DE UNIDADES */}
+          <Route path="units" element={<UnitsManagement />} />
           <Route
             path="resource-types"
             element={
@@ -152,15 +155,6 @@ const AppRouter = () => {
             }
           />
           <Route
-            path="units"
-            element={
-              <div className="page-placeholder">
-                <h1>Unidades</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
-          />
-          <Route
             path="reports"
             element={
               <div className="page-placeholder">
@@ -180,8 +174,7 @@ const AppRouter = () => {
             </ProtectedRoute>
           }
         >
-          <Route index element={<EmployeeHome />} />{" "}
-          {/* Cambiado a EmployeeHome */}
+          <Route index element={<EmployeeHome />} />
           <Route path="resources" element={<ResourcesList />} />
           <Route path="reservations" element={<MyReservations />} />
           <Route
