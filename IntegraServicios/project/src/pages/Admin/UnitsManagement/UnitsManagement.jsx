@@ -1,28 +1,60 @@
 import { useState, useEffect } from "react";
 import Card from "../../../components/common/Card";
-import { getUnitsApi } from "../../../api/unit/units";
+import {
+  getUnitsApi,
+  getUnitsPaginatedApi,
+  deleteUnitApi,
+} from "../../../api/unit/units";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
 import CreateUnitForm from "../../../forms/CreateUnitForm/CreateUnitForm";
-//import UnitConfigModal from "./UnitConfigModal";
+import EditUnitForm from "../../../forms/EditUnitForm/EditUnitForm";
+import DeleteConfirmationModal from "../../../modals/DeleteConfirmationModal/DeleteConfirmationModal";
 import "./UnitsManagement.css";
 
 const UnitsManagement = () => {
-  const [units, setUnits] = useState([]);
+  const [allUnits, setAllUnits] = useState([]); // Para búsqueda
+  const [displayedUnits, setDisplayedUnits] = useState([]); // Unidades a mostrar
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Estados para búsqueda y paginación
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUnits, setTotalUnits] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const limit = 6; // Unidades por página
 
   useEffect(() => {
-    loadUnits();
+    loadInitialData();
   }, []);
 
-  const loadUnits = async () => {
+  useEffect(() => {
+    if (isSearching) {
+      // Cuando hay búsqueda, filtrar en frontend
+      handleSearchInFrontend();
+    } else {
+      // Cuando no hay búsqueda, cargar página paginada
+      loadPaginatedUnits();
+    }
+  }, [currentPage, searchTerm, isSearching]);
+
+  const loadInitialData = async () => {
     try {
       setError(null);
-      const unitsData = await getUnitsApi();
-      setUnits(unitsData);
+      // Cargar todas las unidades para búsqueda
+      const allUnitsData = await getUnitsApi();
+      setAllUnits(allUnitsData);
+
+      // Cargar primera página paginada
+      await loadPaginatedUnits();
     } catch (err) {
       console.error("Error al cargar unidades:", err);
       setError("Error al cargar las unidades");
@@ -31,9 +63,70 @@ const UnitsManagement = () => {
     }
   };
 
+  const loadPaginatedUnits = async () => {
+    if (isSearching) return; // No cargar paginación si estamos buscando
+
+    try {
+      const response = await getUnitsPaginatedApi(currentPage, limit);
+      setDisplayedUnits(response.units);
+      setTotalPages(response.totalPages);
+      setTotalUnits(response.total);
+    } catch (err) {
+      console.error("Error al cargar unidades paginadas:", err);
+      setError("Error al cargar las unidades");
+    }
+  };
+
+  const handleSearchInFrontend = () => {
+    if (!searchTerm) {
+      // Si no hay término de búsqueda, volver a paginación
+      setIsSearching(false);
+      setCurrentPage(1);
+      return;
+    }
+
+    // Filtrar unidades en frontend
+    const filtered = allUnits.filter((unit) =>
+      unit.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    setDisplayedUnits(filtered);
+    setTotalUnits(filtered.length);
+    setTotalPages(Math.ceil(filtered.length / limit));
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearchTerm(searchInput);
+    setIsSearching(true);
+    setCurrentPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearchTerm("");
+    setIsSearching(false);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  // Mantener todas las funciones existentes
   const handleConfigure = (unit) => {
     setSelectedUnit(unit);
     setIsConfigModalOpen(true);
+  };
+
+  const handleEdit = (unit) => {
+    setSelectedUnit(unit);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (unit) => {
+    setSelectedUnit(unit);
+    setIsDeleteModalOpen(true);
   };
 
   const handleCloseConfigModal = () => {
@@ -41,20 +134,56 @@ const UnitsManagement = () => {
     setSelectedUnit(null);
   };
 
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedUnit(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setSelectedUnit(null);
+  };
+
   const handleCreateSuccess = (newUnit) => {
     setIsCreateModalOpen(false);
-    // Recargar la lista de unidades para incluir la nueva
-    loadUnits();
+    loadInitialData(); // Recargar todo
   };
 
   const handleCreateCancel = () => {
     setIsCreateModalOpen(false);
   };
 
+  const handleEditSuccess = (updatedUnit) => {
+    setIsEditModalOpen(false);
+    setSelectedUnit(null);
+    loadInitialData(); // Recargar todo
+  };
+
+  const handleEditCancel = () => {
+    setIsEditModalOpen(false);
+    setSelectedUnit(null);
+  };
+
+  const handleDeleteConfirm = async (unit) => {
+    setDeleteLoading(true);
+    try {
+      await deleteUnitApi(unit.id);
+      setIsDeleteModalOpen(false);
+      setSelectedUnit(null);
+      loadInitialData(); // Recargar todo
+    } catch (err) {
+      console.error("Error al eliminar unidad:", err);
+      setError(err.message || "Error al eliminar la unidad");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Actualizar managementCards
   const managementCards = [
     {
       title: "Unidades Activas",
-      value: units.length,
+      value: allUnits.length, // Usar todas las unidades para el total
       icon: "🏛️",
       color: "#2563eb",
       description: "Total de unidades en el sistema",
@@ -62,10 +191,10 @@ const UnitsManagement = () => {
     {
       title: "Granularidad Promedio",
       value:
-        units.length > 0
+        allUnits.length > 0
           ? `${Math.round(
-              units.reduce((sum, unit) => sum + unit.granularity, 0) /
-                units.length
+              allUnits.reduce((sum, unit) => sum + unit.granularity, 0) /
+                allUnits.length
             )} min`
           : "0 min",
       icon: "⏱️",
@@ -74,7 +203,7 @@ const UnitsManagement = () => {
     },
     {
       title: "Unidades Recientes",
-      value: units.filter((unit) => {
+      value: allUnits.filter((unit) => {
         const createdDate = new Date(unit.createdAt);
         const today = new Date();
         const diffTime = Math.abs(today - createdDate);
@@ -97,7 +226,7 @@ const UnitsManagement = () => {
     },
   ];
 
-  if (loading) {
+  if (loading && displayedUnits.length === 0) {
     return <div className="loading">Cargando unidades...</div>;
   }
 
@@ -105,7 +234,7 @@ const UnitsManagement = () => {
     return (
       <div className="error-container">
         <div className="error-message">{error}</div>
-        <button onClick={loadUnits} className="btn-retry">
+        <button onClick={loadInitialData} className="btn-retry">
           Reintentar
         </button>
       </div>
@@ -165,11 +294,71 @@ const UnitsManagement = () => {
         </div>
       </div>
 
-      {/* Lista de unidades con botón de Configurar */}
+      {/* Lista de unidades con búsqueda y paginación */}
       <div className="units-overview">
-        <h2>Unidades Existentes</h2>
+        <div className="units-header">
+          <div className="units-title-section">
+            <h2>Unidades Existentes</h2>
+            {/* Barra de búsqueda - Ahora a la izquierda y más grande */}
+            <form onSubmit={handleSearch} className="search-container">
+              <div className="search-input-group">
+                <input
+                  type="text"
+                  placeholder="Buscar unidades por nombre..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="search-input"
+                />
+                <button type="submit" className="search-btn">
+                  <svg
+                    className="search-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                </button>
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="clear-search-btn"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Información de resultados */}
+        {searchTerm && (
+          <div className="search-info">
+            <p>
+              {displayedUnits.length} resultado(s) para "{searchTerm}"
+              {isSearching && " (búsqueda en todas las unidades)"}
+            </p>
+          </div>
+        )}
+
         <div className="units-list">
-          {units.map((unit) => (
+          {displayedUnits.map((unit) => (
             <Card key={unit.id} className="unit-card">
               <div className="unit-header">
                 <h3>{unit.name}</h3>
@@ -189,9 +378,24 @@ const UnitsManagement = () => {
                   </span>
                   <span className="stat-label">Fecha de creación</span>
                 </div>
+                <div className="unit-stat">
+                  <span
+                    className={`status-badge ${
+                      unit.isActive ? "active" : "inactive"
+                    }`}
+                  >
+                    {unit.isActive ? "Activa" : "Inactiva"}
+                  </span>
+                  <span className="stat-label">Estado</span>
+                </div>
               </div>
               <div className="unit-actions">
-                <button className="btn-outline">Editar</button>
+                <button
+                  className="btn-outline"
+                  onClick={() => handleEdit(unit)}
+                >
+                  Editar
+                </button>
                 <button
                   className="btn-primary"
                   onClick={() => handleConfigure(unit)}
@@ -199,12 +403,45 @@ const UnitsManagement = () => {
                   Configurar
                 </button>
               </div>
+              <div className="unit-danger-actions">
+                <button
+                  className="btn-danger-outline"
+                  onClick={() => handleDeleteClick(unit)}
+                >
+                  Eliminar Unidad
+                </button>
+              </div>
             </Card>
           ))}
         </div>
+
+        {/* Paginación - Solo mostrar cuando no hay búsqueda */}
+        {!isSearching && totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="pagination-btn"
+            >
+              ← Anterior
+            </button>
+
+            <span className="pagination-info">
+              Página {currentPage} de {totalPages}
+            </span>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="pagination-btn"
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Modal de creación de unidad */}
+      {/* Modales */}
       <GenericModal
         isOpen={isCreateModalOpen}
         onClose={handleCreateCancel}
@@ -218,10 +455,27 @@ const UnitsManagement = () => {
         />
       </GenericModal>
 
-      {/* Modal de configuración (pendiente) */}
-      {/* {isConfigModalOpen && (
-        <UnitConfigModal unit={selectedUnit} onClose={handleCloseConfigModal} />
-      )} */}
+      <GenericModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        title="Editar Unidad"
+        subtitle={`Modifique los datos de ${selectedUnit?.name}`}
+        size="medium"
+      >
+        <EditUnitForm
+          unit={selectedUnit}
+          onSuccess={handleEditSuccess}
+          onCancel={handleCloseEditModal}
+        />
+      </GenericModal>
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleDeleteConfirm}
+        unit={selectedUnit}
+        loading={deleteLoading}
+      />
     </div>
   );
 };

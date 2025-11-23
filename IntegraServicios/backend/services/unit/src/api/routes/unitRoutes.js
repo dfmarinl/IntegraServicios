@@ -7,13 +7,39 @@ const {
   updateUnit,
   deleteUnit,
   getUnitWithSchedules,
+  getUnitsPaginated,
 } = require("../views/unitController");
 const {
   verifyToken,
   authorizeRoles,
 } = require("../../../../user/src/middleware/authentication");
 
-// Rutas de unidades
+// Rutas de unidades - ORDEN CORREGIDO
+
+// 1. Rutas ESPECÍFICAS primero
+router.get(
+  "/paginated",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getUnitsPaginated
+);
+
+// 2. Rutas con parámetros DESPUÉS
+router.get(
+  "/:id/schedules",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getUnitWithSchedules
+);
+
+router.get(
+  "/:id",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getUnit
+);
+
+// Las demás rutas se mantienen igual
 router.post(
   "/",
   verifyToken,
@@ -26,12 +52,6 @@ router.get(
   authorizeRoles("administrador", "empleado_unidad"),
   getUnits
 );
-router.get(
-  "/:id",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  getUnit
-);
 router.put(
   "/:id",
   verifyToken,
@@ -43,12 +63,6 @@ router.delete(
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   deleteUnit
-);
-router.get(
-  "/:id/schedules",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  getUnitWithSchedules
 );
 
 module.exports = router;
