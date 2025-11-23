@@ -33,7 +33,10 @@ const createUnit = async (req, res) => {
 const getUnits = async (req, res) => {
   try {
     const units = await Unit.findAll({
-      where: { isActive: true },
+      order: [
+        ["isActive", "DESC"],
+        ["name", "ASC"],
+      ],
     });
     res.json(units);
   } catch (err) {
@@ -130,6 +133,32 @@ const getUnitWithSchedules = async (req, res) => {
   }
 };
 
+// Get units with pagination
+const getUnitsPaginated = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: units } = await Unit.findAndCountAll({
+      offset: parseInt(offset),
+      limit: parseInt(limit),
+      order: [["id", "DESC"]],
+    });
+
+    res.status(200).json({
+      units,
+      total: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+    });
+  } catch (error) {
+    console.error("Error al paginar unidades:", error);
+    res.status(500).json({
+      message: "Error al paginar unidades: " + error.message,
+    });
+  }
+};
+
 module.exports = {
   createUnit,
   getUnits,
@@ -137,4 +166,5 @@ module.exports = {
   updateUnit,
   deleteUnit,
   getUnitWithSchedules,
+  getUnitsPaginated,
 };
