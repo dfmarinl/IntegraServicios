@@ -7,6 +7,7 @@ const authRoutes = require("./services/user/src/api/routes/authRoutes");
 const userRoutes = require("./services/user/src/api/routes/userRoutes");
 const unitRoutes = require("./services/unit/src/api/routes/unitRoutes");
 const resourceTypeRoutes = require("./services/resource/src/api/routes/resourceTypeRoutes");
+const unitScheduleRoutes = require("./services/unit/src/api/routes/unitScheduleRoutes");
 
 const resourceRoutes = require("./services/user/src/api/routes/resourceRoutes");
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
@@ -15,8 +16,6 @@ const loanRoutes = require("./services/user/src/api/routes/loanRoutes");
 const returnRoutes = require("./services/user/src/api/routes/returnRoutes");
 const ratingRoutes = require("./services/user/src/api/routes/ratingRoutes");
 const failureRoutes = require("./services/user/src/api/routes/failureRoutes");
-const unitScheduleRoutes = require("./services/unit/src/api/routes/unitScheduleRoutes");
-
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -38,6 +37,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/units", unitRoutes);
+app.use("/api/unit-schedules", unitScheduleRoutes);
 
 app.use("/api/resource-types", resourceTypeRoutes);
 app.use("/api/resources", resourceRoutes);
@@ -47,8 +47,6 @@ app.use("/api/loans", loanRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/failures", failureRoutes);
-app.use("/api/unit-schedules", unitScheduleRoutes);
-
 
 // Export app for testing
 module.exports = app;

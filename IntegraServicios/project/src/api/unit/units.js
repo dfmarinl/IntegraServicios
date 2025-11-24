@@ -102,26 +102,6 @@ export const deleteUnitApi = async (unitId) => {
   return await response.json();
 };
 
-// Get unit with schedules
-export const getUnitWithSchedulesApi = async (unitId) => {
-  const token = localStorage.getItem("token");
-
-  const response = await fetch(`${API_URL}/${unitId}/schedules`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Error al obtener unidad con horarios");
-  }
-
-  return await response.json();
-};
-
 // Get units with pagination ONLY (no search)
 export const getUnitsPaginatedApi = async (page = 1, limit = 6) => {
   const token = localStorage.getItem("token");

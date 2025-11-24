@@ -9,6 +9,7 @@ import GenericModal from "../../../modals/GenericModal/GenericModal";
 import CreateUnitForm from "../../../forms/CreateUnitForm/CreateUnitForm";
 import EditUnitForm from "../../../forms/EditUnitForm/EditUnitForm";
 import DeleteConfirmationModal from "../../../modals/DeleteConfirmationModal/DeleteConfirmationModal";
+import UnitConfigModal from "../../../modals/UnitConfigModal/UnitConfigModal";
 import "./UnitsManagement.css";
 
 const UnitsManagement = () => {
@@ -476,6 +477,11 @@ const UnitsManagement = () => {
         unit={selectedUnit}
         loading={deleteLoading}
       />
+
+      {/* NUEVO: Modal de Configuración de Unidad */}
+      {isConfigModalOpen && (
+        <UnitConfigModal unit={selectedUnit} onClose={handleCloseConfigModal} />
+      )}
     </div>
   );
 };

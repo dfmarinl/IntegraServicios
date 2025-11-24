@@ -35,6 +35,11 @@ const UnitSchedule = sequelize.define(
       type: DataTypes.TIME,
       allowNull: false,
     },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: true,
+    },
   },
   {
     // índice único para evitar duplicados (mismo día en la misma unidad)
@@ -71,4 +76,3 @@ UnitSchedule.associate = (models) => {
 };
 
 module.exports = UnitSchedule;
-

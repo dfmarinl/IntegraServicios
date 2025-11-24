@@ -1,153 +1,215 @@
 const Unit = require("../../../../../models/Unit");
 const UnitSchedule = require("../../../../../models/UnitSchedule");
 
-// =============================
-//  Agregar horario a una unidad
-// =============================
-exports.addScheduleToUnit = async (req, res) => {
+// Create schedule for a unit
+const addScheduleToUnit = async (req, res) => {
   try {
     const { unitId } = req.params;
-    const { dayOfWeek, startTime, endTime } = req.body;
+    const { dayOfWeek, startTime, endTime, isActive = true } = req.body;
 
-    // Verificar unidad
     const unit = await Unit.findByPk(unitId);
-    if (!unit) return res.status(404).json({ message: "Unidad no encontrada" });
+    if (!unit) return res.status(404).json({ message: "Unit not found" });
 
-    // Validar que no exista otro día repetido en la unidad
     const exists = await UnitSchedule.findOne({ where: { unitId, dayOfWeek } });
-    if (exists)
+    if (exists) {
       return res.status(400).json({
-        message: `Ya existe un horario registrado para el día ${dayOfWeek} en esta unidad`,
+        message: `Schedule already exists for ${dayOfWeek} in this unit`,
       });
+    }
 
     const schedule = await UnitSchedule.create({
       unitId,
       dayOfWeek,
       startTime,
       endTime,
+      isActive,
     });
 
     res.status(201).json(schedule);
-
   } catch (err) {
-    console.error("Error al agregar horario:", err);
+    console.error("Error creating schedule:", err);
     res.status(400).json({ message: err.message });
   }
 };
 
-// =============================
-//  Obtener horarios de una unidad
-// =============================
-exports.getUnitSchedules = async (req, res) => {
+// Get all schedules for a unit
+const getUnitSchedules = async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const schedules = await UnitSchedule.findAll({
+      where: { unitId },
+      order: [["dayOfWeek", "ASC"]],
+    });
+    res.json(schedules);
+  } catch (err) {
+    console.error("Error fetching schedules:", err);
+    res.status(500).json({ message: "Error fetching schedules" });
+  }
+};
+
+// Get complete weekly schedule for a unit
+const getCompleteUnitSchedule = async (req, res) => {
   try {
     const { unitId } = req.params;
 
-    const schedules = await UnitSchedule.findAll({ where: { unitId } });
+    const schedules = await UnitSchedule.findAll({
+      where: { unitId },
+      order: [["dayOfWeek", "ASC"]],
+    });
 
-    res.json(schedules);
+    const allDays = [
+      "lunes",
+      "martes",
+      "miercoles",
+      "jueves",
+      "viernes",
+      "sabado",
+      "domingo",
+    ];
 
+    const completeSchedule = allDays.map((day) => {
+      const existing = schedules.find((s) => s.dayOfWeek === day);
+      return {
+        dayOfWeek: day,
+        startTime: existing?.startTime || null,
+        endTime: existing?.endTime || null,
+        isActive: existing ? existing.isActive : false,
+        exists: !!existing,
+      };
+    });
+
+    res.json(completeSchedule);
   } catch (err) {
-    console.error("Error al obtener horarios:", err);
-    res.status(500).json({ message: "Error al obtener horarios" });
+    console.error("Error fetching complete schedule:", err);
+    res.status(500).json({ message: "Error fetching schedule" });
   }
 };
 
-// =============================
-//  Actualizar un horario específico
-// =============================
-exports.updateUnitSchedule = async (req, res) => {
+// Update specific schedule
+const updateUnitSchedule = async (req, res) => {
   try {
     const { scheduleId } = req.params;
-
     const schedule = await UnitSchedule.findByPk(scheduleId);
-    if (!schedule)
-      return res.status(404).json({ message: "Horario no encontrado" });
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
 
     await schedule.update(req.body);
-
     res.json(schedule);
-
   } catch (err) {
-    console.error("Error al actualizar horario:", err);
+    console.error("Error updating schedule:", err);
     res.status(400).json({ message: err.message });
   }
 };
 
-// =============================
-//  Eliminar un horario específico
-// =============================
-exports.deleteUnitSchedule = async (req, res) => {
+// Delete specific schedule
+const deleteUnitSchedule = async (req, res) => {
   try {
     const { scheduleId } = req.params;
-
     const schedule = await UnitSchedule.findByPk(scheduleId);
-    if (!schedule)
-      return res.status(404).json({ message: "Horario no encontrado" });
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
 
     await schedule.destroy();
-
-    res.json({ message: "Horario eliminado" });
-
+    res.json({ message: "Schedule deleted successfully" });
   } catch (err) {
-    console.error("Error al eliminar horario:", err);
+    console.error("Error deleting schedule:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
-exports.addMultipleSchedules = async (req, res) => {
+// Toggle day schedule active status
+const toggleDaySchedule = async (req, res) => {
+  try {
+    const { unitId, dayOfWeek } = req.params;
+    const { isActive } = req.body;
+
+    const schedule = await UnitSchedule.findOne({
+      where: { unitId, dayOfWeek },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({
+        message: "No schedule found for this day",
+      });
+    }
+
+    await schedule.update({ isActive });
+    res.json({
+      message: `Day ${isActive ? "activated" : "deactivated"} successfully`,
+      schedule,
+    });
+  } catch (err) {
+    console.error("Error toggling day schedule:", err);
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Add multiple schedules at once
+const addMultipleSchedules = async (req, res) => {
   try {
     const { unitId } = req.params;
     const schedules = req.body.schedules;
 
     if (!Array.isArray(schedules) || schedules.length === 0) {
-      return res.status(400).json({ message: "Debes enviar un arreglo de horarios" });
+      return res.status(400).json({ message: "Schedules array is required" });
     }
 
-    // Verificar unidad
     const unit = await Unit.findByPk(unitId);
-    if (!unit) return res.status(404).json({ message: "Unidad no encontrada" });
+    if (!unit) return res.status(404).json({ message: "Unit not found" });
 
-    // Validar duplicados dentro del mismo array
-    const daysSent = schedules.map(s => s.dayOfWeek);
+    const daysSent = schedules.map((s) => s.dayOfWeek);
     const duplicatesInArray = daysSent.filter(
       (d, i) => daysSent.indexOf(d) !== i
     );
 
     if (duplicatesInArray.length > 0) {
       return res.status(400).json({
-        message: `El array contiene días repetidos: ${[...new Set(duplicatesInArray)].join(", ")}`
+        message: `Duplicate days in array: ${[
+          ...new Set(duplicatesInArray),
+        ].join(", ")}`,
       });
     }
 
-    // Validar duplicados ya existentes en BD
     const existing = await UnitSchedule.findAll({
-      where: { unitId, dayOfWeek: daysSent }
+      where: { unitId, dayOfWeek: daysSent },
     });
 
     if (existing.length > 0) {
       return res.status(400).json({
-        message: `La unidad ya tiene horarios para: ${existing
-          .map(e => e.dayOfWeek)
-          .join(", ")}`
+        message: `Unit already has schedules for: ${existing
+          .map((e) => e.dayOfWeek)
+          .join(", ")}`,
       });
     }
 
-    // Agregar unitId a cada objeto
-    const schedulesToCreate = schedules.map(s => ({
+    const schedulesToCreate = schedules.map((s) => ({
       ...s,
-      unitId
+      unitId,
+      isActive: s.isActive !== undefined ? s.isActive : true,
     }));
 
-    // Crear en batch
     const created = await UnitSchedule.bulkCreate(schedulesToCreate);
 
     res.status(201).json({
-      message: "Horarios registrados correctamente",
-      created
+      message: "Schedules created successfully",
+      created,
     });
-
   } catch (err) {
-    console.error("Error al agregar horarios:", err);
+    console.error("Error creating multiple schedules:", err);
     res.status(400).json({ message: err.message });
   }
+};
+
+module.exports = {
+  addScheduleToUnit,
+  getUnitSchedules,
+  getCompleteUnitSchedule,
+  updateUnitSchedule,
+  deleteUnitSchedule,
+  toggleDaySchedule,
+  addMultipleSchedules,
 };
