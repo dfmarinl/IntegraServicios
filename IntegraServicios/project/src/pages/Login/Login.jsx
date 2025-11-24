@@ -35,6 +35,10 @@ const Login = () => {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
+            {/* Icono agregado aquí */}
+            <div className="login-icon">
+              <img src="/icon.ico" alt="IntegraServicios Icon" />
+            </div>
             <h1 className="login-title">IntegraServicios</h1>
             <p className="login-subtitle">
               Sistema de Gestión de Recursos Universitarios

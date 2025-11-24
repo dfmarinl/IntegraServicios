@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  background: linear-gradient(135deg, #026ac7 0%, #3b82f6 100%);
   padding: 1rem;
 }
 
@@ -22,6 +22,20 @@
 .login-header {
   text-align: center;
   margin-bottom: 2rem;
+}
+
+/* Nuevo estilo para el icono */
+.login-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.login-icon img {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: contain;
 }
 
 .login-title {
@@ -91,5 +105,10 @@
 
   .login-title {
     font-size: 1.5rem;
+  }
+
+  .login-icon img {
+    width: 56px;
+    height: 56px;
   }
 }
