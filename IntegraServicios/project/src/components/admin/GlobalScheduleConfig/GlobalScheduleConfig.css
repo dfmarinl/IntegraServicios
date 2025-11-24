@@ -1,0 +1,329 @@
+.global-schedule-config {
+  padding: 1rem 0;
+}
+
+/* Mensajes */
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.message.success {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.message.error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Instrucciones */
+.schedule-instructions {
+  background-color: #f8fafc;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.schedule-instructions p {
+  margin: 0;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.schedule-instructions strong {
+  color: #111827;
+}
+
+/* Plantilla rápida */
+.quick-template {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.quick-template h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.template-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-inputs input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.time-inputs span {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.btn-template {
+  padding: 0.5rem 1rem;
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-template:hover {
+  background-color: #e5e7eb;
+}
+
+/* Lista de horarios */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Item de día */
+.day-schedule-item {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.day-schedule-item.inactive {
+  opacity: 0.7;
+  background-color: #f9fafb;
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+}
+
+.day-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.day-name {
+  font-weight: 600;
+  color: #111827;
+  min-width: 100px;
+}
+
+.day-times {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.time {
+  color: #374151;
+  font-weight: 500;
+}
+
+.time-separator {
+  color: #6b7280;
+}
+
+.no-schedule {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.day-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toggle-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn.active {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.toggle-btn.inactive {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.expand-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0.375rem;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.expand-btn:hover {
+  background-color: #f3f4f6;
+}
+
+/* Detalles del día */
+.day-details {
+  padding: 1rem 1.25rem;
+  background-color: #fafafa;
+  border-top: 1px solid #e5e7eb;
+}
+
+.time-inputs {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.time-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.time-group label {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.time-group input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  min-width: 120px;
+}
+
+/* Acciones */
+.schedule-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-save {
+  padding: 0.75rem 1.5rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-save:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.btn-save:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Loading */
+.schedule-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-left: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .day-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .day-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .day-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .template-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .time-inputs {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .time-group {
+    flex: 1;
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./UnitConfigModal.css";
+import GlobalScheduleConfig from "../../components/admin/GlobalScheduleConfig/GlobalScheduleConfig";
 
 const UnitConfigModal = ({ unit, onClose }) => {
   const [activeSection, setActiveSection] = useState("horarios");
@@ -14,7 +15,7 @@ const UnitConfigModal = ({ unit, onClose }) => {
   const renderContent = () => {
     switch (activeSection) {
       case "horarios":
-        return <HorariosContent unit={unit} />;
+        return <GlobalScheduleConfig unit={unit} />;
       case "tipos-recurso":
         return <TiposRecursoContent unit={unit} />;
       case "recursos":
@@ -104,17 +105,6 @@ const DefaultContent = () => (
     <div className="construction-icon">🚧</div>
     <h3>Proceso en Construcción</h3>
     <p>Esta funcionalidad estará disponible próximamente.</p>
-  </div>
-);
-
-const HorariosContent = ({ unit }) => (
-  <div className="construction-content">
-    <div className="construction-icon">⏰</div>
-    <h3>Configuración de Horarios</h3>
-    <p>
-      Gestiona los horarios de operación para: <strong>{unit?.name}</strong>
-    </p>
-    <p>Próximamente podrás definir días y horarios de atención.</p>
   </div>
 );
 
