@@ -129,7 +129,7 @@ export const toggleDayScheduleApi = async (unitId, dayOfWeek, isActive) => {
 // Add multiple schedules at once
 export const addMultipleSchedulesApi = async (unitId, schedules) => {
   const token = localStorage.getItem("token");
-
+  console.log(schedules);
   const response = await fetch(`${API_URL}/${unitId}/schedules/bulk`, {
     method: "POST",
     headers: {

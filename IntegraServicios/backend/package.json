@@ -5,8 +5,14 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "jest --forceExit --detectOpenHandles",
+    "test:auth": "jest tests/auth.test.js --forceExit --detectOpenHandles",
+    "test:users": "jest tests/users.test.js --forceExit --detectOpenHandles",
+    "test:units": "jest tests/units.test.js --forceExit --detectOpenHandles",
+    "test:schedules": "jest tests/schedules.test.js --forceExit --detectOpenHandles",
+    "test:resource-types": "jest tests/resourceTypes.test.js --forceExit --detectOpenHandles",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --forceExit --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
