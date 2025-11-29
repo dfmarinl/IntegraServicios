@@ -327,3 +327,59 @@
     flex: 1;
   }
 }
+/* En GlobalScheduleConfig.css */
+
+.exists-badge {
+  font-size: 0.8em;
+  color: #28a745;
+  margin-left: 8px;
+  font-weight: normal;
+}
+
+.day-schedule-item.exists {
+  border-left: 3px solid #28a745;
+}
+
+.day-schedule-item.new {
+  border-left: 3px solid #6c757d;
+}
+
+.btn-modify {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-modify:hover:not(:disabled) {
+  background-color: #e0a800;
+}
+
+.btn-modify:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-modify.modifying {
+  background-color: #6c757d;
+  color: white;
+}
+
+.modify-info {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  color: #856404;
+}
+
+.day-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

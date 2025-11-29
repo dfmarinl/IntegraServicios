@@ -75,6 +75,7 @@ const getCompleteUnitSchedule = async (req, res) => {
         endTime: existing?.endTime || null,
         isActive: existing ? existing.isActive : false,
         exists: !!existing,
+        id: existing?.id || null,  // ← AÑADIR ESTA LÍNEA
       };
     });
 

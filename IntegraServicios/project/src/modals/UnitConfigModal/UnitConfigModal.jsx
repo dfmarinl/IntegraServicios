@@ -111,7 +111,7 @@ const DefaultContent = () => (
 const TiposRecursoContent = ({ unit }) => (
   <div className="construction-content">
     <div className="construction-icon">📦</div>
-    <h3>Tipos de Recurso</h3>
+    <h3>Tipos de Recursos</h3>
     <p>
       Gestiona las categorías de recursos para: <strong>{unit?.name}</strong>
     </p>
