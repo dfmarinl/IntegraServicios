@@ -2,17 +2,20 @@ import React, { useState, useEffect } from "react";
 import {
   getCompleteUnitScheduleApi,
   addMultipleSchedulesApi,
-  updateUnitScheduleApi,
-  toggleDayScheduleApi,
+  updateAllSchedulesApi
 } from "../../../api/unit/unitsSchedule";
 import "./GlobalScheduleConfig.css";
+
+// Función auxiliar para detectar horarios reales
+const hasRealScheduleData = (day) => {
+  return day.exists && day.id && day.startTime && day.endTime;
+};
 
 const GlobalScheduleConfig = ({ unit }) => {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
-  const [modifyingDay, setModifyingDay] = useState(null);
 
   const daysOfWeek = [
     { id: "lunes", label: "Lunes" },
@@ -36,21 +39,10 @@ const GlobalScheduleConfig = ({ unit }) => {
       setMessage({ type: "", text: "" });
       
       const data = await getCompleteUnitScheduleApi(unit.id);
-      console.log("📅 Datos COMPLETOS recibidos de la API:", data);
-      
-      // DEBUG: Verificar si los objetos tienen id
-      if (data && data.length > 0) {
-        console.log("🔍 VERIFICANDO IDs EN LOS DATOS:");
-        data.forEach((item, index) => {
-          console.log(`Día ${index} (${item.dayOfWeek}):`, {
-            id: item.id,
-            hasId: !!item.id,
-            allProperties: Object.keys(item)
-          });
-        });
-      }
+      console.log("📅 Datos COMPLETOS de la API:", data);
       
       if (!data || data.length === 0) {
+        console.log("🆕 NO hay datos - creando horarios vacíos");
         const emptySchedule = daysOfWeek.map(day => ({
           dayOfWeek: day.id,
           startTime: "",
@@ -61,20 +53,20 @@ const GlobalScheduleConfig = ({ unit }) => {
         }));
         setSchedule(emptySchedule);
       } else {
-        // PROCESAMIENTO CORREGIDO - mantener todas las propiedades originales
+        console.log("📋 Procesando datos existentes de la API");
         const processedData = daysOfWeek.map(dayObj => {
           const existingDay = data.find(d => d.dayOfWeek === dayObj.id);
           
-          if (existingDay) {
-            // IMPORTANTE: Mantener todas las propiedades del objeto original
+          if (existingDay && existingDay.id && (existingDay.startTime || existingDay.endTime)) {
+            console.log(`✅ ${dayObj.id}: Existe en BD con datos reales`, existingDay);
             return {
-              ...existingDay, // Esto incluye el id, unitId, etc.
+              ...existingDay,
               exists: true,
-              // Asegurarnos de que startTime y endTime estén en formato correcto
               startTime: existingDay.startTime ? existingDay.startTime.substring(0, 5) : "",
               endTime: existingDay.endTime ? existingDay.endTime.substring(0, 5) : "",
             };
           } else {
+            console.log(`❌ ${dayObj.id}: NO existe en BD o no tiene datos`);
             return {
               dayOfWeek: dayObj.id,
               startTime: "",
@@ -86,7 +78,6 @@ const GlobalScheduleConfig = ({ unit }) => {
           }
         });
         
-        console.log("📊 Datos procesados:", processedData);
         setSchedule(processedData);
       }
     } catch (error) {
@@ -118,108 +109,22 @@ const GlobalScheduleConfig = ({ unit }) => {
     );
   };
 
-  const handleToggleDay = async (dayId, isActive) => {
-    try {
-      const dayToToggle = schedule.find(day => day.dayOfWeek === dayId);
-      
-      if (dayToToggle.exists && dayToToggle.id) {
-        await updateUnitScheduleApi(dayToToggle.id, { isActive });
-      } else {
-        await toggleDayScheduleApi(unit.id, dayId, isActive);
-      }
-      
-      setSchedule((prev) =>
-        prev.map((day) =>
-          day.dayOfWeek === dayId ? { ...day, isActive } : day
-        )
-      );
-      setMessage({
-        type: "success",
-        text: `${dayId.charAt(0).toUpperCase() + dayId.slice(1)} ${
-          isActive ? "activado" : "desactivado"
-        } correctamente`,
-      });
-    } catch (error) {
-      setMessage({ type: "error", text: error.message });
-    }
+  const handleToggleDay = (dayId, isActive) => {
+    setSchedule((prev) =>
+      prev.map((day) =>
+        day.dayOfWeek === dayId ? { ...day, isActive } : day
+      )
+    );
   };
 
-  // FUNCIÓN SIMPLIFICADA Y CORREGIDA
-  const handleModifySchedule = async (dayId) => {
-    try {
-      setModifyingDay(dayId);
-      setMessage({ type: "", text: "" });
-
-      const dayToModify = schedule.find(day => day.dayOfWeek === dayId);
-      
-      if (!dayToModify) {
-        setMessage({ type: "error", text: "Día no encontrado" });
-        return;
-      }
-
-      // Validaciones
-      if (!dayToModify.startTime || !dayToModify.endTime) {
-        setMessage({ type: "error", text: "Debe configurar tanto hora de inicio como hora de fin" });
-        return;
-      }
-
-      if (dayToModify.startTime >= dayToModify.endTime) {
-        setMessage({ type: "error", text: "La hora de inicio debe ser anterior a la hora de fin" });
-        return;
-      }
-
-      console.log("🔄 Modificando horario para:", dayId, dayToModify);
-
-      // Preparar datos para enviar
-      const scheduleData = {
-        dayOfWeek: dayToModify.dayOfWeek,
-        startTime: dayToModify.startTime + ":00", // Añadir segundos para el formato TIME de la BD
-        endTime: dayToModify.endTime + ":00",     // Añadir segundos para el formato TIME de la BD
-        isActive: dayToModify.isActive,
-      };
-
-      let response;
-      
-      // DECISIÓN SIMPLE: Si existe y tiene ID, actualizar; sino, crear
-      if (dayToModify.exists && dayToModify.id) {
-        console.log("📝 Actualizando horario existente con ID:", dayToModify.id);
-        response = await updateUnitScheduleApi(dayToModify.id, scheduleData);
-        console.log("✅ Horario actualizado:", response);
-      } else {
-        console.log("🆕 Creando nuevo horario para:", dayId);
-        response = await addMultipleSchedulesApi(unit.id, [scheduleData]);
-        console.log("✅ Nuevo horario creado:", response);
-      }
-
-      setMessage({ 
-        type: "success", 
-        text: `Horario del ${dayId.charAt(0).toUpperCase() + dayId.slice(1)} ${
-          dayToModify.exists ? 'actualizado' : 'creado'
-        } correctamente` 
-      });
-      
-      // Recargar los datos actualizados
-      await loadSchedule();
-      
-    } catch (error) {
-      console.error("❌ Error modificando horario:", error);
-      setMessage({ 
-        type: "error", 
-        text: error.message || "Error al modificar el horario. Intente nuevamente." 
-      });
-    } finally {
-      setModifyingDay(null);
-    }
-  };
-
-  const handleSaveSchedule = async () => {
+  // Función para GUARDAR NUEVOS horarios
+  const handleSaveNewSchedules = async () => {
     try {
       setSaving(true);
       setMessage({ type: "", text: "" });
 
-      // Filtrar solo días que no existen en la base de datos para crear nuevos
       const schedulesToCreate = schedule
-        .filter((day) => day.startTime && day.endTime && !day.exists)
+        .filter((day) => day.startTime && day.endTime)
         .map((day) => ({
           dayOfWeek: day.dayOfWeek,
           startTime: day.startTime + ":00",
@@ -227,22 +132,47 @@ const GlobalScheduleConfig = ({ unit }) => {
           isActive: day.isActive,
         }));
 
-      console.log("📤 Creando nuevos horarios:", schedulesToCreate);
+      console.log("🆕 Creando nuevos horarios:", schedulesToCreate);
 
       if (schedulesToCreate.length === 0) {
-        setMessage({
-          type: "info",
-          text: "No hay nuevos horarios para guardar. Use 'Modificar' para actualizar horarios existentes.",
-        });
+        setMessage({ type: "error", text: "No hay horarios configurados para guardar" });
         return;
       }
 
       await addMultipleSchedulesApi(unit.id, schedulesToCreate);
-      setMessage({ type: "success", text: "Nuevos horarios guardados correctamente" });
+      setMessage({ type: "success", text: "Horarios guardados correctamente" });
       await loadSchedule();
+      
     } catch (error) {
-      console.error("Error guardando horario:", error);
+      console.error("❌ Error guardando horarios:", error);
       setMessage({ type: "error", text: error.message || "Error al guardar horarios" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Función para ACTUALIZAR horarios
+  const handleUpdateSchedules = async () => {
+    try {
+      setSaving(true);
+      setMessage({ type: "", text: "" });
+
+      const schedulesToUpdate = schedule.map(day => ({
+        dayOfWeek: day.dayOfWeek,
+        startTime: day.startTime ? day.startTime + ":00" : null,
+        endTime: day.endTime ? day.endTime + ":00" : null,
+        isActive: day.isActive,
+      }));
+
+      console.log("🔄 Actualizando horarios:", schedulesToUpdate);
+
+      await updateAllSchedulesApi(unit.id, schedulesToUpdate);
+      setMessage({ type: "success", text: "Horarios actualizados correctamente" });
+      await loadSchedule();
+      
+    } catch (error) {
+      console.error("❌ Error actualizando horarios:", error);
+      setMessage({ type: "error", text: error.message || "Error al actualizar horarios" });
     } finally {
       setSaving(false);
     }
@@ -282,6 +212,20 @@ const GlobalScheduleConfig = ({ unit }) => {
     setMessage({ type: "success", text: "Horarios reseteados" });
   };
 
+  // LÓGICA CORREGIDA - Solo considerar "existentes" los que tienen datos reales
+  const hasExistingSchedules = schedule.some(day => hasRealScheduleData(day));
+  const hasConfiguredSchedules = schedule.some(day => day.startTime && day.endTime);
+  const existingCount = schedule.filter(day => hasRealScheduleData(day)).length;
+  const configuredCount = schedule.filter(day => day.startTime && day.endTime).length;
+
+  console.log("🔍 DEBUG CORREGIDO:", {
+    hasExistingSchedules,
+    existingCount,
+    configuredCount,
+    botonQueSeMuestra: hasExistingSchedules ? "ACTUALIZAR" : "GUARDAR NUEVOS",
+    diasReales: schedule.filter(day => hasRealScheduleData(day)).map(d => d.dayOfWeek)
+  });
+
   if (loading) {
     return (
       <div className="schedule-loading">
@@ -302,16 +246,32 @@ const GlobalScheduleConfig = ({ unit }) => {
           Configura los horarios de operación para <strong>{unit?.name}</strong>
           . Los días desactivados no estarán disponibles para reservas.
         </p>
+        
         <p className="modify-instruction">
-          💡 <strong>Usa "Modificar"</strong> para guardar cambios individuales en cada día.
-          <strong> "Guardar Todos"</strong> solo crea nuevos horarios.
+          {hasExistingSchedules ? (
+            <>💡 <strong>Actualiza</strong> los horarios después de realizar cambios. ({existingCount} horarios reales existentes)</>
+          ) : (
+            <>💡 <strong>Guarda</strong> los nuevos horarios. (Sin horarios guardados)</>
+          )}
         </p>
       </div>
 
-      {/* Debug info mejorado */}
-      <div className="debug-info">
+      {/* DEBUG VISUAL */}
+      <div className="debug-info" style={{
+        background: hasExistingSchedules ? '#fff3cd' : '#d1ecf1', 
+        padding: '8px', 
+        borderRadius: '4px', 
+        marginBottom: '16px',
+        border: `2px solid ${hasExistingSchedules ? '#ffc107' : '#0dcaf0'}`
+      }}>
         <small>
-          IDs detectados: {schedule.filter(day => day.id).length} de {schedule.length} días
+          🔍 <strong>ESTADO:</strong> 
+          <span style={{color: hasExistingSchedules ? '#856404' : '#055160'}}>
+            {hasExistingSchedules 
+              ? ` 📁 HAY ${existingCount} HORARIOS REALES → Botón: ACTUALIZAR` 
+              : ` 🆕 SIN HORARIOS EXISTENTES → Botón: GUARDAR NUEVOS`
+            }
+          </span>
         </small>
       </div>
 
@@ -355,13 +315,11 @@ const GlobalScheduleConfig = ({ unit }) => {
             day={day}
             onTimeChange={handleTimeChange}
             onToggle={handleToggleDay}
-            onModify={handleModifySchedule}
-            modifyingDay={modifyingDay}
           />
         ))}
       </div>
 
-      {/* Acciones */}
+      {/* ACCIONES */}
       <div className="schedule-actions">
         <button
           className="btn-reset"
@@ -370,32 +328,49 @@ const GlobalScheduleConfig = ({ unit }) => {
         >
           Reiniciar Horarios
         </button>
-        <button
-          className="btn-save"
-          onClick={handleSaveSchedule}
-          disabled={saving}
-        >
-          {saving ? "Guardando..." : "Guardar Nuevos Horarios"}
-        </button>
+        
+        {hasExistingSchedules ? (
+          <button
+            className="btn-update"
+            onClick={handleUpdateSchedules}
+            disabled={saving}
+          >
+            {saving ? "Actualizando..." : "Actualizar Horarios"}
+          </button>
+        ) : (
+          <button
+            className="btn-save"
+            onClick={handleSaveNewSchedules}
+            disabled={saving || !hasConfiguredSchedules}
+          >
+            {saving ? "Guardando..." : "Guardar Nuevos Horarios"}
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
 // COMPONENTE INDIVIDUAL PARA CADA DÍA
-const DayScheduleItem = ({ day, onTimeChange, onToggle, onModify, modifyingDay }) => {
+const DayScheduleItem = ({ day, onTimeChange, onToggle }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const hasValidSchedule = day.startTime && day.endTime && day.startTime < day.endTime;
+  const isRealSchedule = hasRealScheduleData(day);
 
   return (
-    <div className={`day-schedule-item ${!day.isActive ? "inactive" : ""} ${day.exists ? 'exists' : 'new'}`}>
+    <div className={`day-schedule-item ${!day.isActive ? "inactive" : ""} ${isRealSchedule ? 'exists' : 'new'}`}>
       <div className="day-header">
         <div className="day-info">
           <span className="day-name">
             {day.dayOfWeek.charAt(0).toUpperCase() + day.dayOfWeek.slice(1)}
-            
-            {!day.exists && <span className="new-badge"> (Nuevo)</span>}
+            {isRealSchedule ? (
+              <span className="exists-badge"> (Real)</span>
+            ) : day.exists ? (
+              <span className="fake-badge"> (Falso)</span>
+            ) : (
+              <span className="new-badge"> (Nuevo)</span>
+            )}
           </span>
           <div className="day-times">
             {day.startTime && day.endTime ? (
@@ -403,39 +378,26 @@ const DayScheduleItem = ({ day, onTimeChange, onToggle, onModify, modifyingDay }
                 <span className="time">{day.startTime}</span>
                 <span className="time-separator">-</span>
                 <span className="time">{day.endTime}</span>
-                {!hasValidSchedule && <span className="invalid-badge">⚠️ Horario inválido</span>}
+                {!hasValidSchedule && <span className="invalid-badge">⚠️ Inválido</span>}
               </>
             ) : (
-              <span className="no-schedule">Sin horario configurado</span>
+              <span className="no-schedule">Sin horario</span>
             )}
           </div>
         </div>
 
         <div className="day-actions">
           <button
-            className={`btn-modify ${modifyingDay === day.dayOfWeek ? 'modifying' : ''} ${
-              !hasValidSchedule ? 'disabled' : ''
-            }`}
-            onClick={() => onModify(day.dayOfWeek)}
-            disabled={modifyingDay === day.dayOfWeek || !hasValidSchedule}
-            title={!hasValidSchedule ? "Configure un horario válido para modificar" : "Guardar cambios en este día"}
-          >
-            {modifyingDay === day.dayOfWeek ? (
-              <>⏳ Modificando...</>
-            ) : (
-              <>✏️ {day.exists ? 'Actualizar' : 'Crear'}</>
-            )}
-          </button>
-          
-          <button
             className={`toggle-btn ${day.isActive ? "active" : "inactive"}`}
             onClick={() => onToggle(day.dayOfWeek, !day.isActive)}
+            title={day.isActive ? "Desactivar día" : "Activar día"}
           >
-            {day.isActive ? "✅ Activo" : "❌ Inactivo"}
+            {day.isActive ? "✅" : "❌"}
           </button>
           <button
             className="expand-btn"
             onClick={() => setIsExpanded(!isExpanded)}
+            title={isExpanded ? "Contraer" : "Expandir"}
           >
             {isExpanded ? "▲" : "▼"}
           </button>
@@ -466,15 +428,11 @@ const DayScheduleItem = ({ day, onTimeChange, onToggle, onModify, modifyingDay }
               />
             </div>
           </div>
-          <div className="modify-info">
+          <div className="day-status">
             <small>
-              {day.exists 
-                ? (day.id 
-                    ? `💡 Horario existente (ID: ${day.id}). Use "Actualizar" para guardar cambios.`
-                    : "⚠️ El horario existe pero no se detectó ID. Contacte al administrador."
-                  )
-                : "💡 Horario nuevo. Use \"Crear\" para guardar en la base de datos."
-              }
+              Estado real: <strong>{isRealSchedule ? "SÍ" : "NO"}</strong> | 
+              ID: <strong>{day.id || "Sin ID"}</strong> |
+              Exists: <strong>{day.exists ? "Sí" : "No"}</strong>
             </small>
           </div>
         </div>

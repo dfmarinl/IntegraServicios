@@ -13,6 +13,7 @@ const {
   deleteUnitSchedule,
   toggleDaySchedule,
   addMultipleSchedules,
+  updateAllUnitSchedules,
 } = require("../views/unitScheduleController");
 
 // Rutas de horarios - ORDEN CORREGIDO
@@ -60,6 +61,13 @@ router.put(
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   updateUnitSchedule
+);
+
+router.put(
+  "/:unitId/schedules/bulk",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  updateAllUnitSchedules
 );
 
 router.delete(
