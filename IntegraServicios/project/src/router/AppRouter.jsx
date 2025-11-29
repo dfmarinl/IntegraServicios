@@ -11,6 +11,8 @@ import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
 import UnitsManagement from "../pages/Admin/UnitsManagement/UnitsManagement";
 import Loader from "../components/common/Loader";
+import ForgotPassword from "../pages/Login/ForgotPassword";
+import ResetPassword from "../pages/Login/ResetPassword";
 
 // Objeto de mapeo de roles a rutas
 const roleRoutes = {
@@ -75,6 +77,23 @@ const AppRouter = () => {
           element={
             <PublicRoute>
               <Registration />
+            </PublicRoute>
+          }
+        />
+
+         <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicRoute>
+              <ResetPassword />
             </PublicRoute>
           }
         />

@@ -266,7 +266,7 @@ const forgotPassword = async (req, res) => {
       { expiresIn: "15m" }
     );
 
-    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`; // Update frontend URL
+    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`; // Update frontend URL
 
     // Transporter configuration (Gmail)
     const transporter = nodemailer.createTransport({

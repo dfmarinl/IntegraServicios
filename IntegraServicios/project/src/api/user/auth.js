@@ -68,3 +68,37 @@ export const updateProfileApi = async (token, userData) => {
 
   return await response.json();
 };
+
+export const forgotPasswordApi = async (email) => {
+  const response = await fetch(`${API_URL}/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Error al enviar correo de recuperación");
+  }
+
+  return await response.json();
+};
+
+export const resetPasswordApi = async (token, newPassword) => {
+  const response = await fetch(`${API_URL}/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Error al restablecer contraseña");
+  }
+
+  return await response.json();
+};
