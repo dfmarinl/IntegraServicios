@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createUnit,
   getUnits,
+  getActiveUnits,
   getUnit,
   updateUnit,
   deleteUnit,
@@ -22,6 +23,14 @@ router.get(
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   getUnitsPaginated
+);
+
+// ← NUEVA RUTA AQUÍ
+router.get(
+  "/active",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getActiveUnits
 );
 
 // 2. Rutas con parámetros DESPUÉS

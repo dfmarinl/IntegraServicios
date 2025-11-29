@@ -45,6 +45,20 @@ const getUnits = async (req, res) => {
   }
 };
 
+// Obtener todas las unidades ACTIVAS (para frontend)
+const getActiveUnits = async (req, res) => {
+  try {
+    const units = await Unit.findAll({
+      where: { isActive: true },
+      order: [["name", "ASC"]],
+    });
+    res.json(units);
+  } catch (err) {
+    console.error("Error al obtener unidades activas:", err);
+    res.status(500).json({ message: "Error al obtener unidades activas" });
+  }
+};
+
 // Obtener una unidad específica
 const getUnit = async (req, res) => {
   try {
@@ -133,13 +147,14 @@ const getUnitWithSchedules = async (req, res) => {
   }
 };
 
-// Get units with pagination
+// Get units with pagination (SOLO ACTIVAS)
 const getUnitsPaginated = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
     const { count, rows: units } = await Unit.findAndCountAll({
+      where: { isActive: true }, // ← FILTRO AGREGADO
       offset: parseInt(offset),
       limit: parseInt(limit),
       order: [["id", "DESC"]],
@@ -162,6 +177,7 @@ const getUnitsPaginated = async (req, res) => {
 module.exports = {
   createUnit,
   getUnits,
+  getActiveUnits,
   getUnit,
   updateUnit,
   deleteUnit,

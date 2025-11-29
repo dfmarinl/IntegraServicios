@@ -175,6 +175,44 @@
   cursor: not-allowed;
 }
 
+/* ===== NUEVOS ESTILOS PARA EL INDICADOR DE ESTADO ===== */
+.unit-status-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  width: fit-content;
+}
+
+.status-badge.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.inactive {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-message {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
 @media (max-width: 640px) {
   .form-actions {
     flex-direction: column-reverse;
@@ -183,5 +221,9 @@
   .btn-primary,
   .btn-secondary {
     width: 100%;
+  }
+
+  .unit-status-indicator {
+    padding: 0.625rem 0.875rem;
   }
 }
