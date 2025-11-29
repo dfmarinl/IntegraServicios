@@ -204,6 +204,86 @@ const addMultipleSchedules = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+// Update all schedules for a unit
+const updateAllUnitSchedules = async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const { schedules } = req.body;
+
+    if (!Array.isArray(schedules)) {
+      return res.status(400).json({ message: "Schedules array is required" });
+    }
+
+    const unit = await Unit.findByPk(unitId);
+    if (!unit) return res.status(404).json({ message: "Unit not found" });
+
+    const results = {
+      created: [],
+      updated: [],
+      errors: []
+    };
+
+    // Procesar cada horario
+    for (const scheduleData of schedules) {
+      try {
+        const { dayOfWeek, startTime, endTime, isActive = true } = scheduleData;
+
+        // Buscar si ya existe un horario para este día
+        const existingSchedule = await UnitSchedule.findOne({
+          where: { unitId, dayOfWeek }
+        });
+
+        if (existingSchedule) {
+          // Actualizar horario existente
+          await existingSchedule.update({
+            startTime,
+            endTime,
+            isActive
+          });
+          results.updated.push({
+            dayOfWeek,
+            id: existingSchedule.id,
+            action: 'updated'
+          });
+        } else {
+          // Crear nuevo horario
+          const newSchedule = await UnitSchedule.create({
+            unitId,
+            dayOfWeek,
+            startTime,
+            endTime,
+            isActive
+          });
+          results.created.push({
+            dayOfWeek,
+            id: newSchedule.id,
+            action: 'created'
+          });
+        }
+      } catch (error) {
+        results.errors.push({
+          dayOfWeek: scheduleData.dayOfWeek,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: "Schedules processed successfully",
+      results,
+      summary: {
+        totalProcessed: schedules.length,
+        created: results.created.length,
+        updated: results.updated.length,
+        errors: results.errors.length
+      }
+    });
+
+  } catch (err) {
+    console.error("Error updating all schedules:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
 
 module.exports = {
   addScheduleToUnit,
@@ -213,4 +293,5 @@ module.exports = {
   deleteUnitSchedule,
   toggleDaySchedule,
   addMultipleSchedules,
+  updateAllUnitSchedules,
 };

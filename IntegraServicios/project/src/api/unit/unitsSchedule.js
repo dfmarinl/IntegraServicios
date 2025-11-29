@@ -148,3 +148,27 @@ export const addMultipleSchedulesApi = async (unitId, schedules) => {
 
   return await response.json();
 };
+
+// Update all schedules for a unit
+export const updateAllSchedulesApi = async (unitId, schedules) => {
+  try {
+    const response = await fetch(`${API_URL}/${unitId}/schedules/bulk`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ schedules }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Error updating schedules");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("API Error updating all schedules:", error);
+    throw error;
+  }
+};
