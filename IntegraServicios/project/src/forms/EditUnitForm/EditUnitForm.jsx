@@ -7,7 +7,6 @@ const EditUnitForm = ({ unit, onSuccess, onCancel }) => {
     name: "",
     description: "",
     granularity: 30,
-    isActive: true,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,16 +18,15 @@ const EditUnitForm = ({ unit, onSuccess, onCancel }) => {
         name: unit.name || "",
         description: unit.description || "",
         granularity: unit.granularity || 30,
-        isActive: unit.isActive !== undefined ? unit.isActive : true,
       });
     }
   }, [unit]);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -43,13 +41,18 @@ const EditUnitForm = ({ unit, onSuccess, onCancel }) => {
         throw new Error("El nombre es requerido");
       }
 
+      if (!formData.description.trim()) {
+        throw new Error("La descripción es requerida");
+      }
+
       if (formData.granularity < 15) {
         throw new Error("La granularidad mínima es 15 minutos");
       }
 
       const unitData = {
-        ...formData,
-        name: formData.name.trim(), // Limpiar espacios
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        granularity: formData.granularity,
       };
 
       const updatedUnit = await updateUnitApi(unit.id, unitData);
@@ -95,7 +98,7 @@ const EditUnitForm = ({ unit, onSuccess, onCancel }) => {
 
       <div className="form-group">
         <label htmlFor="description" className="form-label">
-          Descripción
+          Descripción *
         </label>
         <textarea
           id="description"
@@ -105,8 +108,12 @@ const EditUnitForm = ({ unit, onSuccess, onCancel }) => {
           className="form-textarea"
           placeholder="Describe los servicios y características de esta unidad..."
           rows="3"
+          required
           disabled={loading}
         />
+        <div className="form-hint">
+          Proporciona una descripción clara de la unidad
+        </div>
       </div>
 
       <div className="form-group">
@@ -130,24 +137,6 @@ const EditUnitForm = ({ unit, onSuccess, onCancel }) => {
         </select>
         <div className="form-hint">
           Tiempo mínimo de préstamo para los recursos de esta unidad
-        </div>
-      </div>
-
-      <div className="form-group checkbox-group">
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            name="isActive"
-            checked={formData.isActive}
-            onChange={handleChange}
-            disabled={loading}
-            className="checkbox-input"
-          />
-          <span className="checkbox-custom"></span>
-          Unidad activa
-        </label>
-        <div className="form-hint">
-          Las unidades inactivas no estarán disponibles para préstamos
         </div>
       </div>
 

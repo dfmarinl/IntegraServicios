@@ -41,6 +41,26 @@ export const getUnitsApi = async () => {
   return await response.json();
 };
 
+// Get active units only (solo activas - para usuarios frontend)
+export const getActiveUnitsApi = async () => {
+  const token = localStorage.getItem("token");
+
+  const response = await fetch(`${API_URL}/active`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Error al obtener unidades activas");
+  }
+
+  return await response.json();
+};
+
 // Get specific unit
 export const getUnitApi = async (unitId) => {
   const token = localStorage.getItem("token");

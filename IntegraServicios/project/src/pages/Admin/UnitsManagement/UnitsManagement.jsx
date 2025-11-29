@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Card from "../../../components/common/Card";
 import {
-  getUnitsApi,
+  getActiveUnitsApi,
   getUnitsPaginatedApi,
   deleteUnitApi,
 } from "../../../api/unit/units";
@@ -51,7 +51,7 @@ const UnitsManagement = () => {
     try {
       setError(null);
       // Cargar todas las unidades para búsqueda
-      const allUnitsData = await getUnitsApi();
+      const allUnitsData = await getActiveUnitsApi();
       setAllUnits(allUnitsData);
 
       // Cargar primera página paginada
