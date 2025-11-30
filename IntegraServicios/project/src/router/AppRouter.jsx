@@ -11,6 +11,8 @@ import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
 import UnitsManagement from "../pages/Admin/UnitsManagement/UnitsManagement";
 import ResourceTypesManagement from "../pages/Admin/ResourceTypesManagement/ResourceTypesManagement"; // ← NUEVA IMPORTACIÓN
+import ResourcesManagement from "../pages/Admin/ResourcesManagement/ResourcesManagement"; // ← NUEVA IMPORTACIÓN
+
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
@@ -116,10 +118,7 @@ const AppRouter = () => {
           <Route
             path="resources"
             element={
-              <div className="page-placeholder">
-                <h1>Gestión de Recursos</h1>
-                <p>Página en construcción</p>
-              </div>
+              <ResourcesManagement />
             }
           />
           <Route

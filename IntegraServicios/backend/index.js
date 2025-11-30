@@ -9,8 +9,8 @@ const unitRoutes = require("./services/unit/src/api/routes/unitRoutes");
 const resourceTypeRoutes = require("./services/resource/src/api/routes/resourceTypeRoutes");
 const unitScheduleRoutes = require("./services/unit/src/api/routes/unitScheduleRoutes");
 const typeScheduleRoutes = require("./services/resource/src/api/routes/typeScheduleRoutes");
+const resourceRoutes = require("./services/resource/src/api/routes/resourceRoutes");
 
-const resourceRoutes = require("./services/user/src/api/routes/resourceRoutes");
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
 const reservationRoutes = require("./services/user/src/api/routes/reservationRoutes");
 const loanRoutes = require("./services/user/src/api/routes/loanRoutes");
