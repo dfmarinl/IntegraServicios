@@ -7,8 +7,9 @@ import {
 } from "../../../api/Resource/resourceType";
 import { getActiveUnitsApi } from "../../../api/unit/units";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
-import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
+import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
 import CreateResourceTypeForm from "../../../forms/CreateResourceTypeForm/CreateResourceTypeForm";
+import EditResourceTypeForm from "../../../forms/EditResourceTypeForm/EditResourceTypeForm";
 import "./ResourceTypesManagement.css";
 
 const ResourceTypesManagement = () => {
@@ -19,8 +20,10 @@ const ResourceTypesManagement = () => {
   const [error, setError] = useState(null);
   const [selectedResourceType, setSelectedResourceType] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Estados para búsqueda, filtros y paginación
   const [searchTerm, setSearchTerm] = useState("");
@@ -137,15 +140,17 @@ const ResourceTypesManagement = () => {
   // Handlers para modales
   const handleEdit = (resourceType) => {
     setSelectedResourceType(resourceType);
-    console.log("Editar tipo de recurso:", resourceType);
-    alert(
-      `Funcionalidad de edición para "${resourceType.name}" - En desarrollo`
-    );
+    setIsEditModalOpen(true);
   };
 
   const handleDeleteClick = (resourceType) => {
     setSelectedResourceType(resourceType);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedResourceType(null);
   };
 
   const handleCloseDeleteModal = () => {
@@ -155,11 +160,22 @@ const ResourceTypesManagement = () => {
 
   const handleCreateSuccess = (newResourceType) => {
     setIsCreateModalOpen(false);
-    loadInitialData(); // Recarga la lista completa
+    loadInitialData();
   };
 
   const handleCreateCancel = () => {
     setIsCreateModalOpen(false);
+  };
+
+  const handleEditSuccess = (updatedResourceType) => {
+    setIsEditModalOpen(false);
+    setSelectedResourceType(null);
+    loadInitialData();
+  };
+
+  const handleEditCancel = () => {
+    setIsEditModalOpen(false);
+    setSelectedResourceType(null);
   };
 
   const handleDeleteConfirm = async (resourceType) => {
@@ -499,6 +515,22 @@ const ResourceTypesManagement = () => {
           units={allUnits}
           onSuccess={handleCreateSuccess}
           onCancel={handleCreateCancel}
+        />
+      </GenericModal>
+
+      {/* Modal de Edición */}
+      <GenericModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        title="Editar Tipo de Recurso"
+        subtitle={`Modifique los datos de ${selectedResourceType?.name}`}
+        size="medium"
+      >
+        <EditResourceTypeForm
+          resourceType={selectedResourceType}
+          units={allUnits}
+          onSuccess={handleEditSuccess}
+          onCancel={handleCloseEditModal}
         />
       </GenericModal>
 
