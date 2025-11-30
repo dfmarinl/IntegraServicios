@@ -17,9 +17,13 @@ const Resource = sequelize.define("Resource", {
     allowNull: false,
   },
   features: {
-    type: DataTypes.JSON, // Ejemplo: { "capacidad": 20, "ubicación": "Piso 2" }
+    type: DataTypes.JSON,
   },
   isAvailable: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
