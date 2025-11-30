@@ -4,9 +4,11 @@ const {
   createResourceType,
   getResourceTypes,
   getResourceTypesByUnit,
+  getActiveResourceTypesByUnit,
   getResourceType,
   updateResourceType,
   deleteResourceType,
+  destroyResourceType,
 } = require("../views/resourceTypeController");
 const {
   verifyToken,
@@ -45,6 +47,18 @@ router.get(
   getResourceTypesByUnit
 );
 router.get(
+  "/unit/:unitId/active",
+  verifyToken,
+  authorizeRoles(
+    "administrador",
+    "empleado_unidad",
+    "docente",
+    "personal_administrativo",
+    "estudiante"
+  ),
+  getActiveResourceTypesByUnit
+);
+router.get(
   "/:id",
   verifyToken,
   authorizeRoles(
@@ -62,11 +76,17 @@ router.put(
   authorizeRoles("administrador", "empleado_unidad"),
   updateResourceType
 );
-router.delete(
+router.patch(
   "/:id",
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   deleteResourceType
+);
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles("administrador"),
+  destroyResourceType
 );
 
 module.exports = router;
