@@ -92,6 +92,63 @@ const getResourceTypes = async (req, res) => {
   }
 };
 
+// ========== NUEVO ENDPOINT ==========
+// Obtener todos los tipos de recurso ACTIVOS
+const getActiveResourceTypes = async (req, res) => {
+  try {
+    const resourceTypes = await ResourceType.findAll({
+      where: { isActive: true },
+      include: [
+        {
+          model: Unit,
+          attributes: ["id", "name", "description"],
+        },
+      ],
+      order: [["name", "ASC"]],
+    });
+    res.json(resourceTypes);
+  } catch (err) {
+    console.error("Error al obtener tipos de recurso activos:", err);
+    res
+      .status(500)
+      .json({ message: "Error al obtener tipos de recurso activos" });
+  }
+};
+
+// ========== NUEVO ENDPOINT ==========
+// Obtener tipos de recurso con paginación (SOLO ACTIVOS)
+const getResourceTypesPaginated = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: resourceTypes } = await ResourceType.findAndCountAll({
+      where: { isActive: true },
+      include: [
+        {
+          model: Unit,
+          attributes: ["id", "name", "description"],
+        },
+      ],
+      offset: parseInt(offset),
+      limit: parseInt(limit),
+      order: [["id", "DESC"]],
+    });
+
+    res.status(200).json({
+      resourceTypes,
+      total: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+    });
+  } catch (error) {
+    console.error("Error al paginar tipos de recurso:", error);
+    res.status(500).json({
+      message: "Error al paginar tipos de recurso: " + error.message,
+    });
+  }
+};
+
 // Obtener tipos de recurso por unidad
 const getResourceTypesByUnit = async (req, res) => {
   try {
@@ -281,6 +338,8 @@ const destroyResourceType = async (req, res) => {
 module.exports = {
   createResourceType,
   getResourceTypes,
+  getActiveResourceTypes,
+  getResourceTypesPaginated,
   getResourceTypesByUnit,
   getActiveResourceTypesByUnit,
   getResourceType,

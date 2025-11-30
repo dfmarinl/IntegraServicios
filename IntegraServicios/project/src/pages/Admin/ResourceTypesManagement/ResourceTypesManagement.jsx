@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import Card from "../../../components/common/Card";
 import {
-  getResourceTypesApi,
+  getActiveResourceTypesApi,
+  getResourceTypesPaginatedApi,
   deleteResourceTypeApi,
 } from "../../../api/Resource/resourceType";
 import { getActiveUnitsApi } from "../../../api/unit/units";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
+import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
 import CreateResourceTypeForm from "../../../forms/CreateResourceTypeForm/CreateResourceTypeForm";
-// import EditResourceTypeForm from "../../../forms/EditResourceTypeForm/EditResourceTypeForm";
-// import DeleteConfirmationModal from "../../../modals/DeleteConfirmationModal/DeleteConfirmationModal";
 import "./ResourceTypesManagement.css";
 
 const ResourceTypesManagement = () => {
@@ -19,11 +19,10 @@ const ResourceTypesManagement = () => {
   const [error, setError] = useState(null);
   const [selectedResourceType, setSelectedResourceType] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Estados para búsqueda y filtros
+  // Estados para búsqueda, filtros y paginación
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selectedUnitFilter, setSelectedUnitFilter] = useState("");
@@ -47,16 +46,15 @@ const ResourceTypesManagement = () => {
 
   const loadInitialData = async () => {
     try {
+      setLoading(true);
       setError(null);
-      // Cargar todas las unidades para el filtro
+
       const unitsData = await getActiveUnitsApi();
       setAllUnits(unitsData);
 
-      // Cargar todos los tipos de recurso para búsqueda
-      const resourceTypesData = await getResourceTypesApi();
+      const resourceTypesData = await getActiveResourceTypesApi();
       setAllResourceTypes(resourceTypesData);
 
-      // Cargar primera página paginada
       await loadPaginatedResourceTypes();
     } catch (err) {
       console.error("Error al cargar datos iniciales:", err);
@@ -70,15 +68,10 @@ const ResourceTypesManagement = () => {
     if (isSearching || selectedUnitFilter) return;
 
     try {
-      // En una implementación real, tendrías un endpoint paginado
-      // Por ahora simulamos la paginación en frontend
-      const startIndex = (currentPage - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = allResourceTypes.slice(startIndex, endIndex);
-
-      setDisplayedResourceTypes(paginatedData);
-      setTotalPages(Math.ceil(allResourceTypes.length / limit));
-      setTotalResourceTypes(allResourceTypes.length);
+      const response = await getResourceTypesPaginatedApi(currentPage, limit);
+      setDisplayedResourceTypes(response.resourceTypes);
+      setTotalPages(response.totalPages);
+      setTotalResourceTypes(response.total);
     } catch (err) {
       console.error("Error al cargar tipos de recurso paginados:", err);
       setError("Error al cargar los tipos de recurso");
@@ -88,21 +81,18 @@ const ResourceTypesManagement = () => {
   const handleSearchAndFilter = () => {
     let filtered = allResourceTypes;
 
-    // Aplicar filtro por unidad
     if (selectedUnitFilter) {
       filtered = filtered.filter(
         (resourceType) => resourceType.unitId === parseInt(selectedUnitFilter)
       );
     }
 
-    // Aplicar búsqueda por nombre
     if (searchTerm) {
       filtered = filtered.filter((resourceType) =>
         resourceType.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Paginación para resultados filtrados
     const startIndex = (currentPage - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedData = filtered.slice(startIndex, endIndex);
@@ -147,7 +137,6 @@ const ResourceTypesManagement = () => {
   // Handlers para modales
   const handleEdit = (resourceType) => {
     setSelectedResourceType(resourceType);
-    setIsEditModalOpen(true);
     console.log("Editar tipo de recurso:", resourceType);
     alert(
       `Funcionalidad de edición para "${resourceType.name}" - En desarrollo`
@@ -157,19 +146,6 @@ const ResourceTypesManagement = () => {
   const handleDeleteClick = (resourceType) => {
     setSelectedResourceType(resourceType);
     setIsDeleteModalOpen(true);
-    console.log("Eliminar tipo de recurso:", resourceType);
-
-    // Simulación temporal de eliminación
-    if (
-      confirm(`¿Estás seguro de que quieres eliminar "${resourceType.name}"?`)
-    ) {
-      handleDeleteConfirm(resourceType);
-    }
-  };
-
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
-    setSelectedResourceType(null);
   };
 
   const handleCloseDeleteModal = () => {
@@ -179,31 +155,24 @@ const ResourceTypesManagement = () => {
 
   const handleCreateSuccess = (newResourceType) => {
     setIsCreateModalOpen(false);
-    loadInitialData();
+    loadInitialData(); // Recarga la lista completa
   };
 
   const handleCreateCancel = () => {
     setIsCreateModalOpen(false);
   };
 
-  const handleEditSuccess = (updatedResourceType) => {
-    setIsEditModalOpen(false);
-    setSelectedResourceType(null);
-    loadInitialData();
-  };
-
-  const handleEditCancel = () => {
-    setIsEditModalOpen(false);
-    setSelectedResourceType(null);
-  };
-
   const handleDeleteConfirm = async (resourceType) => {
     setDeleteLoading(true);
     try {
       await deleteResourceTypeApi(resourceType.id);
+
+      // Cerrar modal y limpiar selección
       setIsDeleteModalOpen(false);
       setSelectedResourceType(null);
-      loadInitialData();
+
+      // Recargar los datos para actualizar la lista
+      await loadInitialData();
     } catch (err) {
       console.error("Error al eliminar tipo de recurso:", err);
       setError(err.message || "Error al eliminar el tipo de recurso");
@@ -412,6 +381,8 @@ const ResourceTypesManagement = () => {
                   allUnits.find((u) => u.id === parseInt(selectedUnitFilter))
                     ?.name
                 }"`}
+              {(searchTerm || selectedUnitFilter) &&
+                " (búsqueda en todos los tipos activos)"}
             </p>
           </div>
         )}
@@ -436,9 +407,7 @@ const ResourceTypesManagement = () => {
                   <div className="resource-type-unit">
                     <strong>Unidad:</strong> {unit?.name || "No asignada"}
                   </div>
-                  <div className="resource-type-identifier">
-                    <strong>Identificador:</strong> {resourceType.identifier}
-                  </div>
+
                   <div className="resource-type-granularity">
                     <strong>Granularidad:</strong> {resourceType.granularity}{" "}
                     minutos
@@ -485,8 +454,15 @@ const ResourceTypesManagement = () => {
           })}
         </div>
 
-        {/* Paginación */}
-        {totalPages > 1 && (
+        {/* Mensaje cuando no hay resultados */}
+        {displayedResourceTypes.length === 0 && !loading && (
+          <div className="no-results">
+            <p>No se encontraron tipos de recurso</p>
+          </div>
+        )}
+
+        {/* Paginación - Solo mostrar cuando no hay búsqueda ni filtro */}
+        {!isSearching && !selectedUnitFilter && totalPages > 1 && (
           <div className="pagination">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
@@ -526,31 +502,19 @@ const ResourceTypesManagement = () => {
         />
       </GenericModal>
 
-      {/* Modal de Edición - COMENTADO TEMPORALMENTE */}
-      {/* <GenericModal
-        isOpen={isEditModalOpen}
-        onClose={handleCloseEditModal}
-        title="Editar Tipo de Recurso"
-        subtitle={`Modifique los datos de ${selectedResourceType?.name}`}
-        size="medium"
-      >
-        <EditResourceTypeForm
-          resourceType={selectedResourceType}
-          units={allUnits}
-          onSuccess={handleEditSuccess}
-          onCancel={handleCloseEditModal}
-        />
-      </GenericModal> */}
-
-      {/* Modal de Eliminación - COMENTADO TEMPORALMENTE */}
-      {/* <DeleteConfirmationModal
+      {/* Modal de Eliminación */}
+      <GenericDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
         onConfirm={handleDeleteConfirm}
         item={selectedResourceType}
-        itemType="tipo de recurso"
         loading={deleteLoading}
-      /> */}
+        title="Eliminar Tipo de Recurso"
+        itemName="tipo de recurso"
+        warningMessage="Esta acción desactivará el tipo de recurso y no podrá ser utilizado para nuevos préstamos."
+        confirmButtonText="Sí, Eliminar"
+        cancelButtonText="Cancelar"
+      />
     </div>
   );
 };

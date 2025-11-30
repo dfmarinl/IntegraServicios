@@ -540,6 +540,23 @@
   background-color: #2563eb;
 }
 
+.no-results {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+.no-results p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.search-container {
+  flex: 1;
+  max-width: 500px;
+  min-width: 300px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .resource-types-title-section {

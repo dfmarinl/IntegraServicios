@@ -41,6 +41,53 @@ export const getResourceTypesApi = async () => {
   return await response.json();
 };
 
+// ========== NUEVA FUNCIÓN ==========
+// Get all ACTIVE resource types
+export const getActiveResourceTypesApi = async () => {
+  const token = localStorage.getItem("token");
+
+  const response = await fetch(`${API_URL}/active`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(
+      error.message || "Error al obtener tipos de recurso activos"
+    );
+  }
+
+  return await response.json();
+};
+
+// ========== NUEVA FUNCIÓN ==========
+// Get resource types with pagination (ONLY ACTIVE)
+export const getResourceTypesPaginatedApi = async (page = 1, limit = 6) => {
+  const token = localStorage.getItem("token");
+
+  const response = await fetch(
+    `${API_URL}/paginated?page=${page}&limit=${limit}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Error al obtener tipos de recurso");
+  }
+
+  return await response.json();
+};
+
 // Get resource types by unit
 export const getResourceTypesByUnitApi = async (unitId) => {
   const token = localStorage.getItem("token");
