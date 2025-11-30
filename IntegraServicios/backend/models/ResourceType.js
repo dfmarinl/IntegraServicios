@@ -54,13 +54,27 @@ const ResourceType = sequelize.define(
         name: "unique_resource_type_name_per_unit",
       },
     ],
-    // Agregar collation para case-insensitive
     charset: "utf8mb4",
-    collate: "utf8mb4_unicode_ci", // Esta collation es case-insensitive
+    collate: "utf8mb4_unicode_ci",
   }
 );
 
-// Relations
+// Relations - AGREGAR ESTA ASOCIACIÓN
+ResourceType.associate = (models) => {
+  ResourceType.belongsTo(models.Unit, { 
+    foreignKey: "unitId",
+    onDelete: "CASCADE"
+  });
+  
+  // AGREGAR ESTA LÍNEA - Asociación con TypeSchedule
+  ResourceType.hasMany(models.TypeSchedule, {
+    foreignKey: "typeId",
+    onDelete: "CASCADE",
+    as: "schedules"
+  });
+};
+
+// Relations (mantener las existentes)
 Unit.hasMany(ResourceType, { foreignKey: "unitId", onDelete: "CASCADE" });
 ResourceType.belongsTo(Unit, { foreignKey: "unitId" });
 

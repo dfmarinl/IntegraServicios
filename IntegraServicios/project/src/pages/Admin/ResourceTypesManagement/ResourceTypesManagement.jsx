@@ -10,6 +10,7 @@ import GenericModal from "../../../modals/GenericModal/GenericModal";
 import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
 import CreateResourceTypeForm from "../../../forms/CreateResourceTypeForm/CreateResourceTypeForm";
 import EditResourceTypeForm from "../../../forms/EditResourceTypeForm/EditResourceTypeForm";
+import ResourceConfigModal from "../../../modals/ResourceConfigModal/ResourceConfigModal";
 import "./ResourceTypesManagement.css";
 
 const ResourceTypesManagement = () => {
@@ -22,8 +23,8 @@ const ResourceTypesManagement = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [editLoading, setEditLoading] = useState(false);
 
   // Estados para búsqueda, filtros y paginación
   const [searchTerm, setSearchTerm] = useState("");
@@ -137,7 +138,7 @@ const ResourceTypesManagement = () => {
     setCurrentPage(newPage);
   };
 
-  // Handlers para modales
+  // Handlers para modales - CORREGIDOS
   const handleEdit = (resourceType) => {
     setSelectedResourceType(resourceType);
     setIsEditModalOpen(true);
@@ -148,6 +149,11 @@ const ResourceTypesManagement = () => {
     setIsDeleteModalOpen(true);
   };
 
+  const handleConfigure = (resourceType) => {
+    setSelectedResourceType(resourceType);
+    setIsConfigModalOpen(true);
+  };
+
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
     setSelectedResourceType(null);
@@ -155,6 +161,11 @@ const ResourceTypesManagement = () => {
 
   const handleCloseDeleteModal = () => {
     setIsDeleteModalOpen(false);
+    setSelectedResourceType(null);
+  };
+
+  const handleCloseConfigModal = () => {
+    setIsConfigModalOpen(false);
     setSelectedResourceType(null);
   };
 
@@ -182,12 +193,8 @@ const ResourceTypesManagement = () => {
     setDeleteLoading(true);
     try {
       await deleteResourceTypeApi(resourceType.id);
-
-      // Cerrar modal y limpiar selección
       setIsDeleteModalOpen(false);
       setSelectedResourceType(null);
-
-      // Recargar los datos para actualizar la lista
       await loadInitialData();
     } catch (err) {
       console.error("Error al eliminar tipo de recurso:", err);
@@ -449,21 +456,30 @@ const ResourceTypesManagement = () => {
                   </div>
                 </div>
 
+                {/* ACCIONES CORREGIDAS - SEPARADAS POR FUNCIONALIDAD */}
                 <div className="resource-type-actions">
-                  <button
-                    className="btn-outline"
-                    onClick={() => handleEdit(resourceType)}
-                  >
-                    Editar
-                  </button>
-                </div>
-                <div className="resource-type-danger-actions">
-                  <button
-                    className="btn-danger-outline"
-                    onClick={() => handleDeleteClick(resourceType)}
-                  >
-                    Eliminar Tipo
-                  </button>
+                  <div className="primary-actions">
+                    <button
+                      className="btn-outline"
+                      onClick={() => handleEdit(resourceType)}
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() => handleConfigure(resourceType)}
+                    >
+                      ⚙️ Configurar
+                    </button>
+                  </div>
+                  <div className="danger-actions">
+                    <button
+                      className="btn-danger-outline"
+                      onClick={() => handleDeleteClick(resourceType)}
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </div>
                 </div>
               </Card>
             );
@@ -533,6 +549,17 @@ const ResourceTypesManagement = () => {
           onCancel={handleCloseEditModal}
         />
       </GenericModal>
+
+      {/* Modal de Configuración */}
+      {isConfigModalOpen && selectedResourceType && (
+        <ResourceConfigModal
+          resourceType={{
+            ...selectedResourceType,
+            unit: allUnits.find(u => u.id === selectedResourceType.unitId)
+          }}
+          onClose={handleCloseConfigModal}
+        />
+      )}
 
       {/* Modal de Eliminación */}
       <GenericDeleteModal
