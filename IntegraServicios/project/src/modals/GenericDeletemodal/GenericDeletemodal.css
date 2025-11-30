@@ -1,0 +1,106 @@
+.generic-delete-content {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.warning-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.warning-title {
+  color: #dc2626;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.item-info {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.item-info p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.warning-message {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.warning-message p {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: #7f1d1d;
+}
+
+.warning-message strong {
+  color: #dc2626;
+}
+
+.delete-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-cancel {
+  padding: 0.75rem 1.5rem;
+  background-color: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-width: 100px;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.btn-danger:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .delete-actions {
+    flex-direction: column;
+  }
+
+  .btn-cancel,
+  .btn-danger {
+    width: 100%;
+  }
+}

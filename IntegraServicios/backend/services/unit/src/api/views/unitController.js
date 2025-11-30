@@ -1,4 +1,5 @@
 const Unit = require("../../../../../models/Unit");
+const ResourceType = require("../../../../../models/ResourceType");
 
 // Crear unidad
 const createUnit = async (req, res) => {
@@ -105,18 +106,25 @@ const updateUnit = async (req, res) => {
 const deleteUnit = async (req, res) => {
   try {
     const unit = await Unit.findByPk(req.params.id, {
-      include: ["ResourceTypes"],
+      include: [
+        {
+          model: ResourceType,
+          as: "ResourceTypes",
+          where: { isActive: true }, // ← Solo tipos de recurso ACTIVOS
+          required: false, // ← Permite devolver la unidad sin tipos activos
+        },
+      ],
     });
 
     if (!unit) {
       return res.status(404).json({ message: "Unidad no encontrada" });
     }
 
-    // Verificar si tiene tipos de recurso asociados
+    // Verificar si tiene tipos de recurso ACTIVOS asociados
     if (unit.ResourceTypes && unit.ResourceTypes.length > 0) {
       return res.status(400).json({
         message:
-          "No se puede eliminar la unidad porque tiene tipos de recurso asociados",
+          "No se puede eliminar la unidad porque tiene tipos de recurso activos asociados",
       });
     }
 

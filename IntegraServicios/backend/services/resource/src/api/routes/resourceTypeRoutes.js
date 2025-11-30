@@ -3,25 +3,25 @@ const router = express.Router();
 const {
   createResourceType,
   getResourceTypes,
+  getActiveResourceTypes, // ← NUEVO
+  getResourceTypesPaginated, // ← NUEVO
   getResourceTypesByUnit,
+  getActiveResourceTypesByUnit,
   getResourceType,
   updateResourceType,
   deleteResourceType,
+  destroyResourceType,
 } = require("../views/resourceTypeController");
 const {
   verifyToken,
   authorizeRoles,
 } = require("../../../../user/src/middleware/authentication");
 
-// Rutas de tipos de recurso
-router.post(
-  "/",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  createResourceType
-);
+// ========== ORDEN CORRECTO: RUTAS ESPECÍFICAS PRIMERO ==========
+
+// Ruta de paginación (ANTES de /:id)
 router.get(
-  "/",
+  "/paginated",
   verifyToken,
   authorizeRoles(
     "administrador",
@@ -30,8 +30,37 @@ router.get(
     "personal_administrativo",
     "estudiante"
   ),
-  getResourceTypes
+  getResourceTypesPaginated
 );
+
+// Ruta de activos (ANTES de /:id)
+router.get(
+  "/active",
+  verifyToken,
+  authorizeRoles(
+    "administrador",
+    "empleado_unidad",
+    "docente",
+    "personal_administrativo",
+    "estudiante"
+  ),
+  getActiveResourceTypes
+);
+
+// Rutas con parámetros de unidad (ANTES de /:id)
+router.get(
+  "/unit/:unitId/active",
+  verifyToken,
+  authorizeRoles(
+    "administrador",
+    "empleado_unidad",
+    "docente",
+    "personal_administrativo",
+    "estudiante"
+  ),
+  getActiveResourceTypesByUnit
+);
+
 router.get(
   "/unit/:unitId",
   verifyToken,
@@ -44,6 +73,9 @@ router.get(
   ),
   getResourceTypesByUnit
 );
+
+// ========== RUTAS CON :id AL FINAL ==========
+
 router.get(
   "/:id",
   verifyToken,
@@ -56,17 +88,48 @@ router.get(
   ),
   getResourceType
 );
+
+// ========== RUTAS SIN PARÁMETROS O CON BODY ==========
+
+router.post(
+  "/",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  createResourceType
+);
+
+router.get(
+  "/",
+  verifyToken,
+  authorizeRoles(
+    "administrador",
+    "empleado_unidad",
+    "docente",
+    "personal_administrativo",
+    "estudiante"
+  ),
+  getResourceTypes
+);
+
 router.put(
   "/:id",
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   updateResourceType
 );
-router.delete(
+
+router.patch(
   "/:id",
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   deleteResourceType
+);
+
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles("administrador"),
+  destroyResourceType
 );
 
 module.exports = router;

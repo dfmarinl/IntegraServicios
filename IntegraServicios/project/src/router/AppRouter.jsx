@@ -10,6 +10,7 @@ import UserHome from "../pages/Home/UserHome";
 import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
 import UnitsManagement from "../pages/Admin/UnitsManagement/UnitsManagement";
+import ResourceTypesManagement from "../pages/Admin/ResourceTypesManagement/ResourceTypesManagement"; // ← NUEVA IMPORTACIÓN
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
@@ -81,7 +82,7 @@ const AppRouter = () => {
           }
         />
 
-         <Route
+        <Route
           path="/forgot-password"
           element={
             <PublicRoute>
@@ -108,17 +109,10 @@ const AppRouter = () => {
           }
         >
           <Route index element={<AdminHome />} />
-          {/* ← NUEVA RUTA PARA GESTIÓN DE UNIDADES */}
+          {/* ← RUTA PARA GESTIÓN DE UNIDADES */}
           <Route path="units" element={<UnitsManagement />} />
-          <Route
-            path="resource-types"
-            element={
-              <div className="page-placeholder">
-                <h1>Tipos de Recurso</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
-          />
+          {/* ← NUEVA RUTA PARA GESTIÓN DE TIPOS DE RECURSO */}
+          <Route path="resource-types" element={<ResourceTypesManagement />} />
           <Route
             path="resources"
             element={
