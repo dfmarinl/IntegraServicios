@@ -5,8 +5,8 @@ import {
   deleteResourceTypeApi,
 } from "../../../api/Resource/resourceType";
 import { getActiveUnitsApi } from "../../../api/unit/units";
-// import GenericModal from "../../../modals/GenericModal/GenericModal";
-// import CreateResourceTypeForm from "../../../forms/CreateResourceTypeForm/CreateResourceTypeForm";
+import GenericModal from "../../../modals/GenericModal/GenericModal";
+import CreateResourceTypeForm from "../../../forms/CreateResourceTypeForm/CreateResourceTypeForm";
 // import EditResourceTypeForm from "../../../forms/EditResourceTypeForm/EditResourceTypeForm";
 // import DeleteConfirmationModal from "../../../modals/DeleteConfirmationModal/DeleteConfirmationModal";
 import "./ResourceTypesManagement.css";
@@ -144,7 +144,7 @@ const ResourceTypesManagement = () => {
     setCurrentPage(newPage);
   };
 
-  // Handlers para modales - COMENTADOS TEMPORALMENTE
+  // Handlers para modales
   const handleEdit = (resourceType) => {
     setSelectedResourceType(resourceType);
     setIsEditModalOpen(true);
@@ -248,10 +248,7 @@ const ResourceTypesManagement = () => {
       title: "Crear Nuevo Tipo",
       description: "Registrar un nuevo tipo de recurso",
       icon: "➕",
-      onClick: () => {
-        setIsCreateModalOpen(true);
-        alert("Funcionalidad de creación - En desarrollo");
-      },
+      onClick: () => setIsCreateModalOpen(true),
       color: "#10b981",
     },
   ];
@@ -439,12 +436,13 @@ const ResourceTypesManagement = () => {
                   <div className="resource-type-unit">
                     <strong>Unidad:</strong> {unit?.name || "No asignada"}
                   </div>
-                  {resourceType.maxBookingHours && (
-                    <div className="resource-type-limit">
-                      <strong>Límite de reserva:</strong>{" "}
-                      {resourceType.maxBookingHours} horas
-                    </div>
-                  )}
+                  <div className="resource-type-identifier">
+                    <strong>Identificador:</strong> {resourceType.identifier}
+                  </div>
+                  <div className="resource-type-granularity">
+                    <strong>Granularidad:</strong> {resourceType.granularity}{" "}
+                    minutos
+                  </div>
                 </div>
 
                 <div className="resource-type-stats">
@@ -513,8 +511,8 @@ const ResourceTypesManagement = () => {
         )}
       </div>
 
-      {/* Modales - COMENTADOS TEMPORALMENTE */}
-      {/* <GenericModal
+      {/* Modal de Creación */}
+      <GenericModal
         isOpen={isCreateModalOpen}
         onClose={handleCreateCancel}
         title="Crear Nuevo Tipo de Recurso"
@@ -528,7 +526,8 @@ const ResourceTypesManagement = () => {
         />
       </GenericModal>
 
-      <GenericModal
+      {/* Modal de Edición - COMENTADO TEMPORALMENTE */}
+      {/* <GenericModal
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}
         title="Editar Tipo de Recurso"
@@ -541,9 +540,10 @@ const ResourceTypesManagement = () => {
           onSuccess={handleEditSuccess}
           onCancel={handleCloseEditModal}
         />
-      </GenericModal>
+      </GenericModal> */}
 
-      <DeleteConfirmationModal
+      {/* Modal de Eliminación - COMENTADO TEMPORALMENTE */}
+      {/* <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
         onConfirm={handleDeleteConfirm}

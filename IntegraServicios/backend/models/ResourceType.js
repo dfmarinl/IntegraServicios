@@ -12,15 +12,6 @@ const ResourceType = sequelize.define(
       autoIncrement: true,
     },
 
-    identifier: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-      validate: {
-        notEmpty: { msg: "El identificador es requerido" },
-      },
-    },
-
     name: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -62,12 +53,10 @@ const ResourceType = sequelize.define(
         fields: ["unitId", "name"],
         name: "unique_resource_type_name_per_unit",
       },
-      {
-        unique: true,
-        fields: ["identifier"],
-        name: "unique_resource_type_identifier",
-      },
     ],
+    // Agregar collation para case-insensitive
+    charset: "utf8mb4",
+    collate: "utf8mb4_unicode_ci", // Esta collation es case-insensitive
   }
 );
 

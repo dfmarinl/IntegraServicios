@@ -1,22 +1,13 @@
 const ResourceType = require("../../../../../models/ResourceType");
 const Unit = require("../../../../../models/Unit");
+const { Op } = require("sequelize");
 
 // Crear tipo de recurso
 const createResourceType = async (req, res) => {
   try {
-    const {
-      identifier,
-      name,
-      description,
-      granularity = 30,
-      unitId,
-    } = req.body;
+    const { name, description, granularity = 30, unitId } = req.body;
 
     // Validaciones básicas
-    if (!identifier) {
-      return res.status(400).json({ message: "El identificador es requerido" });
-    }
-
     if (!name) {
       return res.status(400).json({ message: "El nombre es requerido" });
     }
@@ -40,9 +31,14 @@ const createResourceType = async (req, res) => {
       return res.status(404).json({ message: "Unidad no encontrada" });
     }
 
-    // Verificar si ya existe un tipo de recurso con el mismo nombre en la misma unidad
+    // Verificar si ya existe un tipo de recurso con el mismo nombre (case-insensitive) en la misma unidad
     const existingResourceType = await ResourceType.findOne({
-      where: { unitId, name },
+      where: {
+        unitId,
+        name: {
+          [Op.iLike]: name, // Case-insensitive comparison
+        },
+      },
     });
 
     if (existingResourceType) {
@@ -51,21 +47,9 @@ const createResourceType = async (req, res) => {
       });
     }
 
-    // Verificar si ya existe un tipo de recurso con el mismo identificador
-    const existingIdentifier = await ResourceType.findOne({
-      where: { identifier },
-    });
-
-    if (existingIdentifier) {
-      return res.status(400).json({
-        message: `Ya existe un tipo de recurso con el identificador '${identifier}'`,
-      });
-    }
-
     // Crear el tipo de recurso
     const resourceType = await ResourceType.create({
-      identifier,
-      name,
+      name: name.trim(),
       description,
       granularity,
       unitId,
@@ -81,7 +65,7 @@ const createResourceType = async (req, res) => {
     // Manejar errores de Sequelize
     if (err.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({
-        message: "Error de duplicidad en los datos",
+        message: "Ya existe un tipo de recurso con este nombre en la unidad",
       });
     }
 
@@ -204,23 +188,32 @@ const updateResourceType = async (req, res) => {
       });
     }
 
-    // Si se está cambiando el nombre, verificar que no exista duplicado en la misma unidad
-    if (name && name !== resourceType.name) {
+    // Si se está cambiando el nombre, verificar que no exista duplicado (case-insensitive) en la misma unidad
+    if (name && name.toLowerCase() !== resourceType.name.toLowerCase()) {
       const existingResourceType = await ResourceType.findOne({
         where: {
           unitId: unitId || resourceType.unitId,
-          name,
+          name: {
+            [Op.iLike]: name, // Case-insensitive comparison
+          },
+          id: {
+            [Op.ne]: resourceType.id, // Excluir el registro actual
+          },
         },
       });
 
-      if (existingResourceType && existingResourceType.id !== resourceType.id) {
+      if (existingResourceType) {
         return res.status(400).json({
           message: `Ya existe un tipo de recurso con el nombre '${name}' en esta unidad`,
         });
       }
     }
 
-    await resourceType.update(req.body);
+    await resourceType.update({
+      ...req.body,
+      name: name ? name.trim() : resourceType.name,
+    });
+
     res.json({
       message: "Tipo de recurso actualizado exitosamente",
       resourceType,
@@ -230,7 +223,7 @@ const updateResourceType = async (req, res) => {
 
     if (err.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({
-        message: "Error de duplicidad en los datos",
+        message: "Ya existe un tipo de recurso con este nombre en la unidad",
       });
     }
 
