@@ -1,32 +1,76 @@
+// models/TypeSchedule.js (ya está bien)
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
-const ResourceType = require("./ResourceType");
 
-const TypeSchedule = sequelize.define("TypeSchedule", {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+const TypeSchedule = sequelize.define(
+  "TypeSchedule",
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+
+    typeId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+
+    dayOfWeek: {
+      type: DataTypes.ENUM(
+        "lunes",
+        "martes",
+        "miercoles",
+        "jueves",
+        "viernes",
+        "sabado",
+        "domingo"
+      ),
+      allowNull: false,
+    },
+
+    startTime: {
+      type: DataTypes.TIME,
+      allowNull: false,
+    },
+
+    endTime: {
+      type: DataTypes.TIME,
+      allowNull: false,
+    },
+    
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: true,
+    },
   },
-
-  dayOfWeek: {
-    type: DataTypes.ENUM("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
-    allowNull: false,
-  },
-
-  startTime: {
-    type: DataTypes.TIME,
-    allowNull: false,
-  },
-
-  endTime: {
-    type: DataTypes.TIME,
-    allowNull: false,
+  {
+    indexes: [
+      {
+        unique: true,
+        fields: ["typeId", "dayOfWeek"],
+        name: "ux_type_schedule_typeid_dayofweek",
+      },
+    ],
+    validate: {
+      startBeforeEnd() {
+        if (!this.startTime || !this.endTime) return;
+        if (this.startTime >= this.endTime) {
+          throw new Error("startTime debe ser menor que endTime");
+        }
+      },
+    },
   }
-});
+);
 
-// RELACIÓN
-ResourceType.hasMany(TypeSchedule, { foreignKey: "typeId", onDelete: "CASCADE" });
-TypeSchedule.belongsTo(ResourceType, { foreignKey: "typeId" });
+// Declarar asociación a ResourceType
+TypeSchedule.associate = (models) => {
+  TypeSchedule.belongsTo(models.ResourceType, {
+    foreignKey: "typeId",
+    onDelete: "CASCADE",
+    as: "resourceType",
+  });
+};
 
 module.exports = TypeSchedule;

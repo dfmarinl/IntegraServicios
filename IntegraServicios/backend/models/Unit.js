@@ -31,6 +31,7 @@ Unit.associate = (models) => {
   Unit.hasMany(models.UnitSchedule, {
     foreignKey: "unitId",
     onDelete: "CASCADE",
+    as: "schedules" 
   });
   Unit.hasMany(models.TypeResource, {
     foreignKey: "unitId",
