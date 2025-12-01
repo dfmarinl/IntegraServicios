@@ -1,0 +1,68 @@
+.units-view {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.units-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.units-header h1 {
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.units-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.unit-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.unit-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.unit-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.unit-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.unit-info {
+  flex: 1;
+}
+
+.unit-name {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+}
+
+.unit-description {
+  margin: 0 0 0.5rem 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.unit-meta {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.unit-arrow {
+  font-size: 1.5rem;
+  color: #6b7280;
+}
