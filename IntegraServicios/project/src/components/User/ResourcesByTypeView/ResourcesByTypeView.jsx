@@ -13,12 +13,14 @@ const ResourcesByTypeView = () => {
   const { unitId, typeId } = useParams();
   const navigate = useNavigate();
   const [resources, setResources] = useState([]);
+  const [filteredResources, setFilteredResources] = useState([]);
   const [resourceType, setResourceType] = useState(null);
   const [unit, setUnit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedResource, setSelectedResource] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(""); // Nuevo estado para el término de búsqueda
 
   // Hook modular para reservas
   const { reserving, createQuickReservation, createReservationFromCalendar } = useReservation();
@@ -28,6 +30,18 @@ const ResourcesByTypeView = () => {
       loadData();
     }
   }, [unitId, typeId]);
+
+  // Nuevo efecto para filtrar recursos cuando cambia el término de búsqueda
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredResources(resources);
+    } else {
+      const filtered = resources.filter(resource =>
+        resource.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredResources(filtered);
+    }
+  }, [searchTerm, resources]);
 
   const loadData = async () => {
     try {
@@ -42,6 +56,7 @@ const ResourcesByTypeView = () => {
 
       const resourcesData = await getActiveResourcesByTypeApi(typeId);
       setResources(resourcesData);
+      setFilteredResources(resourcesData); // Inicializar recursos filtrados
     } catch (err) {
       console.error("Error al cargar recursos:", err);
       setError("Error al cargar los recursos disponibles");
@@ -97,6 +112,14 @@ const ResourcesByTypeView = () => {
     setSelectedResource(null);
   };
 
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
+  };
+
   if (loading) {
     return (
       <div className="resources-loading">
@@ -126,7 +149,7 @@ const ResourcesByTypeView = () => {
         resource={selectedResource}
         resourceType={resourceType}
         unit={unit}
-        onCreateReservation={handleCreateReservationFromCalendar} // Pasar la función corregida
+        onCreateReservation={handleCreateReservationFromCalendar}
         onCancel={handleCancelCalendar}
       />
     );
@@ -143,9 +166,35 @@ const ResourcesByTypeView = () => {
         <p>{unit?.name} - Selecciona un recurso para reservar</p>
       </div>
 
+      {/* Sección de búsqueda */}
+      <div className="resources-search-section">
+        <div className="search-container">
+          <input
+            type="text"
+            placeholder="Buscar recurso por nombre..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="search-input"
+          />
+          {searchTerm && (
+            <button onClick={handleClearSearch} className="clear-search-btn">
+              ✕
+            </button>
+          )}
+          <div className="search-results-info">
+            {searchTerm && (
+              <p>
+                Mostrando {filteredResources.length} de {resources.length} recursos
+                {searchTerm && ` para "${searchTerm}"`}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="resources-grid">
-        {resources.length > 0 ? (
-          resources.map((resource) => (
+        {filteredResources.length > 0 ? (
+          filteredResources.map((resource) => (
             <Card key={resource.id} className="resource-card">
               <div className="resource-image-container">
                 <img
@@ -195,9 +244,18 @@ const ResourcesByTypeView = () => {
           ))
         ) : (
           <div className="no-resources">
-            <div className="no-resources-icon">🖥️</div>
-            <h3>No hay recursos disponibles</h3>
-            <p>No se encontraron recursos de este tipo</p>
+            <div className="no-resources-icon">🔍</div>
+            <h3>No se encontraron recursos</h3>
+            <p>
+              {searchTerm 
+                ? `No hay recursos que coincidan con "${searchTerm}"`
+                : "No se encontraron recursos de este tipo"}
+            </p>
+            {searchTerm && (
+              <button onClick={handleClearSearch} className="btn-clear-search">
+                Limpiar búsqueda
+              </button>
+            )}
             <button onClick={handleBackClick} className="btn-back">
               Volver a tipos
             </button>
