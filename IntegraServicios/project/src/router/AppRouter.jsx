@@ -12,6 +12,9 @@ import MyReservations from "../pages/Reservations/MyReservations";
 import UnitsManagement from "../pages/Admin/UnitsManagement/UnitsManagement";
 import ResourceTypesManagement from "../pages/Admin/ResourceTypesManagement/ResourceTypesManagement"; // ← NUEVA IMPORTACIÓN
 import ResourcesManagement from "../pages/Admin/ResourcesManagement/ResourcesManagement"; // ← NUEVA IMPORTACIÓN
+import UnitsView from "../components/User/UnitsView/UnitsView";
+import ResourcesByTypeView from "../components/User/ResourcesByTypeView/ResourcesByTypeView";
+import ResourceTypesView from "../components/User/ResourceTypesView/ResourceTypesView";
 
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
@@ -237,7 +240,7 @@ const AppRouter = () => {
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 
-        {/* Ruta de estudiante (mantiene /app por compatibilidad) */}
+       {/* Ruta de estudiante (mantiene /app por compatibilidad) */}
         <Route
           path="/app"
           element={
@@ -247,16 +250,22 @@ const AppRouter = () => {
           }
         >
           <Route index element={<UserHome />} />
-          <Route path="resources" element={<ResourcesList />} />
-          <Route
-            path="resources/:id/reserve"
-            element={
-              <div className="page-placeholder">
-                <h1>Crear Reserva</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
-          />
+          
+          {/* Rutas de recursos - Jerárquicas */}
+          <Route path="resources" element={<UnitsView />} />
+          <Route path="resources/browse">
+            <Route path="unit/:unitId/types" element={<ResourceTypesView />} />
+            <Route path="unit/:unitId/type/:typeId/resources" element={<ResourcesByTypeView />} />
+          </Route>
+          
+          {/* Ruta de reserva individual (sin conflicto) */}
+          <Route path="reserve/:resourceId" element={
+            <div className="page-placeholder">
+              <h1>Crear Reserva</h1>
+              <p>Página en construcción</p>
+            </div>
+          } />
+          
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 

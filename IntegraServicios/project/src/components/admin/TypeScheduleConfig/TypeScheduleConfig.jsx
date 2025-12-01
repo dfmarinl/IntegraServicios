@@ -195,59 +195,76 @@ const TypeScheduleConfig = ({ resourceType }) => {
   };
 
   // Función para ACTUALIZAR horarios - CORREGIDA
-  const handleUpdateSchedules = async () => {
-    try {
-      setSaving(true);
-      setMessage({ type: "", text: "" });
+  // TypeScheduleConfig.js - handleUpdateSchedules corregido
+const handleUpdateSchedules = async () => {
+  try {
+    setSaving(true);
+    setMessage({ type: "", text: "" });
 
-      // Para actualizar, enviar todos los días pero con validación
-      const schedulesToUpdate = schedule.map(day => {
-        // Si no tiene horario, enviar null para eliminar ese horario
-        if (!day.startTime || !day.endTime) {
-          return {
-            dayOfWeek: day.dayOfWeek,
-            startTime: null, // Esto hará que se elimine el horario para este día
-            endTime: null,
-            isActive: false,
-          };
-        }
-
-        return {
+    // Crear array con los horarios actualizados
+    const schedulesToUpdate = [];
+    
+    for (const day of schedule) {
+      // Si no tiene horario pero existe en BD, marcarlo como inactivo
+      if (hasRealScheduleData(day) && (!day.startTime || !day.endTime)) {
+        schedulesToUpdate.push({
           dayOfWeek: day.dayOfWeek,
-          startTime: day.startTime, // NO agregar ":00"
-          endTime: day.endTime,     // NO agregar ":00"
-          isActive: day.isActive,
-        };
-      }).filter(day => day.startTime !== null || day.isActive); // Filtrar días que realmente tienen cambios
-
-      console.log("🔄 Actualizando horarios del tipo de recurso:", schedulesToUpdate);
-
-      if (schedulesToUpdate.length === 0) {
-        setMessage({ 
-          type: "error", 
-          text: "No hay cambios válidos para actualizar" 
+          startTime: "", // Enviar string vacío
+          endTime: "",   // Enviar string vacío
+          isActive: false,
         });
-        return;
+      } 
+      // Si tiene horario válido, incluirlo
+      else if (day.startTime && day.endTime && isValidTimeRange(day)) {
+        schedulesToUpdate.push({
+          dayOfWeek: day.dayOfWeek,
+          startTime: day.startTime,
+          endTime: day.endTime,
+          isActive: day.isActive,
+        });
       }
+      // Si no tiene horario y no existe, omitirlo
+      else {
+        console.log(`⚠️ Omitiendo ${day.dayOfWeek}: sin horario válido`);
+      }
+    }
 
-      await updateAllTypeSchedulesApi(resourceType.id, schedulesToUpdate);
+    console.log("🔄 Horarios a actualizar:", schedulesToUpdate);
+
+    if (schedulesToUpdate.length === 0) {
       setMessage({ 
-        type: "success", 
-        text: "Horarios actualizados correctamente" 
+        type: "error", 
+        text: "No hay cambios válidos para actualizar" 
       });
-      await loadSchedule();
-      
-    } catch (error) {
-      console.error("❌ Error actualizando horarios del tipo de recurso:", error);
+      return;
+    }
+
+    await updateAllTypeSchedulesApi(resourceType.id, schedulesToUpdate);
+    setMessage({ 
+      type: "success", 
+      text: "Horarios actualizados correctamente" 
+    });
+    await loadSchedule();
+    
+  } catch (error) {
+    console.error("❌ Error actualizando horarios:", error);
+    
+    // Mostrar mensaje más específico
+    if (error.message.includes("Errores de validación")) {
+      setMessage({ 
+        type: "error", 
+        text: "Errores de validación: " + (error.errors ? error.errors.join(', ') : error.message)
+      });
+    } else {
       setMessage({ 
         type: "error", 
         text: error.message || "Error al actualizar horarios" 
       });
-    } finally {
-      setSaving(false);
     }
-  };
-
+  } finally {
+    setSaving(false);
+  }
+};
   const handleApplyToAll = (templateDay) => {
     if (!templateDay.startTime || !templateDay.endTime) {
       setMessage({ type: "error", text: "Primero configura el día plantilla" });
