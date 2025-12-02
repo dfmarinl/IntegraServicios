@@ -536,3 +536,122 @@
     width: 100%;
   }
 }
+/* Estilos para reservas repetitivas */
+.resource-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.repeat-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Filtros para tipo de reserva */
+.filter-group {
+  min-width: 150px;
+}
+
+/* Opciones de cancelación para repetitivas */
+.repeat-cancel-options {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.repeat-warning {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.repeat-warning .warning-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.cancel-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cancel-option {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-option:hover {
+  border-color: #007bff;
+  background: #f8f9fa;
+}
+
+.cancel-option input[type="radio"] {
+  margin-top: 3px;
+  margin-right: 10px;
+}
+
+.option-content {
+  flex: 1;
+}
+
+.option-content strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #495057;
+}
+
+.option-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.repeat-info {
+  padding: 8px;
+  background: #e7f3ff;
+  border-radius: 4px;
+  border-left: 4px solid #007bff;
+}
+
+/* Estado en tabla para repetitivas */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Botón de cancelar con icono */
+.btn-cancel-repetitive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cancel-option {
+    padding: 10px;
+  }
+  
+  .option-content p {
+    font-size: 12px;
+  }
+  
+  .filters-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .filter-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

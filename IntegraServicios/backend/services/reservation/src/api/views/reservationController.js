@@ -7,14 +7,12 @@ const TypeSchedule = require("../../../../../models/TypeSchedule");
 const { Op } = require("sequelize");
 const { generateAvailableSlots } = require("../../../../../helpers/slotGenerator");
 
-// ========== FUNCIONES DE VALIDACIÓN SIN INCLUDE ==========
+// ========== FUNCIONES DE VALIDACIÓN ==========
 
-// Función para validar horarios SIN INCLUDE
 const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTime) => {
   try {
     console.log('🔍 Validando horario para recurso:', resourceId);
 
-    // Obtener datos por separado - SIN INCLUDE
     const resource = await Resource.findByPk(resourceId);
     if (!resource) {
       return { isValid: false, message: 'Recurso no encontrado' };
@@ -36,7 +34,6 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
     
     const targetDay = dayMap[dayOfWeek];
 
-    // Buscar schedule para este día - SIN INCLUDE
     const scheduleForDay = await TypeSchedule.findOne({
       where: { 
         typeId: resourceType.id, 
@@ -52,19 +49,16 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
       };
     }
 
-    // Convertir horarios
     const dateStr = startDate.toISOString().split('T')[0];
     const scheduleStart = new Date(`${dateStr}T${scheduleForDay.startTime}`);
     const scheduleEnd = new Date(`${dateStr}T${scheduleForDay.endTime}`);
 
-    // Extraer solo la hora de la reserva
     const reservationStartTime = new Date(startDate);
     reservationStartTime.setFullYear(scheduleStart.getFullYear(), scheduleStart.getMonth(), scheduleStart.getDate());
     
     const reservationEndTime = new Date(endDate);
     reservationEndTime.setFullYear(scheduleEnd.getFullYear(), scheduleEnd.getMonth(), scheduleEnd.getDate());
 
-    // Validaciones
     if (reservationStartTime < scheduleStart) {
       return {
         isValid: false,
@@ -79,7 +73,6 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
       };
     }
 
-    // Validar granularidad
     const granularity = resourceType.granularity || 30;
     const durationMs = endDate - startDate;
     const durationMinutes = durationMs / (1000 * 60);
@@ -107,10 +100,9 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
   }
 };
 
-// Helper para verificar disponibilidad
-const checkResourceAvailability = async (resourceId, startDateTime, endDateTime) => {
-  const conflictingReservation = await Reservation.findOne({
-    where: {
+const checkResourceAvailability = async (resourceId, startDateTime, endDateTime, excludeReservationId = null) => {
+  try {
+    const whereConditions = {
       resourceId,
       status: {
         [Op.in]: ['pendiente', 'activa']
@@ -133,18 +125,181 @@ const checkResourceAvailability = async (resourceId, startDateTime, endDateTime)
           ]
         }
       ]
-    }
-  });
+    };
 
-  return {
-    isAvailable: !conflictingReservation,
-    conflictingReservation: conflictingReservation || null
-  };
+    if (excludeReservationId) {
+      whereConditions.id = { [Op.ne]: excludeReservationId };
+    }
+
+    const conflictingReservation = await Reservation.findOne({
+      where: whereConditions
+    });
+
+    return {
+      isAvailable: !conflictingReservation,
+      conflictingReservation: conflictingReservation || null
+    };
+  } catch (error) {
+    console.error('Error en checkResourceAvailability:', error);
+    return { isAvailable: false, conflictingReservation: null };
+  }
 };
 
-// ========== CONTROLADORES PRINCIPALES SIN INCLUDE ==========
+// ========== FUNCIONES PARA RESERVAS REPETITIVAS ==========
 
-// Crear nueva reserva
+const calculateRepeatDates = (startDateTime, endDateTime, repeatConfig) => {
+  const {
+    frequency,
+    interval = 1,
+    occurrences,
+    endDate: repeatEndDate,
+    daysOfWeek = []
+  } = repeatConfig;
+
+  const dates = [];
+  const startDate = new Date(startDateTime);
+  const originalEnd = new Date(endDateTime);
+  const duration = originalEnd - startDate;
+
+  let currentDate = new Date(startDate);
+  const endCondition = repeatEndDate ? new Date(repeatEndDate) : null;
+  
+  dates.push({
+    startDateTime: new Date(startDate),
+    endDateTime: new Date(originalEnd),
+    sequence: 1
+  });
+
+  let count = 1;
+  let sequence = 2;
+
+  while (true) {
+    if (occurrences && count >= occurrences) break;
+    if (endCondition && currentDate > endCondition) break;
+
+    let nextDate = new Date(currentDate);
+    
+    switch (frequency) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + interval);
+        break;
+      case 'weekly':
+        if (daysOfWeek.length > 0) {
+          let daysToAdd = 1;
+          while (daysToAdd <= 7) {
+            nextDate.setDate(nextDate.getDate() + 1);
+            if (daysOfWeek.includes(nextDate.getDay())) {
+              break;
+            }
+            daysToAdd++;
+          }
+        } else {
+          nextDate.setDate(nextDate.getDate() + (7 * interval));
+        }
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + interval);
+        break;
+      default:
+        nextDate.setDate(nextDate.getDate() + interval);
+    }
+
+    if (endCondition && nextDate > endCondition) break;
+    
+    const newStart = new Date(nextDate);
+    const newEnd = new Date(newStart.getTime() + duration);
+
+    dates.push({
+      startDateTime: newStart,
+      endDateTime: newEnd,
+      sequence: sequence
+    });
+
+    currentDate = new Date(nextDate);
+    count++;
+    sequence++;
+    
+    if (count > 365) break;
+  }
+
+  return dates;
+};
+
+const validateRepeatAvailability = async (resourceId, startDateTime, endDateTime, repeatConfig) => {
+  try {
+    const repeatDates = calculateRepeatDates(startDateTime, endDateTime, repeatConfig);
+    
+    const availabilityChecks = await Promise.all(
+      repeatDates.map(async (date, index) => {
+        if (index === 0) {
+          return {
+            ...date,
+            isAvailable: true
+          };
+        }
+        
+        const availability = await checkResourceAvailability(resourceId, date.startDateTime, date.endDateTime);
+        return {
+          ...date,
+          isAvailable: availability.isAvailable,
+          conflictingReservation: availability.conflictingReservation
+        };
+      })
+    );
+
+    const conflicts = availabilityChecks.filter(check => !check.isAvailable);
+    
+    return {
+      isValid: conflicts.length === 0,
+      conflicts,
+      allDates: availabilityChecks,
+      totalOccurrences: repeatDates.length
+    };
+  } catch (error) {
+    console.error('Error en validateRepeatAvailability:', error);
+    return {
+      isValid: false,
+      message: 'Error al validar disponibilidad de repeticiones'
+    };
+  }
+};
+
+const generateMasterId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+const findRepeatSeries = async (userId, resourceId, purpose, startDateTime) => {
+  try {
+    const startDate = new Date(startDateTime);
+    const searchStart = new Date(startDate);
+    searchStart.setDate(searchStart.getDate() - 30);
+    
+    const searchEnd = new Date(startDate);
+    searchEnd.setDate(searchEnd.getDate() + 30);
+
+    const series = await Reservation.findAll({
+      where: {
+        userId,
+        resourceId,
+        purpose,
+        isRepetitive: true,
+        startDateTime: {
+          [Op.between]: [searchStart, searchEnd]
+        },
+        status: { [Op.in]: ['pendiente', 'activa'] }
+      },
+      order: [['startDateTime', 'ASC']]
+    });
+
+    return series;
+  } catch (error) {
+    console.error('Error en findRepeatSeries:', error);
+    return [];
+  }
+};
+
+// ========== CONTROLADORES PRINCIPALES ==========
+
 const createReservation = async (req, res) => {
   try {
     const {
@@ -153,12 +308,12 @@ const createReservation = async (req, res) => {
       endDateTime,
       purpose,
       attendees = 1,
-      isRepetitive = false
+      isRepetitive = false,
+      repeatConfig = null
     } = req.body;
 
     const userId = req.user.id;
 
-    // Validaciones básicas
     if (!resourceId || !startDateTime || !endDateTime || !purpose) {
       return res.status(400).json({ 
         message: "Faltan campos requeridos: resourceId, startDateTime, endDateTime, purpose" 
@@ -180,7 +335,18 @@ const createReservation = async (req, res) => {
       });
     }
 
-    // Verificar recurso - SIN INCLUDE
+    if (purpose.trim().length === 0) {
+      return res.status(400).json({
+        message: "El propósito no puede estar vacío"
+      });
+    }
+
+    if (attendees < 1) {
+      return res.status(400).json({
+        message: "Debe haber al menos 1 asistente"
+      });
+    }
+
     const resource = await Resource.findOne({
       where: {
         id: resourceId,
@@ -195,7 +361,6 @@ const createReservation = async (req, res) => {
       });
     }
 
-    // Validar horario
     const scheduleValidation = await validateTimeAgainstSchedule(resourceId, startDate, endDate);
     if (!scheduleValidation.isValid) {
       return res.status(400).json({
@@ -203,7 +368,6 @@ const createReservation = async (req, res) => {
       });
     }
 
-    // Verificar disponibilidad
     const availability = await checkResourceAvailability(resourceId, startDate, endDate);
     
     if (!availability.isAvailable) {
@@ -213,57 +377,184 @@ const createReservation = async (req, res) => {
       });
     }
 
-    // Crear la reserva
-    const reservation = await Reservation.create({
-      resourceId,
-      userId,
-      startDateTime: startDate,
-      endDateTime: endDate,
-      purpose,
-      attendees,
-      isRepetitive,
-      status: 'pendiente'
-    });
-
-    // Obtener datos relacionados por separado para la respuesta
-    const resourceWithDetails = await Resource.findByPk(resourceId);
-    const resourceType = await ResourceType.findByPk(resourceWithDetails.typeId);
-    const unit = await Unit.findByPk(resourceType.unitId);
-    const user = await User.findByPk(userId, {
-      attributes: ['id', 'firstName', 'lastName', 'email']
-    });
-
-    res.status(201).json({
-      message: "Reserva creada exitosamente",
-      reservation: {
-        ...reservation.toJSON(),
-        Resource: {
-          ...resourceWithDetails.toJSON(),
-          ResourceType: {
-            ...resourceType.toJSON(),
-            Unit: unit
-          }
-        },
-        User: user
+    if (isRepetitive) {
+      if (!repeatConfig) {
+        return res.status(400).json({
+          message: "Para reservas repetitivas se requiere repeatConfig"
+        });
       }
-    });
+
+      const { frequency, interval = 1, occurrences, endDate: repeatEndDate, daysOfWeek } = repeatConfig;
+      
+      if (!frequency || !['daily', 'weekly', 'monthly'].includes(frequency)) {
+        return res.status(400).json({
+          message: "Frecuencia inválida. Use: daily, weekly o monthly"
+        });
+      }
+
+      if (!occurrences && !repeatEndDate) {
+        return res.status(400).json({
+          message: "Especifique 'occurrences' o 'endDate' para repeticiones"
+        });
+      }
+
+      if (frequency === 'weekly' && (!daysOfWeek || !Array.isArray(daysOfWeek) || daysOfWeek.length === 0)) {
+        return res.status(400).json({
+          message: "Para repetición semanal especifique daysOfWeek [0-6]"
+        });
+      }
+
+      if (occurrences && occurrences > 52) {
+        return res.status(400).json({
+          message: "Máximo 52 repeticiones permitidas"
+        });
+      }
+
+      const repeatValidation = await validateRepeatAvailability(
+        resourceId, 
+        startDate, 
+        endDate, 
+        repeatConfig
+      );
+
+      if (!repeatValidation.isValid) {
+        return res.status(409).json({
+          message: "Conflicto de disponibilidad en fechas repetitivas",
+          conflicts: repeatValidation.conflicts.map(conflict => ({
+            date: conflict.startDateTime,
+            conflictingReservation: conflict.conflictingReservation ? {
+              id: conflict.conflictingReservation.id,
+              startDateTime: conflict.conflictingReservation.startDateTime,
+              endDateTime: conflict.conflictingReservation.endDateTime
+            } : null
+          })),
+          totalOccurrences: repeatValidation.totalOccurrences,
+          availableOccurrences: repeatValidation.allDates.filter(d => d.isAvailable).length
+        });
+      }
+
+      const createdReservations = [];
+      const masterId = generateMasterId();
+      const repeatDates = repeatValidation.allDates;
+
+      for (let i = 0; i < repeatDates.length; i++) {
+        const date = repeatDates[i];
+        
+        const repeatScheduleValidation = await validateTimeAgainstSchedule(resourceId, date.startDateTime, date.endDateTime);
+        if (!repeatScheduleValidation.isValid) {
+          console.warn(`Saltando repetición ${i + 1}:`, repeatScheduleValidation.message);
+          continue;
+        }
+
+        const reservation = await Reservation.create({
+          resourceId,
+          userId,
+          startDateTime: date.startDateTime,
+          endDateTime: date.endDateTime,
+          purpose,
+          attendees,
+          isRepetitive: true,
+          status: 'pendiente'
+        });
+
+        createdReservations.push({
+          id: reservation.id,
+          startDateTime: reservation.startDateTime,
+          endDateTime: reservation.endDateTime,
+          sequence: i + 1,
+          status: reservation.status
+        });
+      }
+
+      if (createdReservations.length === 0) {
+        return res.status(400).json({
+          message: "No se pudo crear ninguna reserva repetitiva"
+        });
+      }
+
+      const resourceWithDetails = await Resource.findByPk(resourceId);
+      const resourceType = await ResourceType.findByPk(resourceWithDetails.typeId);
+      const unit = await Unit.findByPk(resourceType.unitId);
+      const user = await User.findByPk(userId, {
+        attributes: ['id', 'firstName', 'lastName', 'email']
+      });
+
+      res.status(201).json({
+        message: `Reserva repetitiva creada exitosamente (${createdReservations.length} ocurrencias)`,
+        isRepetitive: true,
+        masterId,
+        repeatConfig,
+        totalOccurrences: createdReservations.length,
+        reservations: createdReservations,
+        details: {
+          resource: {
+            ...resourceWithDetails.toJSON(),
+            ResourceType: {
+              ...resourceType.toJSON(),
+              Unit: unit
+            }
+          },
+          user
+        }
+      });
+
+    } else {
+      const reservation = await Reservation.create({
+        resourceId,
+        userId,
+        startDateTime: startDate,
+        endDateTime: endDate,
+        purpose,
+        attendees,
+        isRepetitive: false,
+        status: 'pendiente'
+      });
+
+      const resourceWithDetails = await Resource.findByPk(resourceId);
+      const resourceType = await ResourceType.findByPk(resourceWithDetails.typeId);
+      const unit = await Unit.findByPk(resourceType.unitId);
+      const user = await User.findByPk(userId, {
+        attributes: ['id', 'firstName', 'lastName', 'email']
+      });
+
+      res.status(201).json({
+        message: "Reserva única creada exitosamente",
+        reservation: {
+          ...reservation.toJSON(),
+          Resource: {
+            ...resourceWithDetails.toJSON(),
+            ResourceType: {
+              ...resourceType.toJSON(),
+              Unit: unit
+            }
+          },
+          User: user
+        }
+      });
+    }
 
   } catch (error) {
     console.error("Error al crear reserva:", error);
-    res.status(500).json({ message: "Error al crear la reserva: " + error.message });
+    res.status(500).json({ 
+      message: "Error al crear la reserva", 
+      error: error.message 
+    });
   }
 };
 
-// Obtener mis reservas - SIN INCLUDE
 const getMyReservations = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { status, page = 1, limit = 10, startDate, endDate } = req.query;
+    const { status, page = 1, limit = 10, startDate, endDate, isRepetitive } = req.query;
 
     const whereConditions = { userId };
     
     if (status && status !== 'all') {
       whereConditions.status = status;
+    }
+
+    if (isRepetitive !== undefined) {
+      whereConditions.isRepetitive = isRepetitive === 'true';
     }
 
     if (startDate && endDate) {
@@ -281,7 +572,6 @@ const getMyReservations = async (req, res) => {
       limit: parseInt(limit)
     });
 
-    // Obtener datos relacionados por separado
     const reservationsWithDetails = await Promise.all(
       reservations.map(async (reservation) => {
         const resource = await Resource.findByPk(reservation.resourceId);
@@ -323,7 +613,6 @@ const getMyReservations = async (req, res) => {
   }
 };
 
-// Obtener reserva específica - SIN INCLUDE
 const getReservation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -332,7 +621,6 @@ const getReservation = async (req, res) => {
 
     const whereConditions = { id };
 
-    // Si no es admin/empleado, solo puede ver sus propias reservas
     if (!['administrador', 'empleado_unidad'].includes(userRole)) {
       whereConditions.userId = userId;
     }
@@ -345,7 +633,6 @@ const getReservation = async (req, res) => {
       return res.status(404).json({ message: "Reserva no encontrada" });
     }
 
-    // Obtener datos relacionados por separado
     const resource = await Resource.findByPk(reservation.resourceId);
     let resourceType = null;
     let unit = null;
@@ -364,6 +651,17 @@ const getReservation = async (req, res) => {
       attributes: ['id', 'firstName', 'lastName', 'email', 'rol']
     });
 
+    // Si es repetitiva, buscar otras de la misma serie
+    let repeatSeries = [];
+    if (reservation.isRepetitive) {
+      repeatSeries = await findRepeatSeries(
+        reservation.userId,
+        reservation.resourceId,
+        reservation.purpose,
+        reservation.startDateTime
+      );
+    }
+
     const reservationWithDetails = {
       ...reservation.toJSON(),
       Resource: resource ? {
@@ -373,7 +671,13 @@ const getReservation = async (req, res) => {
           Unit: unit
         } : null
       } : null,
-      User: user
+      User: user,
+      repeatSeries: repeatSeries.filter(r => r.id !== reservation.id).map(r => ({
+        id: r.id,
+        startDateTime: r.startDateTime,
+        endDateTime: r.endDateTime,
+        status: r.status
+      }))
     };
 
     res.json(reservationWithDetails);
@@ -384,12 +688,24 @@ const getReservation = async (req, res) => {
   }
 };
 
-// Cancelar reserva
 const cancelReservation = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     const userRole = req.user.rol;
+    
+    // ✅ FIX: Manejar el caso cuando no hay body o body está vacío
+    const body = req.body || {};
+    const { cancelAll = false, cancelFuture = false } = body;
+
+    console.log('🔄 Cancelando reserva:', {
+      id,
+      userId,
+      userRole,
+      cancelAll,
+      cancelFuture,
+      body
+    });
 
     const whereConditions = { id };
 
@@ -415,7 +731,7 @@ const cancelReservation = async (req, res) => {
       return res.status(400).json({ message: "No se puede cancelar una reserva finalizada" });
     }
 
-    // Verificar que no sea demasiado tarde para cancelar (ej: 1 hora antes)
+    // Verificar que no sea demasiado tarde para cancelar
     const startDate = new Date(reservation.startDateTime);
     const now = new Date();
     const timeDiff = startDate - now;
@@ -427,30 +743,78 @@ const cancelReservation = async (req, res) => {
       });
     }
 
-    // Cancelar la reserva
-    await reservation.update({
-      status: 'cancelada'
-    });
+    // Manejar cancelación de reservas repetitivas
+    if (reservation.isRepetitive && (cancelAll || cancelFuture)) {
+      // Buscar reservas relacionadas
+      const repeatSeries = await findRepeatSeries(
+        reservation.userId,
+        reservation.resourceId,
+        reservation.purpose,
+        reservation.startDateTime
+      );
+      
+      let reservationsToCancel = [];
+      
+      if (cancelAll) {
+        // Cancelar todas las relacionadas
+        reservationsToCancel = [reservation, ...repeatSeries];
+      } else if (cancelFuture) {
+        // Cancelar solo las futuras (incluyendo esta si es futura)
+        reservationsToCancel = [reservation, ...repeatSeries].filter(res => 
+          new Date(res.startDateTime) >= now
+        );
+      }
+      
+      // Cancelar las reservas
+      const cancelPromises = reservationsToCancel.map(res => 
+        res.update({ status: 'cancelada' })
+      );
+      
+      await Promise.all(cancelPromises);
 
-    res.json({
-      message: "Reserva cancelada exitosamente",
-      reservation
-    });
+      return res.json({
+        success: true,
+        message: `${reservationsToCancel.length} reserva(s) cancelada(s) exitosamente`,
+        canceledCount: reservationsToCancel.length,
+        canceledAll: cancelAll,
+        canceledFuture: cancelFuture,
+        reservations: reservationsToCancel.map(r => ({
+          id: r.id,
+          startDateTime: r.startDateTime,
+          status: 'cancelada'
+        }))
+      });
+    } else {
+      // Cancelar solo esta reserva
+      await reservation.update({
+        status: 'cancelada'
+      });
+
+      return res.json({
+        success: true,
+        message: "Reserva cancelada exitosamente",
+        reservation: {
+          id: reservation.id,
+          status: 'cancelada'
+        }
+      });
+    }
 
   } catch (error) {
-    console.error("Error al cancelar reserva:", error);
-    res.status(500).json({ message: "Error al cancelar la reserva: " + error.message });
+    console.error("❌ Error al cancelar reserva:", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Error al cancelar la reserva: " + error.message 
+    });
   }
 };
 
-// Obtener todas las reservas (admin/empleado) - SIN INCLUDE
 const getAllReservations = async (req, res) => {
   try {
-    const { status, resourceId, userId, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { status, resourceId, userId, startDate, endDate, page = 1, limit = 10, isRepetitive } = req.query;
 
     const whereConditions = {};
 
-    // Aplicar filtros
     if (status && status !== 'all') {
       whereConditions.status = status;
     }
@@ -461,6 +825,10 @@ const getAllReservations = async (req, res) => {
 
     if (userId) {
       whereConditions.userId = userId;
+    }
+
+    if (isRepetitive !== undefined) {
+      whereConditions.isRepetitive = isRepetitive === 'true';
     }
 
     if (startDate && endDate) {
@@ -478,7 +846,6 @@ const getAllReservations = async (req, res) => {
       limit: parseInt(limit)
     });
 
-    // Obtener datos relacionados por separado
     const reservationsWithDetails = await Promise.all(
       reservations.map(async (reservation) => {
         const resource = await Resource.findByPk(reservation.resourceId);
@@ -526,7 +893,6 @@ const getAllReservations = async (req, res) => {
   }
 };
 
-// Actualizar estado de reserva (admin/empleado)
 const updateReservationStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -559,7 +925,6 @@ const updateReservationStatus = async (req, res) => {
   }
 };
 
-// Obtener reservas por recurso - SIN INCLUDE
 const getResourceReservations = async (req, res) => {
   try {
     const { resourceId } = req.params;
@@ -578,7 +943,6 @@ const getResourceReservations = async (req, res) => {
       order: [['startDateTime', 'ASC']]
     });
 
-    // Obtener datos de usuarios por separado
     const reservationsWithUsers = await Promise.all(
       reservations.map(async (reservation) => {
         const user = await User.findByPk(reservation.userId, {
@@ -600,7 +964,6 @@ const getResourceReservations = async (req, res) => {
   }
 };
 
-// Obtener reservas por usuario - SIN INCLUDE
 const getUserReservations = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -623,7 +986,6 @@ const getUserReservations = async (req, res) => {
       order: [['startDateTime', 'DESC']]
     });
 
-    // Obtener datos de recursos por separado
     const reservationsWithResources = await Promise.all(
       reservations.map(async (reservation) => {
         const resource = await Resource.findByPk(reservation.resourceId);
@@ -653,9 +1015,8 @@ const getUserReservations = async (req, res) => {
   }
 };
 
-// ========== CONTROLADORES DE CALENDARIO SIN INCLUDE ==========
+// ========== CONTROLADORES DE CALENDARIO ==========
 
-// Verificar disponibilidad
 const checkResourceAvailabilityController = async (req, res) => {
   try {
     const { resourceId, startDateTime, endDateTime } = req.body;
@@ -681,7 +1042,6 @@ const checkResourceAvailabilityController = async (req, res) => {
       });
     }
 
-    // Verificar recurso - SIN INCLUDE
     const resource = await Resource.findOne({
       where: {
         id: resourceId,
@@ -695,7 +1055,6 @@ const checkResourceAvailabilityController = async (req, res) => {
       });
     }
 
-    // Validar horario
     const scheduleValidation = await validateTimeAgainstSchedule(resourceId, startDate, endDate);
     if (!scheduleValidation.isValid) {
       return res.status(400).json({
@@ -703,7 +1062,6 @@ const checkResourceAvailabilityController = async (req, res) => {
       });
     }
 
-    // Verificar disponibilidad
     const availability = await checkResourceAvailability(resourceId, startDate, endDate);
     
     res.json({
@@ -723,7 +1081,6 @@ const checkResourceAvailabilityController = async (req, res) => {
   }
 };
 
-// Obtener slots disponibles para un recurso en una fecha específica
 const getResourceAvailability = async (req, res) => {
   try {
     const { resourceId } = req.params;
@@ -735,7 +1092,6 @@ const getResourceAvailability = async (req, res) => {
       });
     }
 
-    // Validar formato de fecha
     const targetDate = new Date(date);
     if (isNaN(targetDate.getTime())) {
       return res.status(400).json({ 
@@ -743,7 +1099,6 @@ const getResourceAvailability = async (req, res) => {
       });
     }
 
-    // Verificar que no sea en el pasado
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (targetDate < today) {
@@ -752,7 +1107,6 @@ const getResourceAvailability = async (req, res) => {
       });
     }
 
-    // Verificar que el recurso existe - SIN INCLUDE
     const resource = await Resource.findOne({
       where: {
         id: resourceId,
@@ -766,15 +1120,12 @@ const getResourceAvailability = async (req, res) => {
       });
     }
 
-    // Obtener tipo de recurso por separado
     const resourceType = await ResourceType.findByPk(resource.typeId, {
       attributes: ['id', 'name', 'granularity']
     });
 
-    // Usar tu helper para generar los slots disponibles
     const availableSlots = await generateAvailableSlots(resourceId, date);
 
-    // Obtener reservas del día para referencia
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
     
@@ -791,11 +1142,10 @@ const getResourceAvailability = async (req, res) => {
           [Op.in]: ['pendiente', 'activa']
         }
       },
-      attributes: ['id', 'startDateTime', 'endDateTime', 'purpose'],
+      attributes: ['id', 'startDateTime', 'endDateTime', 'purpose', 'isRepetitive'],
       order: [['startDateTime', 'ASC']]
     });
 
-    // Obtener datos de usuarios por separado
     const reservationsWithUsers = await Promise.all(
       reservations.map(async (reservation) => {
         const user = await User.findByPk(reservation.userId, {
@@ -807,6 +1157,7 @@ const getResourceAvailability = async (req, res) => {
           start: reservation.startDateTime,
           end: reservation.endDateTime,
           purpose: reservation.purpose,
+          isRepetitive: reservation.isRepetitive,
           user: user ? `${user.firstName} ${user.lastName}` : 'Usuario'
         };
       })
@@ -825,7 +1176,8 @@ const getResourceAvailability = async (req, res) => {
       summary: {
         totalSlots: availableSlots.length,
         availableSlots: availableSlots.filter(slot => slot.isAvailable).length,
-        occupiedSlots: availableSlots.filter(slot => !slot.isAvailable).length
+        occupiedSlots: availableSlots.filter(slot => !slot.isAvailable).length,
+        repetitiveReservations: reservations.filter(r => r.isRepetitive).length
       }
     });
 
@@ -838,7 +1190,6 @@ const getResourceAvailability = async (req, res) => {
   }
 };
 
-// Obtener disponibilidad para múltiples días
 const getResourceAvailabilityRange = async (req, res) => {
   try {
     const { resourceId } = req.params;
@@ -859,7 +1210,6 @@ const getResourceAvailabilityRange = async (req, res) => {
       });
     }
 
-    // Verificar que el recurso existe - SIN INCLUDE
     const resource = await Resource.findOne({
       where: {
         id: resourceId,
@@ -873,7 +1223,6 @@ const getResourceAvailabilityRange = async (req, res) => {
       });
     }
 
-    // Generar disponibilidad para cada día del rango
     const availabilityByDay = [];
     const currentDate = new Date(start);
     
@@ -931,8 +1280,172 @@ const getResourceAvailabilityRange = async (req, res) => {
   }
 };
 
-// Exportar todos los controladores
+// ========== FUNCIONES ESPECÍFICAS PARA RESERVAS REPETITIVAS ==========
+
+const checkRepeatAvailability = async (req, res) => {
+  try {
+    const {
+      resourceId,
+      startDateTime,
+      endDateTime,
+      repeatConfig
+    } = req.body;
+
+    if (!resourceId || !startDateTime || !endDateTime || !repeatConfig) {
+      return res.status(400).json({ 
+        message: "Faltan campos requeridos" 
+      });
+    }
+
+    const startDate = new Date(startDateTime);
+    const endDate = new Date(endDateTime);
+    
+    if (startDate >= endDate) {
+      return res.status(400).json({ 
+        message: "La fecha de inicio debe ser anterior a la fecha de fin" 
+      });
+    }
+
+    const resource = await Resource.findOne({
+      where: {
+        id: resourceId,
+        isActive: true
+      }
+    });
+
+    if (!resource) {
+      return res.status(404).json({ 
+        message: "Recurso no encontrado" 
+      });
+    }
+
+    const repeatValidation = await validateRepeatAvailability(
+      resourceId, 
+      startDate, 
+      endDate, 
+      repeatConfig
+    );
+
+    res.json({
+      isAvailable: repeatValidation.isValid,
+      totalOccurrences: repeatValidation.totalOccurrences,
+      availableOccurrences: repeatValidation.allDates.filter(d => d.isAvailable).length,
+      conflicts: repeatValidation.conflicts.map(conflict => ({
+        date: conflict.startDateTime,
+        hasConflict: true
+      })),
+      allDates: repeatValidation.allDates.map(date => ({
+        date: date.startDateTime,
+        isAvailable: date.isAvailable,
+        sequence: date.sequence
+      }))
+    });
+
+  } catch (error) {
+    console.error("Error en checkRepeatAvailability:", error);
+    res.status(500).json({ 
+      message: "Error al verificar disponibilidad repetitiva",
+      error: error.message 
+    });
+  }
+};
+
+const getRepeatSeries = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.rol;
+
+    const repeatReservations = await Reservation.findAll({
+      where: {
+        isRepetitive: true,
+        ...(userRole !== 'administrador' && userRole !== 'empleado_unidad' ? { userId } : {}),
+        status: { [Op.in]: ['pendiente', 'activa'] }
+      },
+      order: [['startDateTime', 'ASC']]
+    });
+
+    const seriesMap = new Map();
+    
+    for (const reservation of repeatReservations) {
+      const key = `${reservation.userId}_${reservation.resourceId}_${reservation.purpose}`;
+      
+      if (!seriesMap.has(key)) {
+        seriesMap.set(key, []);
+      }
+      
+      seriesMap.get(key).push(reservation);
+    }
+
+    const seriesDetails = [];
+    
+    for (const [key, reservations] of seriesMap) {
+      if (reservations.length < 2) continue;
+      
+      const firstReservation = reservations[0];
+      
+      const timeDiffs = [];
+      for (let i = 1; i < reservations.length; i++) {
+        const diff = new Date(reservations[i].startDateTime) - new Date(reservations[i-1].startDateTime);
+        timeDiffs.push(diff);
+      }
+      
+      const avgDiff = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
+      const isConsistent = timeDiffs.every(diff => 
+        Math.abs(diff - avgDiff) < (24 * 60 * 60 * 1000)
+      );
+      
+      const resource = await Resource.findByPk(firstReservation.resourceId);
+      const resourceType = resource ? await ResourceType.findByPk(resource.typeId) : null;
+      const unit = resourceType ? await Unit.findByPk(resourceType.unitId) : null;
+
+      seriesDetails.push({
+        seriesKey: key,
+        resource: resource ? {
+          id: resource.id,
+          name: resource.name,
+          type: resourceType ? resourceType.name : null,
+          unit: unit ? unit.name : null
+        } : null,
+        purpose: firstReservation.purpose,
+        totalOccurrences: reservations.length,
+        firstDate: firstReservation.startDateTime,
+        lastDate: reservations[reservations.length - 1].startDateTime,
+        patternDetected: isConsistent,
+        estimatedFrequency: isConsistent ? 
+          (avgDiff === 7 * 24 * 60 * 60 * 1000 ? 'weekly' : 
+           avgDiff === 24 * 60 * 60 * 1000 ? 'daily' : 
+           'custom') : 'unknown',
+        nextReservation: reservations.find(r => 
+          new Date(r.startDateTime) > new Date() && 
+          r.status === 'pendiente'
+        ),
+        reservations: reservations.map(r => ({
+          id: r.id,
+          startDateTime: r.startDateTime,
+          endDateTime: r.endDateTime,
+          status: r.status
+        }))
+      });
+    }
+
+    res.json({
+      series: seriesDetails,
+      totalSeries: seriesDetails.length
+    });
+
+  } catch (error) {
+    console.error("Error al obtener series repetitivas:", error);
+    res.status(500).json({ 
+      message: "Error al obtener las series de reservas",
+      error: error.message 
+    });
+  }
+};
+
+// ========== EXPORTAR CONTROLADORES ==========
+
 module.exports = {
+  // Controladores principales
   createReservation,
   getMyReservations,
   getReservation,
@@ -941,7 +1454,13 @@ module.exports = {
   updateReservationStatus,
   getResourceReservations,
   getUserReservations,
+  
+  // Controladores de calendario
   checkResourceAvailability: checkResourceAvailabilityController,
   getResourceAvailability,
-  getResourceAvailabilityRange
+  getResourceAvailabilityRange,
+  
+  // Controladores específicos para reservas repetitivas
+  checkRepeatAvailability,
+  getRepeatSeries
 };

@@ -11,14 +11,31 @@ const {
   getUserReservations,
   checkResourceAvailability,
   getResourceAvailability,
-  getResourceAvailabilityRange
+  getResourceAvailabilityRange,
+  checkRepeatAvailability,      // 🆕 Nueva función
+  getRepeatSeries               // 🆕 Nueva función
 } = require("../views/reservationController");
 const {
   verifyToken,
   authorizeRoles,
 } = require("../../../../user/src/middleware/authentication");
 
-// ========== RUTAS DE DISPONIBILIDAD (NUEVAS) ==========
+// ========== RUTAS DE DISPONIBILIDAD ==========
+
+// Verificar disponibilidad para un rango específico (reserva única)
+router.post(
+  "/check-availability",
+  verifyToken,
+  checkResourceAvailability
+);
+
+// 🆕 Verificar disponibilidad para reserva repetitiva
+router.post(
+  "/check-repeat-availability",
+  verifyToken,
+  authorizeRoles("estudiante", "docente", "personal_administrativo"),
+  checkRepeatAvailability
+);
 
 // Obtener disponibilidad de recurso para una fecha específica
 router.get(
@@ -34,11 +51,21 @@ router.get(
   getResourceAvailabilityRange
 );
 
-// Verificar disponibilidad para un rango específico
-router.post(
-  "/check-availability",
+// ========== RUTAS PARA SERIES REPETITIVAS ==========
+
+// 🆕 Obtener todas mis series de reservas repetitivas
+router.get(
+  "/repeat-series/my",
   verifyToken,
-  checkResourceAvailability
+  getRepeatSeries
+);
+
+// 🆕 Obtener todas las series repetitivas (admin/empleados)
+router.get(
+  "/repeat-series/all",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getRepeatSeries
 );
 
 // ========== RUTAS EXISTENTES ==========
@@ -68,7 +95,7 @@ router.get(
 
 // ========== RUTAS CON :id ==========
 
-// Cancelar reserva
+// Cancelar reserva (ahora soporta cancelAll y cancelFuture)
 router.patch(
   "/:id/cancel",
   verifyToken,
@@ -83,7 +110,7 @@ router.patch(
   updateReservationStatus
 );
 
-// Obtener reserva específica
+// Obtener reserva específica (ahora incluye info de serie repetitiva si aplica)
 router.get(
   "/:id",
   verifyToken,
@@ -92,7 +119,7 @@ router.get(
 
 // ========== RUTAS SIN PARÁMETROS ==========
 
-// Crear nueva reserva
+// Crear nueva reserva (ahora soporta repetitivas)
 router.post(
   "/",
   verifyToken,
@@ -100,7 +127,7 @@ router.post(
   createReservation
 );
 
-// Obtener todas las reservas (con filtros)
+// Obtener todas las reservas (con filtros, ahora incluye filtro por isRepetitive)
 router.get(
   "/",
   verifyToken,

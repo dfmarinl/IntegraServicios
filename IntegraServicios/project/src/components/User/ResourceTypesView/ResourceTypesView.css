@@ -1,75 +1,378 @@
 .resource-types-view {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 2rem 1rem;
+  animation: fadeIn 0.5s ease-out;
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header mejorado */
 .types-header {
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
+  position: relative;
 }
 
 .back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   background: none;
   border: none;
-  color: #3b82f6;
+  color: #667eea;
   cursor: pointer;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: rgba(102, 126, 234, 0.1);
 }
 
 .back-button:hover {
-  text-decoration: underline;
+  background: rgba(102, 126, 234, 0.2);
+  transform: translateX(-4px);
+  text-decoration: none;
 }
 
+.types-title {
+  color: #1a1a1a;
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.types-subtitle {
+  color: #666;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  max-width: 800px;
+}
+
+/* Grid de tipos */
 .types-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+  padding: 0.5rem;
 }
 
+/* Tarjetas mejoradas */
 .type-card {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.type-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 0;
 }
 
 .type-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-8px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(102, 126, 234, 0.1);
 }
 
+.type-card:hover::before {
+  opacity: 1;
+}
+
+/* Borde decorativo lateral */
+.type-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #667eea, #764ba2);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.4s ease;
+}
+
+.type-card:hover::after {
+  transform: scaleY(1);
+}
+
+/* Contenido de la tarjeta */
 .type-content {
   display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Icono con efecto especial */
+.type-icon-wrapper {
+  display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  justify-content: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #667eea15, #764ba215);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.type-icon-wrapper::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .type-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
+  font-size: 2.25rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
 }
 
+.type-card:hover .type-icon-wrapper {
+  transform: rotate(5deg) scale(1.1);
+}
+
+.type-card:hover .type-icon-wrapper::before {
+  opacity: 1;
+}
+
+.type-card:hover .type-icon {
+  -webkit-text-fill-color: white;
+}
+
+/* Información del tipo */
 .type-info {
   flex: 1;
+  min-width: 0;
 }
 
 .type-name {
-  margin: 0 0 0.5rem 0;
-  color: #111827;
+  margin: 0 0 0.75rem 0;
+  color: #1a1a1a;
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.3;
+  transition: color 0.3s ease;
+}
+
+.type-card:hover .type-name {
+  color: #667eea;
 }
 
 .type-description {
-  margin: 0 0 0.5rem 0;
-  color: #6b7280;
-  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
+/* Metadatos con chips */
 .type-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.type-tag {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
   font-size: 0.8rem;
-  color: #9ca3af;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+.type-tag:hover {
+  background: rgba(102, 126, 234, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Flecha mejorada */
+.type-arrow-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.1);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  margin-top: auto;
 }
 
 .type-arrow {
-  font-size: 1.5rem;
-  color: #6b7280;
+  font-size: 1.25rem;
+  color: #667eea;
+  transition: all 0.3s ease;
+}
+
+.type-card:hover .type-arrow-wrapper {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  transform: translateX(4px);
+}
+
+.type-card:hover .type-arrow {
+  color: white;
+  transform: translateX(2px);
+}
+
+/* Animación de entrada escalonada */
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.type-card {
+  animation: cardSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+}
+
+.type-card:nth-child(1) { animation-delay: 0.1s; }
+.type-card:nth-child(2) { animation-delay: 0.2s; }
+.type-card:nth-child(3) { animation-delay: 0.3s; }
+.type-card:nth-child(4) { animation-delay: 0.4s; }
+.type-card:nth-child(5) { animation-delay: 0.5s; }
+.type-card:nth-child(6) { animation-delay: 0.6s; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .resource-types-view {
+    padding: 1.5rem 1rem;
+  }
+  
+  .types-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .types-title {
+    font-size: 1.75rem;
+  }
+  
+  .types-subtitle {
+    font-size: 1rem;
+  }
+  
+  .type-content {
+    padding: 1.5rem;
+  }
+  
+  .type-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .type-icon {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .types-title {
+    font-size: 1.5rem;
+  }
+  
+  .type-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .type-icon-wrapper {
+    margin: 0 auto;
+  }
+  
+  .type-arrow-wrapper {
+    display: none;
+  }
+}
+
+/* Efecto de brillo al pasar el mouse */
+.type-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.type-card .shine {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  transition: all 0.6s ease;
+  opacity: 0;
+}
+
+.type-card:hover .shine {
+  opacity: 1;
+  left: 100%;
 }

@@ -16,7 +16,7 @@ import "./MyReservations.css";
 
 const MyReservations = () => {
   const { user } = useAuth();
-  const { showSuccess, showError } = useUI();
+  const { showSuccess, showError, showWarning, showInfo } = useUI();
   
   // Estados principales
   const [reservations, setReservations] = useState([]);
@@ -28,6 +28,7 @@ const MyReservations = () => {
   const [cancelModal, setCancelModal] = useState({
     open: false,
     reservation: null,
+    options: null, // Opciones para reservas repetitivas
   });
   const [pdfModal, setPdfModal] = useState({
     open: false,
@@ -43,6 +44,7 @@ const MyReservations = () => {
     status: "all",
     startDate: "",
     endDate: "",
+    isRepetitive: "", // Nuevo filtro para repetitivas
     page: 1,
     limit: 10,
   });
@@ -83,6 +85,10 @@ const MyReservations = () => {
       if (filters.endDate) {
         apiFilters.endDate = filters.endDate;
       }
+
+      if (filters.isRepetitive !== "") {
+        apiFilters.isRepetitive = filters.isRepetitive === "true";
+      }
       
       const response = await getMyReservationsApi(apiFilters);
       
@@ -119,7 +125,25 @@ const MyReservations = () => {
       showError("Esta reserva no puede ser cancelada");
       return;
     }
-    setCancelModal({ open: true, reservation });
+
+    // Si es una reserva repetitiva, mostrar opciones
+    if (reservation.isRepetitive) {
+      setCancelModal({ 
+        open: true, 
+        reservation,
+        options: {
+          showOptions: true,
+          selectedOption: 'single', // single, future, all
+          hasRelatedReservations: true
+        }
+      });
+    } else {
+      setCancelModal({ 
+        open: true, 
+        reservation,
+        options: null 
+      });
+    }
   };
 
   const handleCancelReservation = async () => {
@@ -127,19 +151,76 @@ const MyReservations = () => {
     
     setCancelling(true);
     try {
-      const response = await cancelReservationApi(cancelModal.reservation.id);
+      // Determinar qué opción de cancelación usar
+      let cancelAll = false;
+      let cancelFuture = false;
+
+      if (cancelModal.options && cancelModal.reservation.isRepetitive) {
+        switch (cancelModal.options.selectedOption) {
+          case 'all':
+            cancelAll = true;
+            break;
+          case 'future':
+            cancelFuture = true;
+            break;
+          case 'single':
+          default:
+            // No se envían parámetros adicionales
+            break;
+        }
+      }
+
+      const response = await cancelReservationApi(
+        cancelModal.reservation.id, 
+        cancelAll, 
+        cancelFuture
+      );
       
       if (response && (response.success || response.message)) {
-        showSuccess(response.message || "Reserva cancelada exitosamente");
+        let successMessage = "Reserva cancelada exitosamente";
         
-        // Actualizar la lista de reservas localmente
-        setReservations(prevReservations => 
-          prevReservations.map(res => 
-            res.id === cancelModal.reservation.id 
-              ? { ...res, status: "cancelada" }
-              : res
-          )
-        );
+        if (cancelModal.options && cancelModal.reservation.isRepetitive) {
+          switch (cancelModal.options.selectedOption) {
+            case 'all':
+              successMessage = response.message || "Todas las repeticiones han sido canceladas";
+              break;
+            case 'future':
+              successMessage = response.message || "Repeticiones futuras canceladas";
+              break;
+            case 'single':
+              successMessage = response.message || "Reserva cancelada exitosamente";
+              break;
+          }
+          
+          // Si se cancelaron todas o futuras, recargar las reservas
+          if (cancelAll || cancelFuture) {
+            showSuccess(successMessage);
+            setTimeout(() => {
+              loadReservations();
+            }, 500);
+          } else {
+            // Solo actualizar esta reserva localmente
+            setReservations(prevReservations => 
+              prevReservations.map(res => 
+                res.id === cancelModal.reservation.id 
+                  ? { ...res, status: "cancelada" }
+                  : res
+              )
+            );
+            showSuccess(successMessage);
+          }
+        } else {
+          // Reserva única
+          setReservations(prevReservations => 
+            prevReservations.map(res => 
+              res.id === cancelModal.reservation.id 
+                ? { ...res, status: "cancelada" }
+                : res
+            )
+          );
+          showSuccess(response.message || "Reserva cancelada exitosamente");
+        }
+        
       } else {
         showError("Error al cancelar la reserva");
       }
@@ -148,8 +229,18 @@ const MyReservations = () => {
       showError(error.message || "Error al cancelar la reserva");
     } finally {
       setCancelling(false);
-      setCancelModal({ open: false, reservation: null });
+      setCancelModal({ open: false, reservation: null, options: null });
     }
+  };
+
+  const handleCancelOptionChange = (option) => {
+    setCancelModal(prev => ({
+      ...prev,
+      options: {
+        ...prev.options,
+        selectedOption: option
+      }
+    }));
   };
 
   const handleOpenRating = (reservation) => {
@@ -233,6 +324,7 @@ const MyReservations = () => {
       status: "all",
       startDate: "",
       endDate: "",
+      isRepetitive: "",
       page: 1,
       limit: 10,
     });
@@ -335,6 +427,13 @@ const MyReservations = () => {
     }
   };
 
+  // Función para obtener icono de repetitiva
+  const getRepeatIcon = (isRepetitive) => {
+    return isRepetitive ? (
+      <span className="repeat-icon" title="Reserva repetitiva">🔄</span>
+    ) : null;
+  };
+
   // Columnas de la tabla
   const columns = [
     { 
@@ -346,7 +445,13 @@ const MyReservations = () => {
           row.Resource?.name || 
           row.resourceName || 
           (typeof row.resource === 'string' ? row.resource : "N/A");
-        return resourceName;
+        
+        return (
+          <div className="resource-cell">
+            {resourceName}
+            {getRepeatIcon(row.isRepetitive)}
+          </div>
+        );
       }
     },
     { 
@@ -377,6 +482,7 @@ const MyReservations = () => {
         return (
           <span className={`status-badge status-${statusClass}`}>
             {statusText}
+            {row.isRepetitive && " (R)"}
           </span>
         );
       },
@@ -397,7 +503,7 @@ const MyReservations = () => {
                 variant="danger"
                 onClick={() => handleOpenCancelModal(row)}
               >
-                Cancelar
+                {row.isRepetitive ? "Cancelar 🔄" : "Cancelar"}
               </Button>
             )}
             
@@ -455,6 +561,19 @@ const MyReservations = () => {
                   { value: "activa", label: "Activas" },
                   { value: "finalizada", label: "Finalizadas" },
                   { value: "cancelada", label: "Canceladas" },
+                ]}
+              />
+            </div>
+            
+            <div className="filter-group">
+              <label>Tipo:</label>
+              <Select
+                value={filters.isRepetitive}
+                onChange={(e) => handleFilterChange("isRepetitive", e.target.value)}
+                options={[
+                  { value: "", label: "Todos" },
+                  { value: "true", label: "Repetitivas 🔄" },
+                  { value: "false", label: "Únicas" },
                 ]}
               />
             </div>
@@ -520,7 +639,7 @@ const MyReservations = () => {
         ) : reservations.length === 0 ? (
           <div className="no-reservations">
             <p>No tienes reservas registradas con los filtros actuales.</p>
-            {(filters.status !== "all" || filters.startDate || filters.endDate) ? (
+            {(filters.status !== "all" || filters.startDate || filters.endDate || filters.isRepetitive !== "") ? (
               <Button onClick={handleClearFilters} variant="outline">
                 Limpiar filtros para ver todas las reservas
               </Button>
@@ -531,7 +650,11 @@ const MyReservations = () => {
         ) : (
           <>
             <div className="reservations-count">
-              <p>Mostrando {reservations.length} reserva{reservations.length !== 1 ? 's' : ''} de {pagination.totalItems} total</p>
+              <p>
+                Mostrando {reservations.length} reserva{reservations.length !== 1 ? 's' : ''} de {pagination.totalItems} total
+                {filters.isRepetitive === "true" && " (Repetitivas 🔄)"}
+                {filters.isRepetitive === "false" && " (Únicas)"}
+              </p>
             </div>
             
             <div id="reservations-table">
@@ -571,18 +694,77 @@ const MyReservations = () => {
         )}
       </Card>
 
-      {/* Modal de cancelación */}
+      {/* Modal de cancelación - Actualizado para repetitivas */}
       <Modal
         isOpen={cancelModal.open}
-        onClose={() => !cancelling && setCancelModal({ open: false, reservation: null })}
-        title="Cancelar Reserva"
+        onClose={() => !cancelling && setCancelModal({ open: false, reservation: null, options: null })}
+        title={cancelModal.reservation?.isRepetitive ? "Cancelar Reserva Repetitiva 🔄" : "Cancelar Reserva"}
         size="small"
       >
         {cancelModal.reservation && (
           <div className="cancel-form">
+            {cancelModal.reservation.isRepetitive && cancelModal.options?.showOptions && (
+              <div className="repeat-cancel-options">
+                <div className="repeat-warning">
+                  <div className="warning-icon">🔄</div>
+                  <h4>Esta es una reserva repetitiva</h4>
+                  <p>¿Qué deseas cancelar?</p>
+                </div>
+                
+                <div className="cancel-options-list">
+                  <label className="cancel-option">
+                    <input
+                      type="radio"
+                      name="cancelOption"
+                      value="single"
+                      checked={cancelModal.options.selectedOption === 'single'}
+                      onChange={() => handleCancelOptionChange('single')}
+                    />
+                    <div className="option-content">
+                      <strong>Solo esta reserva</strong>
+                      <p>Cancelarás únicamente esta fecha específica.</p>
+                    </div>
+                  </label>
+                  
+                  <label className="cancel-option">
+                    <input
+                      type="radio"
+                      name="cancelOption"
+                      value="future"
+                      checked={cancelModal.options.selectedOption === 'future'}
+                      onChange={() => handleCancelOptionChange('future')}
+                    />
+                    <div className="option-content">
+                      <strong>Repeticiones futuras</strong>
+                      <p>Cancelarás esta reserva y todas las futuras de la serie.</p>
+                    </div>
+                  </label>
+                  
+                  <label className="cancel-option">
+                    <input
+                      type="radio"
+                      name="cancelOption"
+                      value="all"
+                      checked={cancelModal.options.selectedOption === 'all'}
+                      onChange={() => handleCancelOptionChange('all')}
+                    />
+                    <div className="option-content">
+                      <strong>Todas las repeticiones</strong>
+                      <p>Cancelarás todas las reservas de esta serie (pasadas y futuras).</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
+            
             <div className="cancel-warning">
               <div className="warning-icon">⚠️</div>
-              <h4>¿Estás seguro de cancelar esta reserva?</h4>
+              <h4>
+                {cancelModal.reservation.isRepetitive 
+                  ? `¿Estás seguro de cancelar ${cancelModal.options?.selectedOption === 'single' ? 'esta reserva' : 
+                     cancelModal.options?.selectedOption === 'future' ? 'las repeticiones futuras' : 'todas las repeticiones'}?`
+                  : "¿Estás seguro de cancelar esta reserva?"}
+              </h4>
               <p>Esta acción no se puede deshacer.</p>
             </div>
             
@@ -591,15 +773,20 @@ const MyReservations = () => {
               <p><strong>Fecha:</strong> {formatDisplayDate(cancelModal.reservation.startDateTime || cancelModal.reservation.date)}</p>
               <p><strong>Horario:</strong> {formatDisplayTime(cancelModal.reservation.startDateTime || cancelModal.reservation.startTime)} - {formatDisplayTime(cancelModal.reservation.endDateTime || cancelModal.reservation.endTime)}</p>
               <p><strong>Estado actual:</strong> {getStatusText(cancelModal.reservation.status)}</p>
+              {cancelModal.reservation.isRepetitive && (
+                <p className="repeat-info">
+                  <strong>Tipo:</strong> Reserva repetitiva 🔄
+                </p>
+              )}
             </div>
 
             <div className="cancel-buttons">
               <Button 
-                onClick={() => setCancelModal({ open: false, reservation: null })}
+                onClick={() => setCancelModal({ open: false, reservation: null, options: null })}
                 variant="outline"
                 disabled={cancelling}
               >
-                No, mantener reserva
+                No, mantener {cancelModal.reservation.isRepetitive ? 'reserva(s)' : 'reserva'}
               </Button>
               <Button 
                 onClick={handleCancelReservation}
@@ -607,13 +794,18 @@ const MyReservations = () => {
                 loading={cancelling}
                 disabled={cancelling}
               >
-                {cancelling ? "Cancelando..." : "Sí, cancelar reserva"}
+                {cancelling ? "Cancelando..." : 
+                 cancelModal.reservation.isRepetitive 
+                  ? `Sí, cancelar ${cancelModal.options?.selectedOption === 'single' ? 'esta reserva' : 
+                     cancelModal.options?.selectedOption === 'future' ? 'repeticiones futuras' : 'todas las repeticiones'}`
+                  : "Sí, cancelar reserva"}
               </Button>
             </div>
           </div>
         )}
       </Modal>
 
+      {/* Resto de modales (rating y PDF) permanecen igual */}
       {/* Modal de calificación */}
       <Modal
         isOpen={ratingModal.open}

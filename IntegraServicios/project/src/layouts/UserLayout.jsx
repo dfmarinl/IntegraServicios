@@ -26,7 +26,7 @@ const UserLayout = () => {
       <header className="user-header">
         <div className="user-header-content">
           <Link to="/app" className="logo">
-            Sistema de Reservas
+            IntegraServicios
           </Link>
 
           <nav className="user-nav">
