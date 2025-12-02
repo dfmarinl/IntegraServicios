@@ -15,6 +15,7 @@ import ResourcesManagement from "../pages/Admin/ResourcesManagement/ResourcesMan
 import UnitsView from "../components/User/UnitsView/UnitsView";
 import ResourcesByTypeView from "../components/User/ResourcesByTypeView/ResourcesByTypeView";
 import ResourceTypesView from "../components/User/ResourceTypesView/ResourceTypesView";
+import ReservationsManagement from "../pages/Admin/ReservationsManagement/ReservationsManagement";
 
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
@@ -136,11 +137,7 @@ const AppRouter = () => {
           <Route
             path="reservations"
             element={
-              <div className="page-placeholder">
-                <h1>Gestión de Reservas</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
+              <ReservationsManagement />}
           />
           <Route
             path="loans"
