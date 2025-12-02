@@ -20,10 +20,10 @@ const ResourcesByTypeView = () => {
   const [error, setError] = useState(null);
   const [selectedResource, setSelectedResource] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(""); // Nuevo estado para el término de búsqueda
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Hook modular para reservas
-  const { reserving, createQuickReservation, createReservationFromCalendar } = useReservation();
+  const { reserving, createReservationFromCalendar } = useReservation();
 
   useEffect(() => {
     if (unitId && typeId) {
@@ -31,7 +31,7 @@ const ResourcesByTypeView = () => {
     }
   }, [unitId, typeId]);
 
-  // Nuevo efecto para filtrar recursos cuando cambia el término de búsqueda
+  // Efecto para filtrar recursos cuando cambia el término de búsqueda
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredResources(resources);
@@ -56,7 +56,7 @@ const ResourcesByTypeView = () => {
 
       const resourcesData = await getActiveResourcesByTypeApi(typeId);
       setResources(resourcesData);
-      setFilteredResources(resourcesData); // Inicializar recursos filtrados
+      setFilteredResources(resourcesData);
     } catch (err) {
       console.error("Error al cargar recursos:", err);
       setError("Error al cargar los recursos disponibles");
@@ -74,23 +74,16 @@ const ResourcesByTypeView = () => {
     }
   };
 
-  const handleQuickReserve = async (resourceId, resourceType) => {
-    const result = await createQuickReservation(resourceId, resourceType);
-    
-    if (result.success) {
-      alert(`¡Reserva creada exitosamente!\nRecurso: ${result.data.reservation?.Resource?.name}\nFecha: ${new Date(result.data.reservation?.startDateTime).toLocaleString()}`);
-    } else {
-      alert(`Error al crear la reserva: ${result.error}`);
+  // Función para reservar desde calendario
+  const handleReserve = (resourceId) => {
+    const resource = resources.find(r => r.id === resourceId);
+    if (resource) {
+      setSelectedResource(resource);
+      setShowCalendar(true);
     }
   };
 
-  const handleAdvancedReserve = (resourceId, resourceType, unit) => {
-    const resource = resources.find(r => r.id === resourceId);
-    setSelectedResource(resource);
-    setShowCalendar(true);
-  };
-
-  // CORREGIDO: Usar la nueva función específica para calendario
+  // Crear reserva desde calendario
   const handleCreateReservationFromCalendar = async (reservationData) => {
     try {
       const result = await createReservationFromCalendar(reservationData);
@@ -162,35 +155,58 @@ const ResourcesByTypeView = () => {
         <button onClick={handleBackClick} className="back-button">
           ← Volver a {showCalendar ? 'Recursos' : 'Tipos'}
         </button>
-        <h1>Recursos - {resourceType?.name}</h1>
-        <p>{unit?.name} - Selecciona un recurso para reservar</p>
-      </div>
-
-      {/* Sección de búsqueda */}
-      <div className="resources-search-section">
-        <div className="search-container">
-          <input
-            type="text"
-            placeholder="Buscar recurso por nombre..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="search-input"
-          />
-          {searchTerm && (
-            <button onClick={handleClearSearch} className="clear-search-btn">
-              ✕
-            </button>
-          )}
-          <div className="search-results-info">
-            {searchTerm && (
-              <p>
-                Mostrando {filteredResources.length} de {resources.length} recursos
-                {searchTerm && ` para "${searchTerm}"`}
-              </p>
-            )}
+        <div className="resources-title-container">
+          <h1 className="resources-title">Recursos - {resourceType?.name}</h1>
+          <p className="resources-subtitle">{unit?.name} - Selecciona un recurso para reservar</p>
+          <div className="type-badge">
+            <span className="type-badge-icon">{resourceType?.icon || '📦'}</span>
+            <span>{resourceType?.description || 'Recursos disponibles'}</span>
           </div>
         </div>
       </div>
+
+      {/* Tarjeta de filtros y búsqueda */}
+      <Card className="filters-card">
+        <div className="filters-header">
+          <h3>Filtrar Recursos</h3>
+          {searchTerm && (
+            <button 
+              onClick={handleClearSearch} 
+              className="clear-filters-btn"
+              disabled={!searchTerm}
+            >
+              Limpiar Búsqueda
+            </button>
+          )}
+        </div>
+        
+        <div className="filters-grid">
+          <div className="filter-group">
+            <label className="filter-label">🔍 Buscar por nombre</label>
+            <input
+              type="text"
+              placeholder="Escribe para buscar..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="filter-input"
+            />
+          </div>
+        </div>
+
+        <div className="results-info">
+          <div className="results-count">
+            {filteredResources.length} de {resources.length} recursos
+          </div>
+          <div className="results-stats">
+            <span>
+              ✅ {resources.filter(r => r.isAvailable).length} disponibles
+            </span>
+            <span>
+              ⚠️ {resources.filter(r => !r.isAvailable).length} ocupados
+            </span>
+          </div>
+        </div>
+      </Card>
 
       <div className="resources-grid">
         {filteredResources.length > 0 ? (
@@ -198,7 +214,7 @@ const ResourcesByTypeView = () => {
             <Card key={resource.id} className="resource-card">
               <div className="resource-image-container">
                 <img
-                  src={resource.photoUrl}
+                  src={resource.photoUrl || '/placeholder-resource.jpg'}
                   alt={resource.name}
                   className="resource-image"
                   onError={(e) => {
@@ -206,59 +222,89 @@ const ResourcesByTypeView = () => {
                   }}
                 />
                 <div className={`resource-availability-badge ${resource.isAvailable ? 'available' : 'unavailable'}`}>
-                  {resource.isAvailable ? 'Disponible' : 'No disponible'}
+                  {resource.isAvailable ? '✅ Disponible' : '⛔ Ocupado'}
                 </div>
               </div>
 
               <div className="resource-content">
                 <h3 className="resource-name">{resource.name}</h3>
                 
+                {/* Meta información del recurso */}
+                <div className="resource-meta">
+                  <div className="meta-item">
+                    <span className="meta-label">Capacidad</span>
+                    <span className="meta-value">{resource.capacity || 'N/A'}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-label">Ubicación</span>
+                    <span className="meta-value">{resource.location || unit?.name || 'N/A'}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-label">Tipo</span>
+                    <span className="meta-value">{resourceType?.name || 'N/A'}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-label">Unidad</span>
+                    <span className="meta-value">{unit?.name || 'N/A'}</span>
+                  </div>
+                </div>
+
+                {/* Características */}
                 {resource.features && Object.keys(resource.features).length > 0 && (
                   <div className="resource-features">
-                    <span className="features-label">Características:</span>
+                    <span className="features-label">✨ Características:</span>
                     <div className="features-list">
-                      {Object.entries(resource.features).slice(0, 3).map(([key, value]) => (
+                      {Object.entries(resource.features).slice(0, 4).map(([key, value]) => (
                         <span key={key} className="feature-tag">
-                          {key}: {value}
+                          {value === true ? key : `${key}: ${value}`}
                         </span>
                       ))}
-                      {Object.keys(resource.features).length > 3 && (
-                        <span className="feature-tag-more">
-                          +{Object.keys(resource.features).length - 3} más
+                      {Object.keys(resource.features).length > 4 && (
+                        <span className="feature-tag feature-more">
+                          +{Object.keys(resource.features).length - 4} más
                         </span>
                       )}
                     </div>
                   </div>
                 )}
 
-                <ReservationActions
-                  resource={resource}
-                  resourceType={resourceType}
-                  unit={unit}
-                  onQuickReserve={handleQuickReserve}
-                  onAdvancedReserve={handleAdvancedReserve}
-                  isReserving={reserving}
-                />
+                {/* Acciones - Solo botón de Reservar */}
+                <div className="resource-actions">
+                  <button
+                    onClick={() => handleReserve(resource.id)}
+                    disabled={!resource.isAvailable || reserving}
+                    className={`btn-reserve ${!resource.isAvailable ? 'btn-disabled' : ''}`}
+                  >
+                    {reserving && selectedResource?.id === resource.id ? (
+                      'Reservando...'
+                    ) : resource.isAvailable ? (
+                      '📅 Reservar'
+                    ) : (
+                      'No disponible'
+                    )}
+                  </button>
+                </div>
               </div>
             </Card>
           ))
         ) : (
-          <div className="no-resources">
-            <div className="no-resources-icon">🔍</div>
+          <div className="no-results">
+            <div className="no-results-icon">🔍</div>
             <h3>No se encontraron recursos</h3>
             <p>
               {searchTerm 
                 ? `No hay recursos que coincidan con "${searchTerm}"`
-                : "No se encontraron recursos de este tipo"}
+                : "No hay recursos disponibles de este tipo"}
             </p>
-            {searchTerm && (
+            {searchTerm ? (
               <button onClick={handleClearSearch} className="btn-clear-search">
                 Limpiar búsqueda
               </button>
+            ) : (
+              <button onClick={handleBackClick} className="btn-clear-search">
+                Volver a tipos
+              </button>
             )}
-            <button onClick={handleBackClick} className="btn-back">
-              Volver a tipos
-            </button>
           </div>
         )}
       </div>

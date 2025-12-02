@@ -24,6 +24,18 @@ const ReservationCalendar = ({
   const [attendees, setAttendees] = useState(1);
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   
+  // Estado para reservas repetitivas
+  const [isRepetitive, setIsRepetitive] = useState(false);
+  const [repeatFrequency, setRepeatFrequency] = useState("weekly");
+  const [repeatInterval, setRepeatInterval] = useState(1);
+  const [repeatOccurrences, setRepeatOccurrences] = useState(4);
+  const [repeatEndDate, setRepeatEndDate] = useState(null);
+  const [selectedDays, setSelectedDays] = useState([]);
+  const [repeatType, setRepeatType] = useState("occurrences"); // "occurrences" o "endDate"
+  
+  // Estado para mostrar información de repetición
+  const [calculatedDates, setCalculatedDates] = useState([]);
+  
   const { 
     checkingAvailability, 
     availabilityResult, 
@@ -46,6 +58,16 @@ const ReservationCalendar = ({
     clearAvailabilityResult();
   }, [selectedDate, startTime, endTime]);
 
+  // Calcular fechas de repetición cuando cambia la configuración
+  useEffect(() => {
+    if (isRepetitive) {
+      calculateRepeatDates();
+    } else {
+      setCalculatedDates([]);
+    }
+  }, [isRepetitive, selectedDate, startTime, endTime, repeatFrequency, repeatInterval, 
+      repeatOccurrences, repeatEndDate, selectedDays, repeatType]);
+
   const loadAvailableSlots = async () => {
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
@@ -57,7 +79,6 @@ const ReservationCalendar = ({
       const result = await getAvailableSlots(resource.id, dateStr);
       
       if (result && result.length > 0) {
-        // Extraer solo los horarios disponibles para los selects
         const availableSlotsList = result
           .filter(slot => slot.isAvailable)
           .map(slot => slot.startTimeFormatted);
@@ -65,15 +86,12 @@ const ReservationCalendar = ({
         console.log('⏰ Horarios disponibles encontrados:', availableSlotsList);
         setAvailableTimeSlots(availableSlotsList);
 
-        // Si hay slots disponibles, establecer valores por defecto
         if (availableSlotsList.length > 0) {
           setStartTime(availableSlotsList[0]);
-          // Buscar siguiente slot para la hora de fin
           const nextSlotIndex = 1;
           const endTimeValue = availableSlotsList[nextSlotIndex] || availableSlotsList[0];
           setEndTime(endTimeValue);
         } else {
-          // Si no hay slots disponibles, resetear a valores por defecto
           setStartTime("09:00");
           setEndTime("10:00");
         }
@@ -85,10 +103,80 @@ const ReservationCalendar = ({
     } catch (error) {
       console.error('❌ Error cargando slots:', error);
       setAvailableTimeSlots([]);
-      // En caso de error, usar horarios por defecto
       setStartTime("09:00");
       setEndTime("10:00");
     }
+  };
+
+  // Función para calcular fechas de repetición
+  const calculateRepeatDates = () => {
+    const dates = [];
+    const startDateTime = new Date(selectedDate);
+    const [startHours, startMinutes] = startTime.split(':');
+    startDateTime.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
+    
+    const endDateTime = new Date(selectedDate);
+    const [endHours, endMinutes] = endTime.split(':');
+    endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
+    
+    const duration = endDateTime - startDateTime;
+
+    // Agregar la primera fecha
+    dates.push({
+      date: new Date(startDateTime),
+      sequence: 1
+    });
+
+    let count = 1;
+    let currentDate = new Date(startDateTime);
+    const maxOccurrences = 52; // Límite máximo
+
+    while (count < (repeatType === "occurrences" ? repeatOccurrences : maxOccurrences)) {
+      let nextDate = new Date(currentDate);
+      
+      switch (repeatFrequency) {
+        case 'daily':
+          nextDate.setDate(nextDate.getDate() + repeatInterval);
+          break;
+        case 'weekly':
+          if (selectedDays.length > 0) {
+            // Encontrar el próximo día seleccionado
+            let daysToAdd = 1;
+            while (daysToAdd <= 7) {
+              nextDate.setDate(nextDate.getDate() + 1);
+              if (selectedDays.includes(nextDate.getDay())) {
+                break;
+              }
+              daysToAdd++;
+            }
+          } else {
+            nextDate.setDate(nextDate.getDate() + (7 * repeatInterval));
+          }
+          break;
+        case 'monthly':
+          nextDate.setMonth(nextDate.getMonth() + repeatInterval);
+          break;
+        default:
+          nextDate.setDate(nextDate.getDate() + repeatInterval);
+      }
+
+      // Verificar fecha límite
+      if (repeatType === "endDate" && repeatEndDate && nextDate > repeatEndDate) {
+        break;
+      }
+
+      dates.push({
+        date: new Date(nextDate),
+        sequence: count + 1
+      });
+
+      currentDate = new Date(nextDate);
+      count++;
+      
+      if (count >= maxOccurrences) break;
+    }
+
+    setCalculatedDates(dates);
   };
 
   // Función para generar opciones de tiempo
@@ -158,6 +246,29 @@ const ReservationCalendar = ({
       return;
     }
 
+    // Validaciones específicas para reservas repetitivas
+    if (isRepetitive) {
+      if (repeatFrequency === 'weekly' && selectedDays.length === 0) {
+        alert("❌ Para repetición semanal debes seleccionar al menos un día de la semana");
+        return;
+      }
+
+      if (repeatInterval < 1) {
+        alert("❌ El intervalo debe ser al menos 1");
+        return;
+      }
+
+      if (repeatType === "occurrences" && (repeatOccurrences < 2 || repeatOccurrences > 52)) {
+        alert("❌ El número de ocurrencias debe estar entre 2 y 52");
+        return;
+      }
+
+      if (repeatType === "endDate" && (!repeatEndDate || repeatEndDate <= selectedDate)) {
+        alert("❌ La fecha final debe ser posterior a la fecha inicial");
+        return;
+      }
+    }
+
     try {
       const startDateTime = new Date(selectedDate);
       const [startHours, startMinutes] = startTime.split(':');
@@ -190,8 +301,28 @@ const ReservationCalendar = ({
         endDateTime: endDateTime.toISOString(),
         purpose: purpose.trim(),
         attendees: parseInt(attendees),
-        isRepetitive: false
+        isRepetitive: isRepetitive
       };
+
+      // Agregar configuración de repetición si es repetitiva
+      if (isRepetitive) {
+        const repeatConfig = {
+          frequency: repeatFrequency,
+          interval: repeatInterval
+        };
+
+        if (repeatFrequency === 'weekly' && selectedDays.length > 0) {
+          repeatConfig.daysOfWeek = selectedDays;
+        }
+
+        if (repeatType === "occurrences") {
+          repeatConfig.occurrences = repeatOccurrences;
+        } else if (repeatType === "endDate" && repeatEndDate) {
+          repeatConfig.endDate = repeatEndDate.toISOString().split('T')[0];
+        }
+
+        reservationData.repeatConfig = repeatConfig;
+      }
 
       console.log('📦 Enviando datos de reserva:', reservationData);
       await onCreateReservation(reservationData);
@@ -209,8 +340,24 @@ const ReservationCalendar = ({
     setEndTime("10:00");
   };
 
+  const handleDaySelection = (dayIndex) => {
+    if (selectedDays.includes(dayIndex)) {
+      setSelectedDays(selectedDays.filter(d => d !== dayIndex));
+    } else {
+      setSelectedDays([...selectedDays, dayIndex]);
+    }
+  };
+
   const timeOptions = generateTimeOptions();
   const isFormValid = purpose.trim() && startTime && endTime && parseInt(attendees) >= 1;
+  
+  // Validación adicional para repetitivas
+  const isRepeatValid = !isRepetitive || (
+    (repeatFrequency !== 'weekly' || selectedDays.length > 0) &&
+    repeatInterval >= 1 &&
+    (repeatType !== "occurrences" || (repeatOccurrences >= 2 && repeatOccurrences <= 52)) &&
+    (repeatType !== "endDate" || (repeatEndDate && repeatEndDate > selectedDate))
+  );
 
   // Formatear fecha para mostrar
   const formattedDate = selectedDate.toLocaleDateString('es-ES', { 
@@ -219,6 +366,17 @@ const ReservationCalendar = ({
     month: 'long', 
     day: 'numeric' 
   });
+
+  // Días de la semana
+  const daysOfWeek = [
+    { index: 0, label: 'Domingo', short: 'D' },
+    { index: 1, label: 'Lunes', short: 'L' },
+    { index: 2, label: 'Martes', short: 'M' },
+    { index: 3, label: 'Miércoles', short: 'X' },
+    { index: 4, label: 'Jueves', short: 'J' },
+    { index: 5, label: 'Viernes', short: 'V' },
+    { index: 6, label: 'Sábado', short: 'S' }
+  ];
 
   return (
     <div className="reservation-calendar">
@@ -339,6 +497,150 @@ const ReservationCalendar = ({
           </div>
         )}
 
+        {/* Configuración de repetición */}
+        <div className="repeat-section">
+          <div className="repeat-toggle">
+            <label>
+              <input
+                type="checkbox"
+                checked={isRepetitive}
+                onChange={(e) => setIsRepetitive(e.target.checked)}
+              />
+              <span className="repeat-label">🔄 Crear reserva repetitiva</span>
+            </label>
+          </div>
+
+          {isRepetitive && (
+            <div className="repeat-configuration">
+              <div className="repeat-fields">
+                <div className="form-group">
+                  <label>Frecuencia:</label>
+                  <select 
+                    value={repeatFrequency} 
+                    onChange={(e) => setRepeatFrequency(e.target.value)}
+                    className="repeat-select"
+                  >
+                    <option value="daily">Diaria</option>
+                    <option value="weekly">Semanal</option>
+                    <option value="monthly">Mensual</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Intervalo:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={repeatInterval}
+                    onChange={(e) => setRepeatInterval(parseInt(e.target.value) || 1)}
+                    className="interval-input"
+                  />
+                  <span className="interval-label">
+                    {repeatFrequency === 'daily' ? 'día(s)' : 
+                     repeatFrequency === 'weekly' ? 'semana(s)' : 'mes(es)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Días de la semana para frecuencia semanal */}
+              {repeatFrequency === 'weekly' && (
+                <div className="weekdays-selection">
+                  <label>Días de la semana:</label>
+                  <div className="weekdays-grid">
+                    {daysOfWeek.map(day => (
+                      <button
+                        key={day.index}
+                        type="button"
+                        className={`day-button ${selectedDays.includes(day.index) ? 'selected' : ''}`}
+                        onClick={() => handleDaySelection(day.index)}
+                        title={day.label}
+                      >
+                        {day.short}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tipo de repetición */}
+              <div className="repeat-type">
+                <label>
+                  <input
+                    type="radio"
+                    name="repeatType"
+                    value="occurrences"
+                    checked={repeatType === "occurrences"}
+                    onChange={(e) => setRepeatType(e.target.value)}
+                  />
+                  <span>Número de ocurrencias:</span>
+                </label>
+                {repeatType === "occurrences" && (
+                  <input
+                    type="number"
+                    min="2"
+                    max="52"
+                    value={repeatOccurrences}
+                    onChange={(e) => setRepeatOccurrences(parseInt(e.target.value) || 2)}
+                    className="occurrences-input"
+                  />
+                )}
+
+                <label className="repeat-type-option">
+                  <input
+                    type="radio"
+                    name="repeatType"
+                    value="endDate"
+                    checked={repeatType === "endDate"}
+                    onChange={(e) => setRepeatType(e.target.value)}
+                  />
+                  <span>Hasta fecha:</span>
+                </label>
+                {repeatType === "endDate" && (
+                  <DatePicker
+                    selected={repeatEndDate}
+                    onChange={setRepeatEndDate}
+                    minDate={selectedDate}
+                    locale={es}
+                    dateFormat="dd/MM/yyyy"
+                    className="end-date-picker"
+                    placeholderText="Selecciona fecha final"
+                  />
+                )}
+              </div>
+
+              {/* Vista previa de fechas */}
+              {calculatedDates.length > 0 && (
+                <div className="dates-preview">
+                  <h5>📅 Fechas de la reserva ({calculatedDates.length} ocurrencias):</h5>
+                  <div className="dates-list">
+                    {calculatedDates.slice(0, 5).map((item, index) => (
+                      <div key={index} className="date-item">
+                        <span className="date-sequence">{item.sequence}.</span>
+                        <span className="date-value">
+                          {item.date.toLocaleDateString('es-ES', { 
+                            weekday: 'short', 
+                            day: 'numeric', 
+                            month: 'short' 
+                          })}
+                        </span>
+                        <span className="date-time">
+                          {startTime} - {endTime}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {calculatedDates.length > 5 && (
+                    <small className="more-dates">
+                      ... y {calculatedDates.length - 5} fechas más
+                    </small>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Detalles de la reserva */}
         <div className="form-group">
           <label htmlFor="purpose">📝 Propósito de la reserva:</label>
@@ -387,6 +689,11 @@ const ReservationCalendar = ({
               {availabilityResult.isAvailable ? (
                 <div className="available-message">
                   ✅ {availabilityResult.message || "El recurso está disponible"}
+                  {isRepetitive && calculatedDates.length > 1 && (
+                    <div className="repeat-availability-note">
+                      (Se crearán {calculatedDates.length} reservas)
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="unavailable-message">
@@ -404,7 +711,7 @@ const ReservationCalendar = ({
           </button>
           <button 
             onClick={handleCreateReservation}
-            disabled={!isFormValid || checkingAvailability || (availabilityResult && !availabilityResult.isAvailable)}
+            disabled={!isFormValid || checkingAvailability || (availabilityResult && !availabilityResult.isAvailable) || !isRepeatValid}
             className="btn-confirm-reservation"
             title={!isFormValid ? "Completa todos los campos requeridos" : ""}
           >
@@ -413,6 +720,8 @@ const ReservationCalendar = ({
                 <div className="reserve-spinner"></div>
                 Creando...
               </>
+            ) : isRepetitive ? (
+              `✅ Confirmar ${calculatedDates.length} Reservas`
             ) : (
               '✅ Confirmar Reserva'
             )}
@@ -425,6 +734,7 @@ const ReservationCalendar = ({
           <ul>
             <li>Selecciona una fecha y verifica los horarios disponibles</li>
             <li>Los horarios marcados con ✅ están disponibles</li>
+            <li>Activa "Crear reserva repetitiva" para programar múltiples fechas</li>
             <li>Verifica la disponibilidad antes de confirmar</li>
             <li>La granularidad mínima es de {resourceType?.granularity || 30} minutos</li>
           </ul>
