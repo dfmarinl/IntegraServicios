@@ -24,7 +24,6 @@ const AdminLayout = () => {
     { path: "/admin/reservations", label: "Reservas", icon: "📅" },
     { path: "/admin/loans", label: "Préstamos", icon: "📦" },
     { path: "/admin/users", label: "Usuarios", icon: "👥" },
-    { path: "/admin/employees", label: "Empleados", icon: "👷" },
     { path: "/admin/units", label: "Unidades", icon: "🏛️" },
     { path: "/admin/reports", label: "Reportes", icon: "📈" },
   ];
