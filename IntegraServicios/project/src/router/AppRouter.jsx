@@ -11,7 +11,12 @@ import ResourcesList from "../pages/Resources/ResourcesList";
 import MyReservations from "../pages/Reservations/MyReservations";
 import UnitsManagement from "../pages/Admin/UnitsManagement/UnitsManagement";
 import ResourceTypesManagement from "../pages/Admin/ResourceTypesManagement/ResourceTypesManagement";
+import ResourcesManagement from "../pages/Admin/ResourcesManagement/ResourcesManagement";
 import UsersManagement from "../pages/Admin/UsersManagement/UsersManagement";
+import UnitsView from "../components/User/UnitsView/UnitsView";
+import ResourcesByTypeView from "../components/User/ResourcesByTypeView/ResourcesByTypeView";
+import ResourceTypesView from "../components/User/ResourceTypesView/ResourceTypesView";
+import ReservationsManagement from "../pages/Admin/ReservationsManagement/ReservationsManagement";
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
@@ -117,10 +122,7 @@ const AppRouter = () => {
           <Route
             path="resources"
             element={
-              <div className="page-placeholder">
-                <h1>Gestión de Recursos</h1>
-                <p>Página en construcción</p>
-              </div>
+              <ResourcesManagement />
             }
           />
           <Route
@@ -135,11 +137,7 @@ const AppRouter = () => {
           <Route
             path="reservations"
             element={
-              <div className="page-placeholder">
-                <h1>Gestión de Reservas</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
+              <ReservationsManagement />}
           />
           <Route
             path="loans"
@@ -231,7 +229,7 @@ const AppRouter = () => {
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 
-        {/* Ruta de estudiante (mantiene /app por compatibilidad) */}
+       {/* Ruta de estudiante (mantiene /app por compatibilidad) */}
         <Route
           path="/app"
           element={
@@ -241,16 +239,22 @@ const AppRouter = () => {
           }
         >
           <Route index element={<UserHome />} />
-          <Route path="resources" element={<ResourcesList />} />
-          <Route
-            path="resources/:id/reserve"
-            element={
-              <div className="page-placeholder">
-                <h1>Crear Reserva</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
-          />
+          
+          {/* Rutas de recursos - Jerárquicas */}
+          <Route path="resources" element={<UnitsView />} />
+          <Route path="resources/browse">
+            <Route path="unit/:unitId/types" element={<ResourceTypesView />} />
+            <Route path="unit/:unitId/type/:typeId/resources" element={<ResourcesByTypeView />} />
+          </Route>
+          
+          {/* Ruta de reserva individual (sin conflicto) */}
+          <Route path="reserve/:resourceId" element={
+            <div className="page-placeholder">
+              <h1>Crear Reserva</h1>
+              <p>Página en construcción</p>
+            </div>
+          } />
+          
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 

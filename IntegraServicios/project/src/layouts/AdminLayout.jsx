@@ -20,7 +20,6 @@ const AdminLayout = () => {
     { path: "/admin", label: "Dashboard", icon: "📊" },
     { path: "/admin/resource-types", label: "Tipos de Recurso", icon: "📋" },
     { path: "/admin/resources", label: "Recursos", icon: "🏢" },
-    { path: "/admin/availability", label: "Disponibilidad", icon: "⏰" },
     { path: "/admin/reservations", label: "Reservas", icon: "📅" },
     { path: "/admin/loans", label: "Préstamos", icon: "📦" },
     { path: "/admin/users", label: "Usuarios", icon: "👥" },

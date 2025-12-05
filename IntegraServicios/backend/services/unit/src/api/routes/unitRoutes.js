@@ -29,7 +29,7 @@ router.get(
 router.get(
   "/active",
   verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
+  authorizeRoles("administrador", "empleado_unidad","estudiante","docente","personal_administrativo"),
   getActiveUnits
 );
 
@@ -37,14 +37,14 @@ router.get(
 router.get(
   "/:id/schedules",
   verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
+  authorizeRoles("administrador", "empleado_unidad",""),
   getUnitWithSchedules
 );
 
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
+  authorizeRoles("administrador", "empleado_unidad","estudiante","docente","personal_administrativo"),
   getUnit
 );
 

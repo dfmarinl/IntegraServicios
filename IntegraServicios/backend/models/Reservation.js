@@ -25,8 +25,22 @@ const Reservation = sequelize.define("Reservation", {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  // ✅ SOLO AGREGAR ESTOS 2 CAMPOS NUEVOS:
+  purpose: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+    defaultValue: "Uso del recurso"
+  },
+  attendees: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1,
+    validate: {
+      min: 1
+    }
+  }
 });
 
+// ✅ DEJAR TUS RELACIONES EXISTENTES INTACTAS
 User.hasMany(Reservation, { foreignKey: "userId", onDelete: "CASCADE" });
 Reservation.belongsTo(User, { foreignKey: "userId" });
 

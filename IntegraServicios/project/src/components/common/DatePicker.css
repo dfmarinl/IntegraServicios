@@ -1,0 +1,50 @@
+/* components/common/DatePicker.css */
+.datepicker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.datepicker-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.datepicker-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.datepicker-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.datepicker-input:hover:not(:disabled) {
+  border-color: #999;
+}
+
+.datepicker-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Estilo para navegadores WebKit (Chrome, Safari) */
+.datepicker-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.datepicker-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
