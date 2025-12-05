@@ -57,10 +57,30 @@ const CreateUserForm = ({ onSuccess, onCancel }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // Validación especial para número de identificación (solo números)
+    if (name === "identificationNumber") {
+      // Solo permitir números
+      const numericValue = value.replace(/[^0-9]/g, "");
+      setFormData((prev) => ({
+        ...prev,
+        [name]: numericValue,
+      }));
+    } else if (name === "age") {
+      // Para edad, también solo números, pero limitar a 3 dígitos
+      const numericValue = value.replace(/[^0-9]/g, "");
+      // Limitar a 3 dígitos máximo
+      const limitedValue = numericValue.slice(0, 3);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: limitedValue,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -76,6 +96,26 @@ const CreateUserForm = ({ onSuccess, onCancel }) => {
       !formData.direction.trim()
     ) {
       throw new Error("Todos los campos marcados con * son obligatorios");
+    }
+
+    // Validar número de identificación (solo números, mínimo 5 dígitos)
+    const idRegex = /^[0-9]+$/;
+    if (!idRegex.test(formData.identificationNumber)) {
+      throw new Error(
+        "El número de identificación solo puede contener dígitos numéricos"
+      );
+    }
+
+    if (formData.identificationNumber.length < 5) {
+      throw new Error(
+        "El número de identificación debe tener al menos 5 dígitos"
+      );
+    }
+
+    if (formData.identificationNumber.length > 20) {
+      throw new Error(
+        "El número de identificación no puede exceder los 20 dígitos"
+      );
     }
 
     // Validar edad
@@ -194,10 +234,13 @@ const CreateUserForm = ({ onSuccess, onCancel }) => {
               onChange={handleChange}
               className="form-input"
               placeholder="Ej: 1234567890"
+              inputMode="numeric" // Para teclado numérico en móviles
+              pattern="[0-9]*" // Para validación HTML5
+              maxLength="20"
               required
             />
             <small className="form-help">
-              Cédula, documento de identidad, etc.
+              Solo números (mínimo 5 dígitos, máximo 20)
             </small>
           </div>
 
@@ -206,17 +249,19 @@ const CreateUserForm = ({ onSuccess, onCancel }) => {
               Edad *
             </label>
             <input
-              type="number"
+              type="text"
               id="age"
               name="age"
               value={formData.age}
               onChange={handleChange}
               className="form-input"
               placeholder="Ej: 25"
-              min="1"
-              max="120"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength="3"
               required
             />
+            <small className="form-help">Entre 1 y 120 años</small>
           </div>
         </div>
       </div>
