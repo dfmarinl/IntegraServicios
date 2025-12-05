@@ -1,197 +1,166 @@
 import { useState, useEffect } from "react";
 import Card from "../../../components/common/Card";
-// NOTA: Estos imports necesitarán ser creados posteriormente
-// import {
-//   getActiveUsersApi,
-//   getUsersPaginatedApi,
-//   deleteUserApi,
-// } from "../../../api/user/users";
+import {
+  getUsersPaginatedApi,
+  deleteUserApi,
+  getActiveUsersApi,
+  getAllUsersApi,
+  updateUserApi,
+} from "../../../api/user/user";
+import { getActiveUnitsApi, getUnitApi } from "../../../api/unit/units";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
+import CreateUserForm from "../../../forms/CreateUserForm/CreateuserForm";
+import EditUserForm from "../../../forms/EditUserForm/EditUserForm";
 import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
-// NOTA: Estos componentes de formulario necesitarán ser creados posteriormente
-// import CreateUserForm from "../../../forms/CreateUserForm/CreateUserForm";
-// import EditUserForm from "../../../forms/EditUserForm/EditUserForm";
 import "./UsersManagement.css";
 
 const UsersManagement = () => {
-  const [allUsers, setAllUsers] = useState([]); // Para búsqueda
-  const [displayedUsers, setDisplayedUsers] = useState([]); // Usuarios a mostrar
+  const [allUsers, setAllUsers] = useState([]);
+  const [displayedUsers, setDisplayedUsers] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [unitNames, setUnitNames] = useState({}); // NUEVO: Para almacenar nombres de unidades
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NUEVO
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Estados para búsqueda, filtros y paginación
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all"); // 'all', 'estudiante', 'profesor', 'empleado', 'administrador'
+  const [roleFilter, setRoleFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [isSearching, setIsSearching] = useState(false);
-  const limit = 8;
-
-  // Datos de ejemplo para visualización (eliminar cuando tengas los endpoints reales)
-  const mockUsers = [
-    {
-      id: 1,
-      firstName: "Juan",
-      lastName: "Pérez",
-      email: "juan.perez@email.com",
-      identificationNumber: "12345678",
-      age: 25,
-      city: "Bogotá",
-      direction: "Calle 123 #45-67",
-      rol: "estudiante",
-      isActive: true,
-      createdAt: "2024-01-15",
-    },
-    {
-      id: 2,
-      firstName: "María",
-      lastName: "González",
-      email: "maria.gonzalez@email.com",
-      identificationNumber: "87654321",
-      age: 35,
-      city: "Medellín",
-      direction: "Carrera 80 #12-34",
-      rol: "profesor",
-      isActive: true,
-      createdAt: "2024-01-10",
-    },
-    {
-      id: 3,
-      firstName: "Carlos",
-      lastName: "Rodríguez",
-      email: "carlos.rodriguez@universidad.edu",
-      identificationNumber: "11223344",
-      age: 42,
-      city: "Cali",
-      direction: "Avenida 5 #23-45",
-      rol: "empleado",
-      isActive: true,
-      createdAt: "2024-01-05",
-    },
-    {
-      id: 4,
-      firstName: "Ana",
-      lastName: "Martínez",
-      email: "ana.martinez@admin.edu",
-      identificationNumber: "55667788",
-      age: 38,
-      city: "Barranquilla",
-      direction: "Calle 70 #15-20",
-      rol: "administrador",
-      isActive: true,
-      createdAt: "2024-01-01",
-    },
-  ];
+  const limit = 6;
 
   useEffect(() => {
     loadInitialData();
+    loadUnitsForForm();
   }, []);
 
   useEffect(() => {
-    if (isSearching || roleFilter !== "all") {
-      handleSearchAndFilter();
+    if (searchTerm || roleFilter !== "all") {
+      searchInActiveUsers();
     } else {
       loadPaginatedUsers();
     }
-  }, [currentPage, searchTerm, roleFilter, isSearching]);
+  }, [currentPage, searchTerm, roleFilter]);
+
+  // Cargar nombres de unidades para los usuarios que tienen unitId
+  useEffect(() => {
+    const loadUnitNames = async () => {
+      const unitIds = [
+        ...new Set(allUsers.filter((u) => u.unitId).map((u) => u.unitId)),
+      ];
+      const names = {};
+
+      for (const unitId of unitIds) {
+        try {
+          const unit = await getUnitApi(unitId);
+          names[unitId] = unit.name;
+        } catch (err) {
+          console.error(`Error al cargar unidad ${unitId}:`, err);
+          names[unitId] = `Unidad ${unitId}`;
+        }
+      }
+
+      setUnitNames(names);
+    };
+
+    if (allUsers.length > 0) {
+      loadUnitNames();
+    }
+  }, [allUsers]);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // NOTA: Reemplazar con llamada real a la API
-      // const usersData = await getActiveUsersApi();
-      // setAllUsers(usersData);
-
-      // Usando datos de ejemplo por ahora
-      setAllUsers(mockUsers);
+      const usersData = await getAllUsersApi();
+      setAllUsers(usersData);
 
       await loadPaginatedUsers();
     } catch (err) {
       console.error("Error al cargar datos iniciales:", err);
-      setError("Error al cargar los datos");
+      setError("Error al cargar los datos de usuarios");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPaginatedUsers = async () => {
-    if (isSearching || roleFilter !== "all") return;
-
+  const loadUnitsForForm = async () => {
     try {
-      // NOTA: Reemplazar con llamada real a la API
-      // const response = await getUsersPaginatedApi(currentPage, limit);
-      // setDisplayedUsers(response.users);
-      // setTotalPages(response.totalPages);
-      // setTotalUsers(response.total);
+      const unitsData = await getActiveUnitsApi();
+      setUnits(unitsData);
+    } catch (err) {
+      console.error("Error al cargar unidades:", err);
+    }
+  };
 
-      // Simulación de paginación con datos de ejemplo
-      const startIndex = (currentPage - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = mockUsers.slice(startIndex, endIndex);
-
-      setDisplayedUsers(paginatedData);
-      setTotalPages(Math.ceil(mockUsers.length / limit));
-      setTotalUsers(mockUsers.length);
+  const loadPaginatedUsers = async () => {
+    try {
+      if (!searchTerm && roleFilter === "all") {
+        const response = await getUsersPaginatedApi(currentPage, limit);
+        setDisplayedUsers(response.users);
+        setTotalPages(response.totalPages);
+        setTotalUsers(response.total);
+      }
     } catch (err) {
       console.error("Error al cargar usuarios paginados:", err);
       setError("Error al cargar los usuarios");
     }
   };
 
-  const handleSearchAndFilter = () => {
-    let filtered = allUsers;
+  const searchInActiveUsers = async () => {
+    try {
+      const allActiveUsers = await getActiveUsersApi();
+      let filteredUsers = allActiveUsers;
 
-    // Aplicar filtro por rol
-    if (roleFilter !== "all") {
-      filtered = filtered.filter((user) => user.rol === roleFilter);
+      if (roleFilter !== "all") {
+        filteredUsers = filteredUsers.filter((user) => user.rol === roleFilter);
+      }
+
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filteredUsers = filteredUsers.filter(
+          (user) =>
+            user.firstName.toLowerCase().includes(searchLower) ||
+            user.lastName.toLowerCase().includes(searchLower) ||
+            user.email.toLowerCase().includes(searchLower) ||
+            user.identificationNumber.toLowerCase().includes(searchLower)
+        );
+      }
+
+      const startIndex = (currentPage - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+      setDisplayedUsers(paginatedUsers);
+      setTotalUsers(filteredUsers.length);
+      setTotalPages(Math.ceil(filteredUsers.length / limit));
+    } catch (err) {
+      console.error("Error en búsqueda:", err);
+      setError("Error al buscar usuarios");
     }
-
-    // Aplicar búsqueda por nombre, email o identificación
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (user) =>
-          user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.identificationNumber.includes(searchTerm)
-      );
-    }
-
-    const startIndex = (currentPage - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedData = filtered.slice(startIndex, endIndex);
-
-    setDisplayedUsers(paginatedData);
-    setTotalUsers(filtered.length);
-    setTotalPages(Math.ceil(filtered.length / limit));
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchTerm(searchInput);
-    setIsSearching(true);
     setCurrentPage(1);
   };
 
   const handleClearSearch = () => {
     setSearchInput("");
     setSearchTerm("");
-    setIsSearching(false);
     setCurrentPage(1);
   };
 
   const handleRoleFilterChange = (role) => {
     setRoleFilter(role);
-    setIsSearching(true);
     setCurrentPage(1);
   };
 
@@ -199,7 +168,6 @@ const UsersManagement = () => {
     setRoleFilter("all");
     setSearchInput("");
     setSearchTerm("");
-    setIsSearching(false);
     setCurrentPage(1);
   };
 
@@ -207,40 +175,25 @@ const UsersManagement = () => {
     setCurrentPage(newPage);
   };
 
-  // Handlers para modales
-  const handleEdit = (user) => {
-    setSelectedUser(user);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDeleteClick = (user) => {
-    setSelectedUser(user);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
-    setSelectedUser(null);
-  };
-
-  const handleCloseDeleteModal = () => {
-    setIsDeleteModalOpen(false);
-    setSelectedUser(null);
-  };
-
+  // Funciones para modales
   const handleCreateSuccess = (newUser) => {
     setIsCreateModalOpen(false);
-    loadInitialData(); // Recargar la lista
+    loadInitialData();
   };
 
   const handleCreateCancel = () => {
     setIsCreateModalOpen(false);
   };
 
+  const handleEdit = (user) => {
+    setSelectedUser(user);
+    setIsEditModalOpen(true);
+  };
+
   const handleEditSuccess = (updatedUser) => {
     setIsEditModalOpen(false);
     setSelectedUser(null);
-    loadInitialData(); // Recargar la lista
+    loadInitialData();
   };
 
   const handleEditCancel = () => {
@@ -248,16 +201,23 @@ const UsersManagement = () => {
     setSelectedUser(null);
   };
 
+  const handleDeleteClick = (user) => {
+    setSelectedUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setSelectedUser(null);
+  };
+
   const handleDeleteConfirm = async (user) => {
     setDeleteLoading(true);
     try {
-      // NOTA: Reemplazar con llamada real a la API
-      // await deleteUserApi(user.id);
-      console.log("Eliminar usuario:", user.id);
-
+      await deleteUserApi(user.id);
       setIsDeleteModalOpen(false);
       setSelectedUser(null);
-      await loadInitialData(); // Recargar la lista
+      await loadInitialData();
     } catch (err) {
       console.error("Error al eliminar usuario:", err);
       setError(err.message || "Error al eliminar el usuario");
@@ -266,7 +226,6 @@ const UsersManagement = () => {
     }
   };
 
-  // Estadísticas por rol
   const userStats = [
     {
       title: "Total Usuarios",
@@ -285,20 +244,20 @@ const UsersManagement = () => {
       filter: "estudiante",
     },
     {
-      title: "Profesores",
-      value: allUsers.filter((user) => user.rol === "profesor").length,
+      title: "Docentes",
+      value: allUsers.filter((user) => user.rol === "docente").length,
       icon: "👨‍🏫",
       color: "#ea580c",
-      description: "Usuarios con rol profesor",
-      filter: "profesor",
+      description: "Usuarios con rol docente",
+      filter: "docente",
     },
     {
-      title: "Empleados",
-      value: allUsers.filter((user) => user.rol === "empleado").length,
-      icon: "👨‍💼",
-      color: "#7c3aed",
-      description: "Personal administrativo",
-      filter: "empleado",
+      title: "Empleados de Unidad",
+      value: allUsers.filter((user) => user.rol === "empleado_unidad").length,
+      icon: "🏢",
+      color: "#0891b2",
+      description: "Empleados asignados a unidades",
+      filter: "empleado_unidad",
     },
     {
       title: "Administradores",
@@ -339,7 +298,7 @@ const UsersManagement = () => {
     <div className="users-management">
       <h1 className="page-title">Gestión de Usuarios</h1>
       <p className="page-subtitle">
-        Administra todos los usuarios del sistema: estudiantes, profesores,
+        Administra todos los usuarios del sistema: estudiantes, docentes,
         empleados y administradores
       </p>
 
@@ -425,7 +384,7 @@ const UsersManagement = () => {
                       <path d="m21 21-4.3-4.3" />
                     </svg>
                   </button>
-                  {searchTerm && (
+                  {(searchInput || searchTerm) && (
                     <button
                       type="button"
                       onClick={handleClearSearch}
@@ -455,8 +414,8 @@ const UsersManagement = () => {
                 >
                   <option value="all">Todos los roles</option>
                   <option value="estudiante">Estudiantes</option>
-                  <option value="profesor">Profesores</option>
-                  <option value="empleado">Empleados</option>
+                  <option value="docente">Docentes</option>
+                  <option value="empleado_unidad">Empleados de Unidad</option>
                   <option value="administrador">Administradores</option>
                 </select>
               </div>
@@ -474,30 +433,38 @@ const UsersManagement = () => {
         </div>
 
         {/* Información de resultados */}
-        {(searchTerm || roleFilter !== "all") && (
-          <div className="search-info">
-            <p>
-              {displayedUsers.length} resultado(s)
-              {searchTerm && ` para "${searchTerm}"`}
-              {roleFilter !== "all" && ` en rol "${roleFilter}"`}
-              {(searchTerm || roleFilter !== "all") &&
-                " (búsqueda en todos los usuarios)"}
-            </p>
-          </div>
-        )}
+        <div className="search-info">
+          <p>
+            {searchTerm || roleFilter !== "all" ? (
+              <>
+                {displayedUsers.length} resultado(s) encontrado(s)
+                {searchTerm && ` para "${searchTerm}"`}
+                {roleFilter !== "all" && ` en rol "${roleFilter}"`}
+                {" (búsqueda en usuarios activos)"}
+              </>
+            ) : (
+              <>
+                Mostrando página {currentPage} de {totalPages}(
+                {displayedUsers.length} usuarios de {totalUsers} totales)
+              </>
+            )}
+          </p>
+        </div>
 
         <div className="users-list">
           {displayedUsers.map((user) => (
             <Card key={user.id} className="user-card">
               <div className="user-header">
-                <h3>
-                  {user.firstName} {user.lastName}
-                </h3>
-                <div className="user-badges">
-                  <span className={`role-badge role-${user.rol}`}>
-                    {user.rol}
-                  </span>
-                  <span className="user-id">ID: {user.id}</span>
+                <div className="user-header-content">
+                  <h3>
+                    {user.firstName} {user.lastName}
+                  </h3>
+                  <div className="user-badges">
+                    <span className={`role-badge role-${user.rol}`}>
+                      {user.rol.replace("_", " ")}
+                    </span>
+                    <span className="user-id">ID: {user.id}</span>
+                  </div>
                 </div>
               </div>
 
@@ -513,9 +480,10 @@ const UsersManagement = () => {
                     <strong>Ciudad:</strong> {user.city}
                   </p>
                 )}
-                {user.age && (
+                {user.unitId && (
                   <p>
-                    <strong>Edad:</strong> {user.age} años
+                    <strong>Unidad:</strong>{" "}
+                    {unitNames[user.unitId] || `Cargando...`}
                   </p>
                 )}
               </div>
@@ -551,8 +519,10 @@ const UsersManagement = () => {
                 <button
                   className="btn-danger-outline"
                   onClick={() => handleDeleteClick(user)}
+                  disabled={!user.isActive}
+                  title={!user.isActive ? "Usuario ya está inactivo" : ""}
                 >
-                  Eliminar Usuario
+                  {user.isActive ? "Eliminar Usuario" : "Usuario Inactivo"}
                 </button>
               </div>
             </Card>
@@ -562,12 +532,12 @@ const UsersManagement = () => {
         {/* Mensaje cuando no hay resultados */}
         {displayedUsers.length === 0 && !loading && (
           <div className="no-results">
-            <p>No se encontraron usuarios</p>
+            <p>No se encontraron usuarios con los filtros aplicados</p>
           </div>
         )}
 
-        {/* Paginación - Solo mostrar cuando no hay búsqueda ni filtro */}
-        {!isSearching && roleFilter === "all" && totalPages > 1 && (
+        {/* Paginación */}
+        {totalPages > 1 && (
           <div className="pagination">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
@@ -592,36 +562,38 @@ const UsersManagement = () => {
         )}
       </div>
 
-      {/* Modal de Creación - COMENTADO TEMPORALMENTE */}
-      {/* <GenericModal
+      {/* Modal de Creación */}
+      <GenericModal
         isOpen={isCreateModalOpen}
         onClose={handleCreateCancel}
         title="Crear Nuevo Usuario"
-        subtitle="Complete los datos para registrar un nuevo usuario"
-        size="medium"
+        subtitle="Complete los datos para registrar un nuevo usuario en el sistema"
+        size="large"
       >
         <CreateUserForm
+          units={units}
           onSuccess={handleCreateSuccess}
           onCancel={handleCreateCancel}
         />
-      </GenericModal> */}
+      </GenericModal>
 
-      {/* Modal de Edición - COMENTADO TEMPORALMENTE */}
-      {/* <GenericModal
+      {/* Modal de Edición */}
+      <GenericModal
         isOpen={isEditModalOpen}
-        onClose={handleCloseEditModal}
+        onClose={handleEditCancel}
         title="Editar Usuario"
         subtitle={`Modifique los datos de ${selectedUser?.firstName} ${selectedUser?.lastName}`}
-        size="medium"
+        size="large"
       >
         <EditUserForm
           user={selectedUser}
+          units={units}
           onSuccess={handleEditSuccess}
-          onCancel={handleCloseEditModal}
+          onCancel={handleEditCancel}
         />
-      </GenericModal> */}
+      </GenericModal>
 
-      {/* Modal de Eliminación */}
+      {/* Modal de Eliminación - CORREGIDO */}
       <GenericDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
@@ -630,12 +602,8 @@ const UsersManagement = () => {
         loading={deleteLoading}
         title="Eliminar Usuario"
         itemName="usuario"
-        warningMessage={
-          selectedUser?.rol === "empleado" ||
-          selectedUser?.rol === "administrador"
-            ? "Este usuario tiene privilegios administrativos. ¿Está seguro de eliminarlo?"
-            : "Esta acción eliminará permanentemente al usuario del sistema."
-        }
+        itemDisplayField="email" // Usar email en lugar de name (que no existe)
+        warningMessage="¿Está seguro de eliminar este usuario? El usuario ya no podrá acceder al sistema."
         confirmButtonText="Sí, Eliminar"
         cancelButtonText="Cancelar"
       />
