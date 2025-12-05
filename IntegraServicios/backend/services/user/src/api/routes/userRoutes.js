@@ -9,25 +9,15 @@ const {
   createUser,
   getAllUsers,
   getUsersPages,
+  getActiveUsers,
   getUserById,
   updateUser,
   deleteUser,
+  activateUser,
 } = require("../views/userController");
 
-router.post(
-  "/",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  createUser
-);
-
-router.get(
-  "/",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  getAllUsers
-);
-
+// ORDEN CORRECTO (igual que unidades):
+// 1. Rutas específicas SIN parámetros
 router.get(
   "/paginado",
   verifyToken,
@@ -35,6 +25,14 @@ router.get(
   getUsersPages
 );
 
+router.get(
+  "/active",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getActiveUsers
+);
+
+// 2. Rutas con parámetros
 router.get(
   "/:id",
   verifyToken,
@@ -49,11 +47,34 @@ router.put(
   updateUser
 );
 
+// 3. Nuevas rutas para activar/desactivar
 router.delete(
   "/:id",
   verifyToken,
+  authorizeRoles("administrador"),
+  deleteUser // ← Ahora es desactivar
+);
+
+router.put(
+  "/:id/activate",
+  verifyToken,
+  authorizeRoles("administrador"),
+  activateUser
+);
+
+// 4. Rutas generales
+router.post(
+  "/",
+  verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
-  deleteUser
+  createUser
+);
+
+router.get(
+  "/",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  getAllUsers // ← Trae TODOS (activos e inactivos)
 );
 
 module.exports = router;

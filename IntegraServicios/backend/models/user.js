@@ -64,9 +64,15 @@ const User = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    // ÚNICO CAMPO AGREGADO:
+    unitId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null,
+    },
   },
   {
-    timestamps: true, // Solo esto
+    timestamps: true, // Exactamente como lo tenías
   }
 );
 
