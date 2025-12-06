@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import Card from "../../../components/common/Card";
+import GenericModal from "../../../modals/GenericModal/GenericModal";
+import LoanForm from "../../../forms/LoanForm/Loanform";
+import ReturnForm from "../../../forms/ReturnForm/ReturnForm";
 import { getActiveReservationsForLoansApi } from "../../../api/Reservation/reservationManagementApi";
+import {
+  getLoanByReservationApi,
+  checkReturnExistsForLoanApi,
+} from "../../../api/loan/loans";
 import "./LoansManagement.css";
 
 const LoansManagement = () => {
@@ -22,6 +29,13 @@ const LoansManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10;
+
+  // Estados para modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState(null);
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [hasReturn, setHasReturn] = useState(false);
 
   // Cargar reservas activas
   useEffect(() => {
@@ -52,45 +66,96 @@ const LoansManagement = () => {
     }
   };
 
-  // Funciones para acciones
-  const handleRegisterPickup = (reservation) => {
-    console.log("Registrar entrega para reserva:", reservation.id);
+  // Funciones para abrir modales
+  const openLoanModal = async (reservation) => {
+    setSelectedReservation(reservation);
 
-    // Obtener hora actual para el registro
-    const now = new Date();
-    const startTime = new Date(reservation.startDateTime);
-    const timeDiff = (startTime - now) / (1000 * 60); // minutos
+    // Verificar si ya existe préstamo para esta reserva
+    const existingLoan = await getLoanByReservationApi(reservation.id);
 
-    // Verificar si hay fallo de servicio (fuera de ±5 minutos)
-    const hasFailure = Math.abs(timeDiff) > 5;
+    if (existingLoan) {
+      alert(
+        `⚠️ Esta reserva ya tiene un préstamo registrado.\n\nPréstamo #${
+          existingLoan.id
+        }\nHora de entrega: ${new Date(
+          existingLoan.deliveryTime
+        ).toLocaleString()}\nEntregado por: ${
+          existingLoan.Employee?.firstName
+        } ${existingLoan.Employee?.lastName}`
+      );
 
-    alert(`Registrando entrega de la reserva #${reservation.id}
-    
-📋 Detalles:
-• Recurso: ${reservation.Resource.name}
-• Usuario: ${reservation.User.firstName} ${reservation.User.lastName}
-• Hora programada: ${startTime.toLocaleString()}
-• Hora actual: ${now.toLocaleTimeString()}
-• Diferencia: ${Math.round(timeDiff)} minutos
-• ${hasFailure ? "⚠️ FUERA DE LAPSO - FALLO DE SERVICIO" : "✅ DENTRO DE LAPSO"}
+      // Verificar si ya tiene devolución
+      const returnExists = await checkReturnExistsForLoanApi(existingLoan.id);
+      setHasReturn(returnExists.exists);
 
-En un sistema real, esto abriría un formulario para capturar:
-1. Hora exacta de entrega
-2. Empleado responsable
-3. Estado del recurso
-4. Observaciones`);
+      if (!returnExists.exists) {
+        // Si no tiene devolución, preguntar si quiere registrar devolución
+        if (confirm("¿Desea registrar la devolución de este préstamo?")) {
+          setSelectedLoan(existingLoan);
+          setModalContent("return");
+          setModalOpen(true);
+        }
+      }
+      return;
+    }
+
+    setModalContent("loan");
+    setModalOpen(true);
   };
 
-  const handleRegisterReturn = (reservation) => {
-    console.log("Registrar devolución para reserva:", reservation.id);
-    alert(`Registrando devolución de la reserva #${reservation.id}
-    
-Esta funcionalidad estará disponible después de registrar la entrega.
-En un sistema real, esto registraría:
-1. Hora exacta de devolución
-2. Empleado responsable
-3. Estado del recurso al devolver
-4. Falla de servicio si es fuera de lapso`);
+  const openReturnModal = async (reservation) => {
+    setSelectedReservation(reservation);
+
+    // Buscar el préstamo asociado a esta reserva
+    const loan = await getLoanByReservationApi(reservation.id);
+
+    if (!loan) {
+      alert(
+        "❌ No se encontró un préstamo registrado para esta reserva.\nPrimero debe registrar la entrega del recurso."
+      );
+      return;
+    }
+
+    // Verificar si ya tiene devolución
+    const returnExists = await checkReturnExistsForLoanApi(loan.id);
+
+    if (returnExists.exists) {
+      alert(
+        `⚠️ Este préstamo ya tiene una devolución registrada.\n\nDevolución registrada el: ${new Date(
+          returnExists.return?.returnTime
+        ).toLocaleString()}\nRecibido por: ${
+          returnExists.return?.Employee?.firstName
+        } ${returnExists.return?.Employee?.lastName}`
+      );
+      return;
+    }
+
+    setSelectedLoan(loan);
+    setHasReturn(false);
+    setModalContent("return");
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedReservation(null);
+    setSelectedLoan(null);
+    setModalContent(null);
+    setHasReturn(false);
+  };
+
+  const handleLoanSuccess = (loan) => {
+    console.log("Préstamo creado:", loan);
+    alert("✅ Préstamo registrado exitosamente");
+    closeModal();
+    loadActiveReservations(); // Recargar la lista
+  };
+
+  const handleReturnSuccess = (returnRecord) => {
+    console.log("Devolución creada:", returnRecord);
+    alert("✅ Devolución registrada exitosamente");
+    closeModal();
+    loadActiveReservations(); // Recargar la lista
   };
 
   // Formatear tiempo faltante
@@ -442,7 +507,7 @@ En un sistema real, esto registraría:
                   <td>
                     <div className="action-buttons">
                       <button
-                        onClick={() => handleRegisterPickup(reservation)}
+                        onClick={() => openLoanModal(reservation)}
                         className="btn-action btn-pickup"
                         title="Registrar entrega"
                         disabled={!canRegisterPickup(reservation)}
@@ -451,10 +516,9 @@ En un sistema real, esto registraría:
                       </button>
 
                       <button
-                        onClick={() => handleRegisterReturn(reservation)}
+                        onClick={() => openReturnModal(reservation)}
                         className="btn-action btn-return"
                         title="Registrar devolución"
-                        disabled={true}
                       >
                         ↩️ Devolver
                       </button>
@@ -540,7 +604,7 @@ En un sistema real, esto registraría:
           </li>
           <li>
             <strong>Botón "Devolver"</strong>: Solo disponible después de
-            registrar la entrega
+            registrar la entrega y antes de registrar la devolución
           </li>
           <li>
             <strong>Tiempo faltante</strong>:
@@ -563,6 +627,39 @@ En un sistema real, esto registraría:
           </li>
         </ol>
       </div>
+
+      {/* Modal Genérico */}
+      <GenericModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        title={
+          modalContent === "loan"
+            ? "Registrar Entrega de Recurso"
+            : "Registrar Devolución de Recurso"
+        }
+        subtitle={
+          modalContent === "loan"
+            ? `Reserva #${selectedReservation?.id} - ${selectedReservation?.Resource?.name}`
+            : `Préstamo #${selectedLoan?.id} - ${selectedLoan?.Reservation?.Resource?.name}`
+        }
+        size="large"
+      >
+        {modalContent === "loan" && selectedReservation && (
+          <LoanForm
+            reservation={selectedReservation}
+            onSuccess={handleLoanSuccess}
+            onCancel={closeModal}
+          />
+        )}
+
+        {modalContent === "return" && selectedLoan && (
+          <ReturnForm
+            loan={selectedLoan}
+            onSuccess={handleReturnSuccess}
+            onCancel={closeModal}
+          />
+        )}
+      </GenericModal>
     </div>
   );
 };
