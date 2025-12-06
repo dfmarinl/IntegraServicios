@@ -4,10 +4,6 @@ import GenericModal from "../../../modals/GenericModal/GenericModal";
 import LoanForm from "../../../forms/LoanForm/Loanform";
 import ReturnForm from "../../../forms/ReturnForm/ReturnForm";
 import { getActiveReservationsForLoansApi } from "../../../api/Reservation/reservationManagementApi";
-import {
-  getLoanByReservationApi,
-  checkReturnExistsForLoanApi,
-} from "../../../api/loan/loans";
 import "./LoansManagement.css";
 
 const LoansManagement = () => {
@@ -70,70 +66,85 @@ const LoansManagement = () => {
   const openLoanModal = async (reservation) => {
     setSelectedReservation(reservation);
 
-    // Verificar si ya existe préstamo para esta reserva
-    const existingLoan = await getLoanByReservationApi(reservation.id);
+    try {
+      // Verificar si ya existe préstamo para esta reserva
+      // const existingLoan = await getLoanByReservationApi(reservation.id);
 
-    if (existingLoan) {
-      alert(
-        `⚠️ Esta reserva ya tiene un préstamo registrado.\n\nPréstamo #${
-          existingLoan.id
-        }\nHora de entrega: ${new Date(
-          existingLoan.deliveryTime
-        ).toLocaleString()}\nEntregado por: ${
-          existingLoan.Employee?.firstName
-        } ${existingLoan.Employee?.lastName}`
-      );
+      if (existingLoan) {
+        alert(
+          `⚠️ Esta reserva ya tiene un préstamo registrado.\n\nPréstamo #${
+            existingLoan.id
+          }\nHora de entrega: ${new Date(
+            existingLoan.deliveryTime
+          ).toLocaleString()}\nEntregado por: ${
+            existingLoan.Employee?.firstName || "N/A"
+          } ${existingLoan.Employee?.lastName || ""}`
+        );
 
-      // Verificar si ya tiene devolución
-      const returnExists = await checkReturnExistsForLoanApi(existingLoan.id);
-      setHasReturn(returnExists.exists);
+        // Verificar si ya tiene devolución
+        //*  const returnExists = await checkReturnExistsForLoanApi(existingLoan.id);
+        //*  setHasReturn(returnExists.exists);
 
-      if (!returnExists.exists) {
-        // Si no tiene devolución, preguntar si quiere registrar devolución
-        if (confirm("¿Desea registrar la devolución de este préstamo?")) {
-          setSelectedLoan(existingLoan);
-          setModalContent("return");
-          setModalOpen(true);
+        if (!returnExists.exists) {
+          // Si no tiene devolución, preguntar si quiere registrar devolución
+          if (confirm("¿Desea registrar la devolución de este préstamo?")) {
+            setSelectedLoan(existingLoan);
+            setModalContent("return");
+            setModalOpen(true);
+          }
         }
+        return;
       }
-      return;
-    }
 
-    setModalContent("loan");
-    setModalOpen(true);
+      // Si no existe préstamo, abrir modal para crear uno
+      setModalContent("loan");
+      setModalOpen(true);
+    } catch (err) {
+      console.error("Error al verificar préstamo:", err);
+      // Si hay error al verificar, permitir crear el préstamo
+      setModalContent("loan");
+      setModalOpen(true);
+    }
   };
 
   const openReturnModal = async (reservation) => {
     setSelectedReservation(reservation);
 
-    // Buscar el préstamo asociado a esta reserva
-    const loan = await getLoanByReservationApi(reservation.id);
+    try {
+      // Buscar el préstamo asociado a esta reserva
+      // const loan = await getLoanByReservationApi(reservation.id);
 
-    if (!loan) {
+      if (!loan) {
+        alert(
+          "❌ No se encontró un préstamo registrado para esta reserva.\nPrimero debe registrar la entrega del recurso."
+        );
+        return;
+      }
+
+      // Verificar si ya tiene devolución
+      //* const returnExists = await checkReturnExistsForLoanApi(loan.id);
+
+      if (returnExists.exists) {
+        alert(
+          `⚠️ Este préstamo ya tiene una devolución registrada.\n\nDevolución registrada el: ${new Date(
+            returnExists.return?.returnTime
+          ).toLocaleString()}\nRecibido por: ${
+            returnExists.return?.Employee?.firstName || "N/A"
+          } ${returnExists.return?.Employee?.lastName || ""}`
+        );
+        return;
+      }
+
+      setSelectedLoan(loan);
+      setHasReturn(false);
+      setModalContent("return");
+      setModalOpen(true);
+    } catch (err) {
+      console.error("Error al verificar devolución:", err);
       alert(
-        "❌ No se encontró un préstamo registrado para esta reserva.\nPrimero debe registrar la entrega del recurso."
+        "❌ Error al verificar el préstamo. Por favor, intente nuevamente."
       );
-      return;
     }
-
-    // Verificar si ya tiene devolución
-    const returnExists = await checkReturnExistsForLoanApi(loan.id);
-
-    if (returnExists.exists) {
-      alert(
-        `⚠️ Este préstamo ya tiene una devolución registrada.\n\nDevolución registrada el: ${new Date(
-          returnExists.return?.returnTime
-        ).toLocaleString()}\nRecibido por: ${
-          returnExists.return?.Employee?.firstName
-        } ${returnExists.return?.Employee?.lastName}`
-      );
-      return;
-    }
-
-    setSelectedLoan(loan);
-    setHasReturn(false);
-    setModalContent("return");
-    setModalOpen(true);
   };
 
   const closeModal = () => {
@@ -146,14 +157,12 @@ const LoansManagement = () => {
 
   const handleLoanSuccess = (loan) => {
     console.log("Préstamo creado:", loan);
-    alert("✅ Préstamo registrado exitosamente");
     closeModal();
     loadActiveReservations(); // Recargar la lista
   };
 
   const handleReturnSuccess = (returnRecord) => {
     console.log("Devolución creada:", returnRecord);
-    alert("✅ Devolución registrada exitosamente");
     closeModal();
     loadActiveReservations(); // Recargar la lista
   };
@@ -422,118 +431,131 @@ const LoansManagement = () => {
           </div>
         )}
 
-        <div className="reservations-table-container">
-          <table className="reservations-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Recurso</th>
-                <th>Usuario</th>
-                <th>Fecha/Hora Inicio</th>
-                <th>Propósito</th>
-                <th>Tiempo Faltante</th>
-                <th>Ventana de Entrega</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reservations.map((reservation) => (
-                <tr key={reservation.id} className="reservation-row">
-                  <td className="reservation-id">#{reservation.id}</td>
-                  <td>
-                    <div className="resource-info">
-                      <strong>{reservation.Resource.name}</strong>
-                      <small>
-                        {reservation.Resource.ResourceType.name} •{" "}
-                        {reservation.Resource.ResourceType.Unit.name}
-                      </small>
-                      {reservation.Resource.features && (
-                        <small className="resource-features">
-                          {Object.entries(reservation.Resource.features).map(
-                            ([key, value]) => (
-                              <span key={key}>
-                                {key}: {value}
-                              </span>
-                            )
-                          )}
+        {reservations.length === 0 && !loading ? (
+          <div className="no-results">
+            <p>📭 No hay reservas activas en este momento</p>
+            <small>
+              Las reservas aparecerán aquí cuando estén confirmadas y pendientes
+              de entrega
+            </small>
+          </div>
+        ) : (
+          <div className="reservations-table-container">
+            <table className="reservations-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Recurso</th>
+                  <th>Usuario</th>
+                  <th>Fecha/Hora Inicio</th>
+                  <th>Propósito</th>
+                  <th>Tiempo Faltante</th>
+                  <th>Ventana de Entrega</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reservations.map((reservation) => (
+                  <tr key={reservation.id} className="reservation-row">
+                    <td className="reservation-id">#{reservation.id}</td>
+                    <td>
+                      <div className="resource-info">
+                        <strong>{reservation.Resource.name}</strong>
+                        <small>
+                          {reservation.Resource.ResourceType.name} •{" "}
+                          {reservation.Resource.ResourceType.Unit.name}
                         </small>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="user-info">
-                      <strong>
-                        {reservation.User.firstName} {reservation.User.lastName}
-                      </strong>
-                      <small>{reservation.User.email}</small>
-                      <small>
-                        {reservation.User.rol} • ID:{" "}
-                        {reservation.User.identificationNumber}
-                      </small>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="datetime-info">
-                      <div>
-                        {new Date(reservation.startDateTime).toLocaleDateString(
-                          "es-ES"
+                        {reservation.Resource.features && (
+                          <small className="resource-features">
+                            {Object.entries(reservation.Resource.features).map(
+                              ([key, value]) => (
+                                <span key={key}>
+                                  {key}: {value}
+                                </span>
+                              )
+                            )}
+                          </small>
                         )}
                       </div>
-                      <small>
-                        {new Date(reservation.startDateTime).toLocaleTimeString(
-                          [],
-                          { hour: "2-digit", minute: "2-digit" }
-                        )}
-                      </small>
-                      <small>
-                        Duración:{" "}
-                        {Math.round(
-                          (new Date(reservation.endDateTime) -
-                            new Date(reservation.startDateTime)) /
-                            (1000 * 60)
-                        )}{" "}
-                        min
-                      </small>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="purpose-info">
-                      {reservation.purpose}
-                      <small>Asistentes: {reservation.attendees}</small>
-                    </div>
-                  </td>
-                  <td>{renderTimeRemaining(reservation)}</td>
-                  <td>{formatDeliveryWindow(reservation)}</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        onClick={() => openLoanModal(reservation)}
-                        className="btn-action btn-pickup"
-                        title="Registrar entrega"
-                        disabled={!canRegisterPickup(reservation)}
-                      >
-                        📦 Entregar
-                      </button>
+                    </td>
+                    <td>
+                      <div className="user-info">
+                        <strong>
+                          {reservation.User.firstName}{" "}
+                          {reservation.User.lastName}
+                        </strong>
+                        <small>{reservation.User.email}</small>
+                        <small>
+                          {reservation.User.rol} • ID:{" "}
+                          {reservation.User.identificationNumber}
+                        </small>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="datetime-info">
+                        <div>
+                          {new Date(
+                            reservation.startDateTime
+                          ).toLocaleDateString("es-ES")}
+                        </div>
+                        <small>
+                          {new Date(
+                            reservation.startDateTime
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </small>
+                        <small>
+                          Duración:{" "}
+                          {Math.round(
+                            (new Date(reservation.endDateTime) -
+                              new Date(reservation.startDateTime)) /
+                              (1000 * 60)
+                          )}{" "}
+                          min
+                        </small>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="purpose-info">
+                        {reservation.purpose}
+                        <small>Asistentes: {reservation.attendees}</small>
+                      </div>
+                    </td>
+                    <td>{renderTimeRemaining(reservation)}</td>
+                    <td>{formatDeliveryWindow(reservation)}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          onClick={() => openLoanModal(reservation)}
+                          className="btn-action btn-pickup"
+                          title="Registrar entrega"
+                          disabled={!canRegisterPickup(reservation)}
+                        >
+                          📦 Entregar
+                        </button>
 
-                      <button
-                        onClick={() => openReturnModal(reservation)}
-                        className="btn-action btn-return"
-                        title="Registrar devolución"
-                      >
-                        ↩️ Devolver
-                      </button>
-                      <small className="action-note">
-                        {!canRegisterPickup(reservation)
-                          ? "Disponible dentro de la ventana de entrega"
-                          : "Haz clic para registrar entrega"}
-                      </small>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        <button
+                          onClick={() => openReturnModal(reservation)}
+                          className="btn-action btn-return"
+                          title="Registrar devolución"
+                        >
+                          ↩️ Devolver
+                        </button>
+                        <small className="action-note">
+                          {!canRegisterPickup(reservation)
+                            ? "Disponible dentro de la ventana de entrega"
+                            : "Haz clic para registrar entrega"}
+                        </small>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Paginación */}
         {totalPages > 1 && (
@@ -639,8 +661,14 @@ const LoansManagement = () => {
         }
         subtitle={
           modalContent === "loan"
-            ? `Reserva #${selectedReservation?.id} - ${selectedReservation?.Resource?.name}`
-            : `Préstamo #${selectedLoan?.id} - ${selectedLoan?.Reservation?.Resource?.name}`
+            ? selectedReservation
+              ? `Reserva #${selectedReservation.id} - ${selectedReservation.Resource?.name}`
+              : "Cargando..."
+            : selectedLoan
+            ? `Préstamo #${selectedLoan.id} - ${
+                selectedLoan.Reservation?.Resource?.name || "N/A"
+              }`
+            : "Cargando..."
         }
         size="large"
       >

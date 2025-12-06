@@ -12,8 +12,8 @@ const {
   checkResourceAvailability,
   getResourceAvailability,
   getResourceAvailabilityRange,
-  checkRepeatAvailability,      // 🆕 Nueva función
-  getRepeatSeries               // 🆕 Nueva función
+  checkRepeatAvailability, // 🆕 Nueva función
+  getRepeatSeries, // 🆕 Nueva función
 } = require("../views/reservationController");
 const {
   verifyToken,
@@ -23,11 +23,7 @@ const {
 // ========== RUTAS DE DISPONIBILIDAD ==========
 
 // Verificar disponibilidad para un rango específico (reserva única)
-router.post(
-  "/check-availability",
-  verifyToken,
-  checkResourceAvailability
-);
+router.post("/check-availability", verifyToken, checkResourceAvailability);
 
 // 🆕 Verificar disponibilidad para reserva repetitiva
 router.post(
@@ -54,11 +50,7 @@ router.get(
 // ========== RUTAS PARA SERIES REPETITIVAS ==========
 
 // 🆕 Obtener todas mis series de reservas repetitivas
-router.get(
-  "/repeat-series/my",
-  verifyToken,
-  getRepeatSeries
-);
+router.get("/repeat-series/my", verifyToken, getRepeatSeries);
 
 // 🆕 Obtener todas las series repetitivas (admin/empleados)
 router.get(
@@ -87,20 +79,12 @@ router.get(
 );
 
 // Ruta de mis reservas
-router.get(
-  "/my-reservations",
-  verifyToken,
-  getMyReservations
-);
+router.get("/my-reservations", verifyToken, getMyReservations);
 
 // ========== RUTAS CON :id ==========
 
 // Cancelar reserva (ahora soporta cancelAll y cancelFuture)
-router.patch(
-  "/:id/cancel",
-  verifyToken,
-  cancelReservation
-);
+router.patch("/:id/cancel", verifyToken, cancelReservation);
 
 // Actualizar estado de reserva
 router.patch(
@@ -111,11 +95,7 @@ router.patch(
 );
 
 // Obtener reserva específica (ahora incluye info de serie repetitiva si aplica)
-router.get(
-  "/:id",
-  verifyToken,
-  getReservation
-);
+router.get("/:id", verifyToken, getReservation);
 
 // ========== RUTAS SIN PARÁMETROS ==========
 
