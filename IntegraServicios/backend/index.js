@@ -12,10 +12,10 @@ const typeScheduleRoutes = require("./services/resource/src/api/routes/typeSched
 const resourceRoutes = require("./services/resource/src/api/routes/resourceRoutes");
 const reservationRoutes = require("./services/reservation/src/api/routes/reservationRoutes");
 const reservationManagementRoutes = require("./services/reservation/src/api/routes/reservationManagementRoutes");
+const loanRoutes = require("./services/loan/src/api/routes/loanRoutes");
+const returnRoutes = require("./services/loan/src/api/routes/returnRoutes");
 
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
-const loanRoutes = require("./services/user/src/api/routes/loanRoutes");
-const returnRoutes = require("./services/user/src/api/routes/returnRoutes");
 const ratingRoutes = require("./services/user/src/api/routes/ratingRoutes");
 const failureRoutes = require("./services/user/src/api/routes/failureRoutes");
 
@@ -43,12 +43,12 @@ app.use("/api/unit-schedules", unitScheduleRoutes);
 app.use("/api/type-schedules", typeScheduleRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/admin/reservations", reservationManagementRoutes);
-
 app.use("/api/resource-types", resourceTypeRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/availabilities", availabilityRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/returns", returnRoutes);
+
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/failures", failureRoutes);
 

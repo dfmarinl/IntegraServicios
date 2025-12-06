@@ -26,6 +26,14 @@ router.get(
   reservationManagementController.getAllReservationsWithDetails
 );
 
+// Obtener reservas activas para gestión de préstamos
+router.get(
+  "/active-for-loans",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  reservationManagementController.getActiveReservationsForLoans
+);
+
 // Obtener detalles completos de una reserva específica
 router.get(
   "/:id/details",
