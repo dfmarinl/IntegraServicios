@@ -2,6 +2,8 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
+  position: relative;
+  z-index: 1; /* Asegura que el contenido esté por debajo del header */
 }
 
 /* Header y títulos */
@@ -25,6 +27,8 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-card {
@@ -33,11 +37,14 @@
   min-height: 120px;
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 2;
 }
 
 .stat-content {
@@ -61,7 +68,7 @@
 
 .stat-details {
   flex: 1;
-  min-width: 0; /* Previene overflow */
+  min-width: 0;
 }
 
 .stat-title {
@@ -93,6 +100,8 @@
 /* Acciones de gestión */
 .management-actions {
   margin: 2.5rem 0;
+  position: relative;
+  z-index: 1;
 }
 
 .management-actions h2 {
@@ -121,12 +130,15 @@
   cursor: pointer;
   width: 100%;
   text-align: left;
+  position: relative;
+  z-index: 1;
 }
 
 .action-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   border-color: #3b82f6;
+  z-index: 2;
 }
 
 .action-icon {
@@ -163,6 +175,8 @@
 /* Lista de usuarios */
 .users-overview {
   margin-top: 2.5rem;
+  position: relative;
+  z-index: 1;
 }
 
 .users-header {
@@ -182,7 +196,7 @@
   color: #111827;
 }
 
-/* Contenedor de filtros - REORGANIZADO */
+/* Contenedor de filtros */
 .filters-container {
   display: flex;
   flex-wrap: wrap;
@@ -219,38 +233,25 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.search-btn {
+/* Botón unificado de búsqueda/limpiar */
+.search-action-btn {
   position: absolute;
-  right: 2.5rem;
+  right: 0.75rem;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0.5rem;
   color: #6b7280;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
 }
 
-.search-btn:hover {
+.search-action-btn:hover {
   color: #374151;
-}
-
-.search-icon {
-  display: block;
-}
-
-.clear-search-btn {
-  position: absolute;
-  right: 0.5rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  color: #9ca3af;
-  transition: color 0.2s ease;
-}
-
-.clear-search-btn:hover {
-  color: #374151;
+  background-color: #f3f4f6;
 }
 
 .filter-group {
@@ -299,11 +300,13 @@
   color: #6b7280;
 }
 
-/* Grid de usuarios - ARREGLADO EL PROBLEMA DE SUPERPOSICIÓN */
+/* Grid de usuarios - CON Z-INDEX CORRECTO */
 .users-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 1.5rem;
+  position: relative;
+  z-index: 1;
 }
 
 .user-card {
@@ -316,14 +319,16 @@
   display: flex;
   flex-direction: column;
   min-height: 300px;
+  position: relative;
+  z-index: 1; /* Z-index base */
 }
 
 .user-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 2; /* Solo sube a 2 en hover, nunca más alto que el header */
 }
 
-/* HEADER CORREGIDO - evita superposición */
 .user-header {
   margin-bottom: 1rem;
   flex-shrink: 0;
@@ -342,9 +347,9 @@
   color: #111827;
   line-height: 1.3;
   word-wrap: break-word;
-  max-width: 100%; /* NUEVA LÍNEA */
-  overflow: hidden; /* NUEVA LÍNEA */
-  text-overflow: ellipsis; /* NUEVA LÍNEA */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-badges {
@@ -352,7 +357,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  justify-content: space-between; /* NUEVA LÍNEA */
+  justify-content: space-between;
 }
 
 .role-badge {
@@ -362,9 +367,9 @@
   font-weight: 500;
   text-transform: capitalize;
   white-space: nowrap;
-  max-width: 150px; /* NUEVA LÍNEA */
-  overflow: hidden; /* NUEVA LÍNEA */
-  text-overflow: ellipsis; /* NUEVA LÍNEA */
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-id {
@@ -374,7 +379,7 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   white-space: nowrap;
-  flex-shrink: 0; /* NUEVA LÍNEA */
+  flex-shrink: 0;
 }
 
 /* Colores de roles */
@@ -553,6 +558,8 @@
   padding-top: 1.5rem;
   border-top: 1px solid #e5e7eb;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .pagination-btn {

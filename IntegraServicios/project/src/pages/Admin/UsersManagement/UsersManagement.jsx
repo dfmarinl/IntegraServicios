@@ -18,12 +18,12 @@ const UsersManagement = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [displayedUsers, setDisplayedUsers] = useState([]);
   const [units, setUnits] = useState([]);
-  const [unitNames, setUnitNames] = useState({}); // NUEVO: Para almacenar nombres de unidades
+  const [unitNames, setUnitNames] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // NUEVO
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -48,7 +48,6 @@ const UsersManagement = () => {
     }
   }, [currentPage, searchTerm, roleFilter]);
 
-  // Cargar nombres de unidades para los usuarios que tienen unitId
   useEffect(() => {
     const loadUnitNames = async () => {
       const unitIds = [
@@ -114,6 +113,69 @@ const UsersManagement = () => {
     }
   };
 
+  const sortSearchResults = (users, searchTerm) => {
+    const searchLower = searchTerm.toLowerCase();
+
+    return users.sort((a, b) => {
+      const aFirstName = a.firstName.toLowerCase();
+      const aLastName = a.lastName.toLowerCase();
+      const aEmail = a.email.toLowerCase();
+      const aIdentification = a.identificationNumber.toLowerCase();
+
+      const bFirstName = b.firstName.toLowerCase();
+      const bLastName = b.lastName.toLowerCase();
+      const bEmail = b.email.toLowerCase();
+      const bIdentification = b.identificationNumber.toLowerCase();
+
+      const aFirstNameExact = aFirstName === searchLower;
+      const bFirstNameExact = bFirstName === searchLower;
+      if (aFirstNameExact && !bFirstNameExact) return -1;
+      if (!aFirstNameExact && bFirstNameExact) return 1;
+
+      const aFirstNameStarts = aFirstName.startsWith(searchLower);
+      const bFirstNameStarts = bFirstName.startsWith(searchLower);
+      if (aFirstNameStarts && !bFirstNameStarts) return -1;
+      if (!aFirstNameStarts && bFirstNameStarts) return 1;
+
+      const aFirstNameContains = aFirstName.includes(searchLower);
+      const bFirstNameContains = bFirstName.includes(searchLower);
+      if (aFirstNameContains && !bFirstNameContains) return -1;
+      if (!aFirstNameContains && bFirstNameContains) return 1;
+
+      const aLastNameExact = aLastName === searchLower;
+      const bLastNameExact = bLastName === searchLower;
+      if (aLastNameExact && !bLastNameExact) return -1;
+      if (!aLastNameExact && bLastNameExact) return 1;
+
+      const aLastNameStarts = aLastName.startsWith(searchLower);
+      const bLastNameStarts = bLastName.startsWith(searchLower);
+      if (aLastNameStarts && !bLastNameStarts) return -1;
+      if (!aLastNameStarts && bLastNameStarts) return 1;
+
+      const aLastNameContains = aLastName.includes(searchLower);
+      const bLastNameContains = bLastName.includes(searchLower);
+      if (aLastNameContains && !bLastNameContains) return -1;
+      if (!aLastNameContains && bLastNameContains) return 1;
+
+      const aEmailStarts = aEmail.startsWith(searchLower);
+      const bEmailStarts = bEmail.startsWith(searchLower);
+      if (aEmailStarts && !bEmailStarts) return -1;
+      if (!aEmailStarts && bEmailStarts) return 1;
+
+      const aEmailContains = aEmail.includes(searchLower);
+      const bEmailContains = bEmail.includes(searchLower);
+      if (aEmailContains && !bEmailContains) return -1;
+      if (!aEmailContains && bEmailContains) return 1;
+
+      const aIdentificationContains = aIdentification.includes(searchLower);
+      const bIdentificationContains = bIdentification.includes(searchLower);
+      if (aIdentificationContains && !bIdentificationContains) return -1;
+      if (!aIdentificationContains && bIdentificationContains) return 1;
+
+      return aFirstName.localeCompare(bFirstName);
+    });
+  };
+
   const searchInActiveUsers = async () => {
     try {
       const allActiveUsers = await getActiveUsersApi();
@@ -132,6 +194,8 @@ const UsersManagement = () => {
             user.email.toLowerCase().includes(searchLower) ||
             user.identificationNumber.toLowerCase().includes(searchLower)
         );
+
+        filteredUsers = sortSearchResults(filteredUsers, searchTerm);
       }
 
       const startIndex = (currentPage - 1) * limit;
@@ -149,6 +213,12 @@ const UsersManagement = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    setSearchTerm(searchInput);
+    setCurrentPage(1);
+  };
+
+  // Nueva función para manejar el clic en el botón de búsqueda
+  const handleSearchClick = () => {
     setSearchTerm(searchInput);
     setCurrentPage(1);
   };
@@ -175,7 +245,6 @@ const UsersManagement = () => {
     setCurrentPage(newPage);
   };
 
-  // Funciones para modales
   const handleCreateSuccess = (newUser) => {
     setIsCreateModalOpen(false);
     loadInitialData();
@@ -232,7 +301,7 @@ const UsersManagement = () => {
       value: allUsers.length,
       icon: "👥",
       color: "#2563eb",
-      description: "Todos los usuarios del sistema",
+      description: "",
       filter: "all",
     },
     {
@@ -240,7 +309,7 @@ const UsersManagement = () => {
       value: allUsers.filter((user) => user.rol === "estudiante").length,
       icon: "🎓",
       color: "#16a34a",
-      description: "Usuarios con rol estudiante",
+      description: "",
       filter: "estudiante",
     },
     {
@@ -248,7 +317,7 @@ const UsersManagement = () => {
       value: allUsers.filter((user) => user.rol === "docente").length,
       icon: "👨‍🏫",
       color: "#ea580c",
-      description: "Usuarios con rol docente",
+      description: "",
       filter: "docente",
     },
     {
@@ -256,7 +325,7 @@ const UsersManagement = () => {
       value: allUsers.filter((user) => user.rol === "empleado_unidad").length,
       icon: "🏢",
       color: "#0891b2",
-      description: "Empleados asignados a unidades",
+      description: "",
       filter: "empleado_unidad",
     },
     {
@@ -264,7 +333,7 @@ const UsersManagement = () => {
       value: allUsers.filter((user) => user.rol === "administrador").length,
       icon: "🔧",
       color: "#dc2626",
-      description: "Administradores del sistema",
+      description: "",
       filter: "administrador",
     },
   ];
@@ -365,34 +434,21 @@ const UsersManagement = () => {
                 <div className="search-input-group">
                   <input
                     type="text"
-                    placeholder="Buscar por nombre, email o identificación..."
+                    placeholder="Buscar por nombre, apellido, email o identificación..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     className="search-input"
                   />
-                  <button type="submit" className="search-btn">
-                    <svg
-                      className="search-icon"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </button>
-                  {(searchInput || searchTerm) && (
+                  {searchInput ? (
                     <button
                       type="button"
                       onClick={handleClearSearch}
-                      className="clear-search-btn"
+                      className="search-action-btn"
+                      title="Limpiar búsqueda"
                     >
                       <svg
-                        width="14"
-                        height="14"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -400,6 +456,25 @@ const UsersManagement = () => {
                       >
                         <path d="M18 6 6 18" />
                         <path d="m6 6 12 12" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSearchClick}
+                      className="search-action-btn"
+                      title="Buscar"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
                       </svg>
                     </button>
                   )}
@@ -444,7 +519,7 @@ const UsersManagement = () => {
               </>
             ) : (
               <>
-                Mostrando página {currentPage} de {totalPages}(
+                Mostrando página {currentPage} de {totalPages} (
                 {displayedUsers.length} usuarios de {totalUsers} totales)
               </>
             )}
@@ -593,7 +668,7 @@ const UsersManagement = () => {
         />
       </GenericModal>
 
-      {/* Modal de Eliminación - CORREGIDO */}
+      {/* Modal de Eliminación */}
       <GenericDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCloseDeleteModal}
@@ -602,7 +677,7 @@ const UsersManagement = () => {
         loading={deleteLoading}
         title="Eliminar Usuario"
         itemName="usuario"
-        itemDisplayField="email" // Usar email en lugar de name (que no existe)
+        itemDisplayField="email"
         warningMessage="¿Está seguro de eliminar este usuario? El usuario ya no podrá acceder al sistema."
         confirmButtonText="Sí, Eliminar"
         cancelButtonText="Cancelar"
