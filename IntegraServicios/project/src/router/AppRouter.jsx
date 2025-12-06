@@ -17,6 +17,7 @@ import UnitsView from "../components/User/UnitsView/UnitsView";
 import ResourcesByTypeView from "../components/User/ResourcesByTypeView/ResourcesByTypeView";
 import ResourceTypesView from "../components/User/ResourceTypesView/ResourceTypesView";
 import ReservationsManagement from "../pages/Admin/ReservationsManagement/ReservationsManagement";
+import LoansManagement from "../pages/Admin/LoansManagement/LoansManagement";
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
@@ -25,7 +26,7 @@ import ResetPassword from "../pages/Login/ResetPassword";
 const roleRoutes = {
   administrador: "/admin",
   empleado_unidad: "/employee",
-  docente: "/teacher",
+  docente: "/app",
   personal_administrativo: "/staff",
   estudiante: "/app",
 };
@@ -115,16 +116,9 @@ const AppRouter = () => {
           }
         >
           <Route index element={<AdminHome />} />
-          {/* ← RUTA PARA GESTIÓN DE UNIDADES */}
           <Route path="units" element={<UnitsManagement />} />
-          {/* ← NUEVA RUTA PARA GESTIÓN DE TIPOS DE RECURSO */}
           <Route path="resource-types" element={<ResourceTypesManagement />} />
-          <Route
-            path="resources"
-            element={
-              <ResourcesManagement />
-            }
-          />
+          <Route path="resources" element={<ResourcesManagement />} />
           <Route
             path="availability"
             element={
@@ -134,20 +128,8 @@ const AppRouter = () => {
               </div>
             }
           />
-          <Route
-            path="reservations"
-            element={
-              <ReservationsManagement />}
-          />
-          <Route
-            path="loans"
-            element={
-              <div className="page-placeholder">
-                <h1>Préstamos</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
-          />
+          <Route path="reservations" element={<ReservationsManagement />} />
+          <Route path="loans" element={<LoansManagement />} />
           <Route path="users" element={<UsersManagement />} />
           <Route
             path="employees"
@@ -201,19 +183,8 @@ const AppRouter = () => {
           />
         </Route>
 
-        {/* Ruta de docente */}
-        <Route
-          path="/teacher"
-          element={
-            <ProtectedRoute allowedRoles={["docente"]}>
-              <UserLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<UserHome />} />
-          <Route path="resources" element={<ResourcesList />} />
-          <Route path="reservations" element={<MyReservations />} />
-        </Route>
+        {/* Ruta de docente (REDIRIGE A /app) */}
+        <Route path="/teacher" element={<Navigate to="/app" replace />} />
 
         {/* Ruta de personal administrativo */}
         <Route
@@ -229,32 +200,44 @@ const AppRouter = () => {
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 
-       {/* Ruta de estudiante (mantiene /app por compatibilidad) */}
+        {/* Ruta compartida para estudiantes, docentes y personal administrativo */}
         <Route
           path="/app"
           element={
-            <ProtectedRoute allowedRoles={["estudiante"]}>
+            <ProtectedRoute
+              allowedRoles={[
+                "estudiante",
+                "docente",
+                "personal_administrativo",
+              ]}
+            >
               <UserLayout />
             </ProtectedRoute>
           }
         >
           <Route index element={<UserHome />} />
-          
+
           {/* Rutas de recursos - Jerárquicas */}
           <Route path="resources" element={<UnitsView />} />
           <Route path="resources/browse">
             <Route path="unit/:unitId/types" element={<ResourceTypesView />} />
-            <Route path="unit/:unitId/type/:typeId/resources" element={<ResourcesByTypeView />} />
+            <Route
+              path="unit/:unitId/type/:typeId/resources"
+              element={<ResourcesByTypeView />}
+            />
           </Route>
-          
-          {/* Ruta de reserva individual (sin conflicto) */}
-          <Route path="reserve/:resourceId" element={
-            <div className="page-placeholder">
-              <h1>Crear Reserva</h1>
-              <p>Página en construcción</p>
-            </div>
-          } />
-          
+
+          {/* Ruta de reserva individual */}
+          <Route
+            path="reserve/:resourceId"
+            element={
+              <div className="page-placeholder">
+                <h1>Crear Reserva</h1>
+                <p>Página en construcción</p>
+              </div>
+            }
+          />
+
           <Route path="reservations" element={<MyReservations />} />
         </Route>
 
