@@ -24,7 +24,7 @@ const AdminLayout = () => {
     { path: "/admin/loans", label: "Préstamos", icon: "📦" },
     { path: "/admin/users", label: "Usuarios", icon: "👥" },
     { path: "/admin/units", label: "Unidades", icon: "🏛️" },
-    { path: "/admin/reports", label: "Reportes", icon: "📈" },
+    { path: "/admin/stats", label: "Reportes", icon: "📈" },
   ];
 
   return (
