@@ -68,7 +68,7 @@ const UserLayout = () => {
       </main>
 
       <footer className="user-footer">
-        <p>&copy; 2025 Sistema de Reservas. Todos los derechos reservados.</p>
+        <p>&copy; 2025 IntegraServicios. Todos los derechos reservados.</p>
       </footer>
     </div>
   );
