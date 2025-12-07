@@ -9,17 +9,52 @@ const Rating = sequelize.define("Rating", {
     primaryKey: true,
     autoIncrement: true,
   },
-  stars: {
+  // Calificación de cumplimiento de horarios (0-5 estrellas)
+  scheduleCompliance: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    validate: { min: 0, max: 5 },
+    validate: {
+      min: 0,
+      max: 5,
+    },
+  },
+  // Calificación de calidad y estado del recurso (0-5 estrellas)
+  resourceQuality: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    validate: {
+      min: 0,
+      max: 5,
+    },
+  },
+  // Calificación de amabilidad del personal (0-5 estrellas)
+  staffKindness: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    validate: {
+      min: 0,
+      max: 5,
+    },
+  },
+  // Promedio de las 3 calificaciones
+  averageStars: {
+    type: DataTypes.DECIMAL(3, 2),
+    allowNull: false,
+    validate: {
+      min: 0,
+      max: 5,
+    },
   },
   comment: {
     type: DataTypes.TEXT,
+    allowNull: true,
   },
 });
 
-Reservation.hasOne(Rating, { foreignKey: "reservationId", onDelete: "CASCADE" });
+Reservation.hasOne(Rating, {
+  foreignKey: "reservationId",
+  onDelete: "CASCADE",
+});
 Rating.belongsTo(Reservation, { foreignKey: "reservationId" });
 
 User.hasMany(Rating, { foreignKey: "userId", onDelete: "CASCADE" });
