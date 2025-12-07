@@ -33,7 +33,7 @@ const AdminLayout = () => {
         className={`sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
       >
         <div className="sidebar-header">
-          <h2 className="sidebar-title">Sistema de Reservas</h2>
+          <h2 className="sidebar-title">IntegraServicios</h2>
         </div>
 
         <nav className="sidebar-nav">
