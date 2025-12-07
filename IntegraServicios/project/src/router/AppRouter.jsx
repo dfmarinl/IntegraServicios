@@ -21,13 +21,14 @@ import LoansManagement from "../pages/Admin/LoansManagement/LoansManagement";
 import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
+import StatsPage from "../pages/Admin/StatsPage/StatsPage";
 
 // Objeto de mapeo de roles a rutas
 const roleRoutes = {
   administrador: "/admin",
   empleado_unidad: "/employee",
   docente: "/app",
-  personal_administrativo: "/staff",
+  personal_administrativo: "/app",
   estudiante: "/app",
 };
 
@@ -131,6 +132,8 @@ const AppRouter = () => {
           <Route path="reservations" element={<ReservationsManagement />} />
           <Route path="loans" element={<LoansManagement />} />
           <Route path="users" element={<UsersManagement />} />
+          <Route path="stats" element={<StatsPage />} />{" "}
+          {/* Nueva ruta de estadísticas */}
           <Route
             path="employees"
             element={
@@ -163,6 +166,8 @@ const AppRouter = () => {
           <Route index element={<EmployeeHome />} />
           <Route path="resources" element={<ResourcesList />} />
           <Route path="reservations" element={<MyReservations />} />
+          <Route path="stats" element={<StatsPage />} />{" "}
+          {/* Nueva ruta de estadísticas */}
           <Route
             path="loans"
             element={
@@ -216,7 +221,6 @@ const AppRouter = () => {
           }
         >
           <Route index element={<UserHome />} />
-
           {/* Rutas de recursos - Jerárquicas */}
           <Route path="resources" element={<UnitsView />} />
           <Route path="resources/browse">
@@ -226,7 +230,6 @@ const AppRouter = () => {
               element={<ResourcesByTypeView />}
             />
           </Route>
-
           {/* Ruta de reserva individual */}
           <Route
             path="reserve/:resourceId"
@@ -237,9 +240,28 @@ const AppRouter = () => {
               </div>
             }
           />
-
           <Route path="reservations" element={<MyReservations />} />
+          <Route path="stats" element={<StatsPage />} />{" "}
+          {/* Nueva ruta de estadísticas */}
         </Route>
+
+        {/* Ruta independiente para estadísticas (accesible desde cualquier layout) */}
+        <Route
+          path="/stats"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "administrador",
+                "empleado_unidad",
+                "docente",
+                "personal_administrativo",
+                "estudiante",
+              ]}
+            >
+              <StatsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Rutas por defecto */}
         <Route path="/" element={<Navigate to="/login" replace />} />

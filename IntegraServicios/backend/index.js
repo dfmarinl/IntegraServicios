@@ -15,6 +15,7 @@ const reservationManagementRoutes = require("./services/reservation/src/api/rout
 const loanRoutes = require("./services/loan/src/api/routes/loanRoutes");
 const returnRoutes = require("./services/loan/src/api/routes/returnRoutes");
 const ratingRoutes = require("./services/rating/src/api/routes/ratingRoutes");
+const statsRoutes = require("./services/stats/src/api/routes/statsRoutes");
 
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
 const failureRoutes = require("./services/user/src/api/routes/failureRoutes");
@@ -48,8 +49,9 @@ app.use("/api/resources", resourceRoutes);
 app.use("/api/availabilities", availabilityRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/returns", returnRoutes);
-
 app.use("/api/ratings", ratingRoutes);
+app.use("/api/stats", statsRoutes);
+
 app.use("/api/failures", failureRoutes);
 
 // Export app for testing
