@@ -7,6 +7,79 @@ const TypeSchedule = require("../../../../../models/TypeSchedule");
 const { Op } = require("sequelize");
 const { generateAvailableSlots } = require("../../../../../helpers/slotGenerator");
 
+// ========== CONSTANTES Y CONFIGURACIÓN ==========
+
+const TIMEZONE_OFFSET_COLOMBIA = -5 * 60 * 60 * 1000; // Colombia UTC-5 en milisegundos
+const MIN_BOOKING_MINUTES = 15; // Mínimo 15 minutos de anticipación
+const MAX_ADVANCE_DAYS = 365; // Máximo 1 año de anticipación
+const MIN_CANCEL_HOURS = 1; // Mínimo 1 hora para cancelar
+
+// ========== FUNCIONES HELPERS ==========
+
+/**
+ * Ajusta una fecha local a UTC considerando Colombia UTC-5
+ */
+const adjustToUTCFromColombia = (localDate) => {
+  const adjusted = new Date(localDate.getTime() - TIMEZONE_OFFSET_COLOMBIA);
+  return adjusted;
+};
+
+/**
+ * Ajusta una fecha UTC a hora Colombia
+ */
+const adjustToColombiaFromUTC = (utcDate) => {
+  const adjusted = new Date(utcDate.getTime() + TIMEZONE_OFFSET_COLOMBIA);
+  return adjusted;
+};
+
+/**
+ * Verifica si una fecha es "pasada" considerando Colombia UTC-5
+ */
+const isPastInColombia = (dateTime, marginMinutes = 0) => {
+  const now = new Date();
+  const colombiaNow = adjustToColombiaFromUTC(now);
+  const colombiaDateTime = adjustToColombiaFromUTC(new Date(dateTime));
+  
+  const marginMs = marginMinutes * 60 * 1000;
+  return colombiaDateTime < new Date(colombiaNow.getTime() - marginMs);
+};
+
+/**
+ * Verifica si una fecha es futura con margen mínimo
+ */
+const isFutureWithMargin = (dateTime, marginMinutes) => {
+  const now = new Date();
+  const colombiaNow = adjustToColombiaFromUTC(now);
+  const colombiaDateTime = adjustToColombiaFromUTC(new Date(dateTime));
+  
+  const marginMs = marginMinutes * 60 * 1000;
+  return colombiaDateTime > new Date(colombiaNow.getTime() + marginMs);
+};
+
+/**
+ * Obtiene diferencia en minutos entre ahora y una fecha (en hora Colombia)
+ */
+const getMinutesFromNowColombia = (dateTime) => {
+  const now = new Date();
+  const colombiaNow = adjustToColombiaFromUTC(now);
+  const colombiaDateTime = adjustToColombiaFromUTC(new Date(dateTime));
+  
+  return Math.floor((colombiaDateTime - colombiaNow) / (1000 * 60));
+};
+
+/**
+ * Formatea fecha para logs detallados
+ */
+const formatDateForLog = (date) => {
+  const d = new Date(date);
+  return {
+    local: d.toLocaleString('es-CO'),
+    iso: d.toISOString(),
+    colombia: adjustToColombiaFromUTC(d).toLocaleString('es-CO'),
+    timestamp: d.getTime()
+  };
+};
+
 // ========== FUNCIONES DE VALIDACIÓN ==========
 
 const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTime) => {
@@ -53,23 +126,23 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
     const scheduleStart = new Date(`${dateStr}T${scheduleForDay.startTime}`);
     const scheduleEnd = new Date(`${dateStr}T${scheduleForDay.endTime}`);
 
-    const reservationStartTime = new Date(startDate);
-    reservationStartTime.setFullYear(scheduleStart.getFullYear(), scheduleStart.getMonth(), scheduleStart.getDate());
-    
-    const reservationEndTime = new Date(endDate);
-    reservationEndTime.setFullYear(scheduleEnd.getFullYear(), scheduleEnd.getMonth(), scheduleEnd.getDate());
+    // Ajustar a UTC para comparación
+    const scheduleStartUTC = adjustToUTCFromColombia(scheduleStart);
+    const scheduleEndUTC = adjustToUTCFromColombia(scheduleEnd);
+    const reservationStartUTC = adjustToUTCFromColombia(startDate);
+    const reservationEndUTC = adjustToUTCFromColombia(endDate);
 
-    if (reservationStartTime < scheduleStart) {
+    if (reservationStartUTC < scheduleStartUTC) {
       return {
         isValid: false,
-        message: `La reserva no puede comenzar antes de las ${scheduleForDay.startTime}`
+        message: `La reserva no puede comenzar antes de las ${scheduleForDay.startTime} (hora Colombia)`
       };
     }
 
-    if (reservationEndTime > scheduleEnd) {
+    if (reservationEndUTC > scheduleEndUTC) {
       return {
         isValid: false,
-        message: `La reserva no puede terminar después de las ${scheduleForDay.endTime}`
+        message: `La reserva no puede terminar después de las ${scheduleForDay.endTime} (hora Colombia)`
       };
     }
 
@@ -314,6 +387,24 @@ const createReservation = async (req, res) => {
 
     const userId = req.user.id;
 
+    console.log('📋 Creando reserva - Datos recibidos:', {
+      resourceId,
+      startDateTime,
+      endDateTime,
+      purpose,
+      attendees,
+      isRepetitive,
+      userId,
+      repeatConfig
+    });
+
+    console.log('⏰ Debug de tiempos - Colombia:', {
+      ahoraColombia: adjustToColombiaFromUTC(new Date()).toLocaleString('es-CO'),
+      startDateTimeColombia: startDateTime ? adjustToColombiaFromUTC(new Date(startDateTime)).toLocaleString('es-CO') : 'N/A',
+      endDateTimeColombia: endDateTime ? adjustToColombiaFromUTC(new Date(endDateTime)).toLocaleString('es-CO') : 'N/A',
+      diferenciaMinutos: startDateTime ? getMinutesFromNowColombia(startDateTime) : 'N/A'
+    });
+
     if (!resourceId || !startDateTime || !endDateTime || !purpose) {
       return res.status(400).json({ 
         message: "Faltan campos requeridos: resourceId, startDateTime, endDateTime, purpose" 
@@ -329,9 +420,43 @@ const createReservation = async (req, res) => {
       });
     }
 
-    if (startDate < new Date()) {
+    // ✅ CORRECCIÓN CRÍTICA: Validar considerando Colombia UTC-5
+    if (isPastInColombia(startDate)) {
+      const minutesFromNow = getMinutesFromNowColombia(startDate);
       return res.status(400).json({ 
-        message: "No se pueden crear reservas en el pasado" 
+        message: `No se pueden crear reservas en el pasado. 
+                  La hora seleccionada es ${Math.abs(minutesFromNow)} minutos ${minutesFromNow < 0 ? 'en el pasado' : 'en el futuro'} (hora Colombia). 
+                  Por favor selecciona una hora al menos ${MIN_BOOKING_MINUTES} minutos en el futuro.`,
+        details: {
+          selectedTime: formatDateForLog(startDate),
+          serverTime: formatDateForLog(new Date()),
+          differenceMinutes: minutesFromNow,
+          timezone: 'Colombia (UTC-5)',
+          minAdvanceMinutes: MIN_BOOKING_MINUTES
+        }
+      });
+    }
+
+    // Validar margen mínimo de 15 minutos
+    if (!isFutureWithMargin(startDate, MIN_BOOKING_MINUTES)) {
+      const minutesFromNow = getMinutesFromNowColombia(startDate);
+      return res.status(400).json({
+        message: `Las reservas deben hacerse con al menos ${MIN_BOOKING_MINUTES} minutos de anticipación. 
+                  Tiempo hasta la reserva: ${minutesFromNow} minutos`,
+        details: {
+          minAdvanceMinutes: MIN_BOOKING_MINUTES,
+          actualAdvanceMinutes: minutesFromNow,
+          timezone: 'Colombia (UTC-5)'
+        }
+      });
+    }
+
+    // Validar que no sea demasiado en el futuro
+    const maxAdvanceDate = new Date();
+    maxAdvanceDate.setDate(maxAdvanceDate.getDate() + MAX_ADVANCE_DAYS);
+    if (startDate > maxAdvanceDate) {
+      return res.status(400).json({
+        message: `Las reservas solo pueden hacerse con máximo ${MAX_ADVANCE_DAYS} días de anticipación`
       });
     }
 
@@ -373,7 +498,11 @@ const createReservation = async (req, res) => {
     if (!availability.isAvailable) {
       return res.status(409).json({
         message: "El recurso no está disponible en el horario solicitado",
-        conflictingReservation: availability.conflictingReservation
+        conflictingReservation: availability.conflictingReservation,
+        details: {
+          selectedTime: formatDateForLog(startDate),
+          conflictingTime: availability.conflictingReservation ? formatDateForLog(availability.conflictingReservation.startDateTime) : null
+        }
       });
     }
 
@@ -494,7 +623,12 @@ const createReservation = async (req, res) => {
               Unit: unit
             }
           },
-          user
+          user,
+          timezoneInfo: {
+            serverTimezone: 'UTC',
+            userTimezone: 'Colombia (UTC-5)',
+            createdAtColombia: adjustToColombiaFromUTC(new Date()).toLocaleString('es-CO')
+          }
         }
       });
 
@@ -529,15 +663,24 @@ const createReservation = async (req, res) => {
             }
           },
           User: user
+        },
+        timezoneInfo: {
+          serverTimezone: 'UTC',
+          userTimezone: 'Colombia (UTC-5)',
+          reservationTimeColombia: adjustToColombiaFromUTC(startDate).toLocaleString('es-CO')
         }
       });
     }
 
   } catch (error) {
-    console.error("Error al crear reserva:", error);
+    console.error("❌ Error al crear reserva:", error);
     res.status(500).json({ 
       message: "Error al crear la reserva", 
-      error: error.message 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? {
+        stack: error.stack,
+        timezone: 'Colombia (UTC-5)'
+      } : undefined
     });
   }
 };
@@ -694,7 +837,6 @@ const cancelReservation = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.rol;
     
-    // ✅ FIX: Manejar el caso cuando no hay body o body está vacío
     const body = req.body || {};
     const { cancelAll = false, cancelFuture = false } = body;
 
@@ -709,7 +851,6 @@ const cancelReservation = async (req, res) => {
 
     const whereConditions = { id };
 
-    // Si no es admin/empleado, solo puede cancelar sus propias reservas
     if (!['administrador', 'empleado_unidad'].includes(userRole)) {
       whereConditions.userId = userId;
     }
@@ -722,7 +863,6 @@ const cancelReservation = async (req, res) => {
       return res.status(404).json({ message: "Reserva no encontrada" });
     }
 
-    // Verificar que la reserva se puede cancelar
     if (reservation.status === 'cancelada') {
       return res.status(400).json({ message: "La reserva ya está cancelada" });
     }
@@ -731,21 +871,33 @@ const cancelReservation = async (req, res) => {
       return res.status(400).json({ message: "No se puede cancelar una reserva finalizada" });
     }
 
-    // Verificar que no sea demasiado tarde para cancelar
+    // Verificar tiempo de cancelación considerando Colombia UTC-5
     const startDate = new Date(reservation.startDateTime);
     const now = new Date();
-    const timeDiff = startDate - now;
+    
+    // Ajustar a hora Colombia para la comparación
+    const startDateColombia = adjustToColombiaFromUTC(startDate);
+    const nowColombia = adjustToColombiaFromUTC(now);
+    
+    const timeDiff = startDateColombia - nowColombia;
     const hoursDiff = timeDiff / (1000 * 60 * 60);
 
-    if (hoursDiff < 1 && userRole === 'estudiante') {
+    if (hoursDiff < MIN_CANCEL_HOURS && userRole === 'estudiante') {
+      const minutesDiff = Math.floor((timeDiff / (1000 * 60)) % 60);
       return res.status(400).json({ 
-        message: "No se puede cancelar la reserva con menos de 1 hora de anticipación" 
+        message: `No se puede cancelar la reserva con menos de ${MIN_CANCEL_HOURS} hora(s) de anticipación. 
+                  Tiempo restante: ${Math.floor(hoursDiff)} horas ${minutesDiff} minutos (hora Colombia)`,
+        details: {
+          minCancelHours: MIN_CANCEL_HOURS,
+          remainingHours: hoursDiff,
+          reservationTimeColombia: startDateColombia.toLocaleString('es-CO'),
+          currentTimeColombia: nowColombia.toLocaleString('es-CO')
+        }
       });
     }
 
     // Manejar cancelación de reservas repetitivas
     if (reservation.isRepetitive && (cancelAll || cancelFuture)) {
-      // Buscar reservas relacionadas
       const repeatSeries = await findRepeatSeries(
         reservation.userId,
         reservation.resourceId,
@@ -756,16 +908,14 @@ const cancelReservation = async (req, res) => {
       let reservationsToCancel = [];
       
       if (cancelAll) {
-        // Cancelar todas las relacionadas
         reservationsToCancel = [reservation, ...repeatSeries];
       } else if (cancelFuture) {
-        // Cancelar solo las futuras (incluyendo esta si es futura)
+        const now = new Date();
         reservationsToCancel = [reservation, ...repeatSeries].filter(res => 
           new Date(res.startDateTime) >= now
         );
       }
       
-      // Cancelar las reservas
       const cancelPromises = reservationsToCancel.map(res => 
         res.update({ status: 'cancelada' })
       );
@@ -785,7 +935,6 @@ const cancelReservation = async (req, res) => {
         }))
       });
     } else {
-      // Cancelar solo esta reserva
       await reservation.update({
         status: 'cancelada'
       });
@@ -795,7 +944,8 @@ const cancelReservation = async (req, res) => {
         message: "Reserva cancelada exitosamente",
         reservation: {
           id: reservation.id,
-          status: 'cancelada'
+          status: 'cancelada',
+          canceledAtColombia: adjustToColombiaFromUTC(new Date()).toLocaleString('es-CO')
         }
       });
     }
@@ -1021,6 +1171,14 @@ const checkResourceAvailabilityController = async (req, res) => {
   try {
     const { resourceId, startDateTime, endDateTime } = req.body;
 
+    console.log('🔍 Verificando disponibilidad:', {
+      resourceId,
+      startDateTime,
+      endDateTime,
+      ahoraUTC: new Date().toISOString(),
+      ahoraColombia: adjustToColombiaFromUTC(new Date()).toLocaleString('es-CO')
+    });
+
     if (!resourceId || !startDateTime || !endDateTime) {
       return res.status(400).json({ 
         message: "Faltan campos requeridos: resourceId, startDateTime, endDateTime" 
@@ -1036,10 +1194,35 @@ const checkResourceAvailabilityController = async (req, res) => {
       });
     }
 
-    if (startDate < new Date()) {
+    // ✅ MODIFICACIÓN: Permitir verificar disponibilidad para fechas hasta ayer
+    const now = new Date();
+    const todayColombia = adjustToColombiaFromUTC(now);
+    todayColombia.setHours(0, 0, 0, 0);
+    
+    const startDateColombia = adjustToColombiaFromUTC(startDate);
+    startDateColombia.setHours(0, 0, 0, 0);
+    
+    const diffTime = todayColombia - startDateColombia;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 1) {
       return res.status(400).json({ 
-        message: "No se pueden verificar disponibilidad en el pasado" 
+        message: "Solo se puede verificar disponibilidad para hoy o ayer como máximo",
+        isAvailable: false,
+        details: {
+          fechaInicioColombia: startDateColombia.toLocaleDateString('es-CO'),
+          fechaHoyColombia: todayColombia.toLocaleDateString('es-CO'),
+          diferenciaDias: diffDays,
+          limitePermitido: "máximo 1 día antes (ayer)"
+        }
       });
+    }
+
+    // Si es fecha de ayer, mostrar advertencia pero continuar
+    const isYesterday = diffDays === 1;
+    
+    if (isYesterday) {
+      console.log('⚠️ Verificando disponibilidad para fecha pasada (ayer)');
     }
 
     const resource = await Resource.findOne({
@@ -1051,14 +1234,16 @@ const checkResourceAvailabilityController = async (req, res) => {
 
     if (!resource) {
       return res.status(404).json({ 
-        message: "Recurso no encontrado" 
+        message: "Recurso no encontrado",
+        isAvailable: false
       });
     }
 
     const scheduleValidation = await validateTimeAgainstSchedule(resourceId, startDate, endDate);
     if (!scheduleValidation.isValid) {
       return res.status(400).json({
-        message: scheduleValidation.message
+        message: scheduleValidation.message,
+        isAvailable: false
       });
     }
 
@@ -1069,14 +1254,28 @@ const checkResourceAvailabilityController = async (req, res) => {
       message: availability.isAvailable && scheduleValidation.isValid
         ? "El recurso está disponible en el horario solicitado" 
         : "El recurso no está disponible en el horario solicitado",
-      conflictingReservation: availability.conflictingReservation
+      conflictingReservation: availability.conflictingReservation,
+      isPastDate: isYesterday,
+      warning: isYesterday ? "⚠️ Verificando disponibilidad para fecha pasada (ayer)" : null,
+      details: {
+        selectedTimeColombia: adjustToColombiaFromUTC(startDate).toLocaleString('es-CO'),
+        selectedTimeUTC: startDate.toISOString(),
+        serverTimeColombia: adjustToColombiaFromUTC(new Date()).toLocaleString('es-CO'),
+        isYesterday: isYesterday,
+        timezone: 'Colombia (UTC-5)'
+      }
     });
 
   } catch (error) {
     console.error("Error en checkResourceAvailability:", error);
     res.status(500).json({ 
       message: "Error al verificar disponibilidad",
-      error: error.message 
+      isAvailable: false,
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? {
+        stack: error.stack,
+        timezone: 'Colombia (UTC-5)'
+      } : undefined
     });
   }
 };
@@ -1085,7 +1284,8 @@ const getResourceAvailability = async (req, res) => {
   try {
     const { resourceId } = req.params;
     const { date } = req.query;
-
+    console.log('fecha recibida:', date);
+    
     if (!resourceId || !date) {
       return res.status(400).json({ 
         message: "Faltan parámetros: resourceId y date" 
@@ -1099,11 +1299,35 @@ const getResourceAvailability = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (targetDate < today) {
+    // ✅ MODIFICACIÓN: Permitir fechas hasta 1 día antes (ayer)
+    const now = new Date();
+    const todayColombia = adjustToColombiaFromUTC(now);
+    todayColombia.setHours(0, 0, 0, 0);
+    
+    const targetDateColombia = adjustToColombiaFromUTC(targetDate);
+    targetDateColombia.setHours(0, 0, 0, 0);
+    
+    // Calcular diferencia en días
+    const diffTime = todayColombia - targetDateColombia;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    console.log('📅 Validación de fecha:', {
+      hoyColombia: todayColombia.toLocaleDateString('es-CO'),
+      fechaSolicitadaColombia: targetDateColombia.toLocaleDateString('es-CO'),
+      diferenciaDias: diffDays,
+      esPasado: diffDays > 0
+    });
+
+    // Permitir fechas hasta 1 día antes (ayer)
+    if (diffDays > 1) {
       return res.status(400).json({ 
-        message: "No se puede consultar disponibilidad en fechas pasadas" 
+        message: "Solo se puede consultar disponibilidad para hoy o ayer como máximo",
+        details: {
+          fechaSolicitada: targetDateColombia.toLocaleDateString('es-CO'),
+          fechaHoy: todayColombia.toLocaleDateString('es-CO'),
+          diferenciaDias: diffDays,
+          limitePermitido: "máximo 1 día antes (ayer)"
+        }
       });
     }
 
@@ -1163,8 +1387,14 @@ const getResourceAvailability = async (req, res) => {
       })
     );
 
+    // Determinar si la fecha es pasada para mostrar advertencia
+    const isPastDate = diffDays === 1; // 1 día de diferencia = ayer
+    
     res.json({
       date: targetDate.toISOString().split('T')[0],
+      dateColombia: adjustToColombiaFromUTC(targetDate).toLocaleDateString('es-CO'),
+      isPastDate: isPastDate,
+      warning: isPastDate ? "⚠️ Consultando disponibilidad para fecha pasada (ayer)" : null,
       resource: {
         id: resource.id,
         name: resource.name,
@@ -1178,6 +1408,13 @@ const getResourceAvailability = async (req, res) => {
         availableSlots: availableSlots.filter(slot => slot.isAvailable).length,
         occupiedSlots: availableSlots.filter(slot => !slot.isAvailable).length,
         repetitiveReservations: reservations.filter(r => r.isRepetitive).length
+      },
+      timezoneInfo: {
+        serverTimezone: 'UTC',
+        colombiaTimezone: 'UTC-5',
+        queryDateColombia: adjustToColombiaFromUTC(targetDate).toLocaleString('es-CO'),
+        todayColombia: todayColombia.toLocaleDateString('es-CO'),
+        isYesterday: isPastDate
       }
     });
 
@@ -1235,6 +1472,7 @@ const getResourceAvailabilityRange = async (req, res) => {
         
         availabilityByDay.push({
           date: dateStr,
+          dateColombia: adjustToColombiaFromUTC(currentDate).toLocaleDateString('es-CO'),
           dayOfWeek: currentDate.toLocaleDateString('es-ES', { weekday: 'long' }),
           available: availableCount > 0,
           availableSlots: availableCount,
@@ -1243,6 +1481,7 @@ const getResourceAvailabilityRange = async (req, res) => {
       } catch (error) {
         availabilityByDay.push({
           date: dateStr,
+          dateColombia: adjustToColombiaFromUTC(currentDate).toLocaleDateString('es-CO'),
           dayOfWeek: currentDate.toLocaleDateString('es-ES', { weekday: 'long' }),
           available: false,
           availableSlots: 0,
@@ -1261,13 +1500,19 @@ const getResourceAvailabilityRange = async (req, res) => {
       },
       dateRange: {
         start: startDate,
-        end: endDate
+        end: endDate,
+        startColombia: adjustToColombiaFromUTC(start).toLocaleDateString('es-CO'),
+        endColombia: adjustToColombiaFromUTC(end).toLocaleDateString('es-CO')
       },
       availabilityByDay,
       summary: {
         totalDays: availabilityByDay.length,
         availableDays: availabilityByDay.filter(day => day.available).length,
         totalAvailableSlots: availabilityByDay.reduce((sum, day) => sum + day.availableSlots, 0)
+      },
+      timezoneInfo: {
+        serverTimezone: 'UTC',
+        colombiaTimezone: 'UTC-5'
       }
     });
 
@@ -1306,6 +1551,21 @@ const checkRepeatAvailability = async (req, res) => {
       });
     }
 
+    // ✅ CORRECCIÓN: Validar primera fecha considerando Colombia UTC-5
+    if (isPastInColombia(startDate, MIN_BOOKING_MINUTES)) {
+      const minutesFromNow = getMinutesFromNowColombia(startDate);
+      return res.status(400).json({
+        message: `La primera fecha de la repetición es pasada. 
+                  Por favor selecciona una fecha al menos ${MIN_BOOKING_MINUTES} minutos en el futuro.`,
+        isAvailable: false,
+        details: {
+          firstDateColombia: adjustToColombiaFromUTC(startDate).toLocaleString('es-CO'),
+          differenceMinutes: minutesFromNow,
+          timezone: 'Colombia (UTC-5)'
+        }
+      });
+    }
+
     const resource = await Resource.findOne({
       where: {
         id: resourceId,
@@ -1332,13 +1592,19 @@ const checkRepeatAvailability = async (req, res) => {
       availableOccurrences: repeatValidation.allDates.filter(d => d.isAvailable).length,
       conflicts: repeatValidation.conflicts.map(conflict => ({
         date: conflict.startDateTime,
+        dateColombia: adjustToColombiaFromUTC(conflict.startDateTime).toLocaleString('es-CO'),
         hasConflict: true
       })),
       allDates: repeatValidation.allDates.map(date => ({
         date: date.startDateTime,
+        dateColombia: adjustToColombiaFromUTC(date.startDateTime).toLocaleString('es-CO'),
         isAvailable: date.isAvailable,
         sequence: date.sequence
-      }))
+      })),
+      timezoneInfo: {
+        serverTimezone: 'UTC',
+        colombiaTimezone: 'UTC-5'
+      }
     });
 
   } catch (error) {
@@ -1409,7 +1675,9 @@ const getRepeatSeries = async (req, res) => {
         purpose: firstReservation.purpose,
         totalOccurrences: reservations.length,
         firstDate: firstReservation.startDateTime,
+        firstDateColombia: adjustToColombiaFromUTC(firstReservation.startDateTime).toLocaleString('es-CO'),
         lastDate: reservations[reservations.length - 1].startDateTime,
+        lastDateColombia: adjustToColombiaFromUTC(reservations[reservations.length - 1].startDateTime).toLocaleString('es-CO'),
         patternDetected: isConsistent,
         estimatedFrequency: isConsistent ? 
           (avgDiff === 7 * 24 * 60 * 60 * 1000 ? 'weekly' : 
@@ -1422,6 +1690,7 @@ const getRepeatSeries = async (req, res) => {
         reservations: reservations.map(r => ({
           id: r.id,
           startDateTime: r.startDateTime,
+          startDateTimeColombia: adjustToColombiaFromUTC(r.startDateTime).toLocaleString('es-CO'),
           endDateTime: r.endDateTime,
           status: r.status
         }))
@@ -1430,7 +1699,12 @@ const getRepeatSeries = async (req, res) => {
 
     res.json({
       series: seriesDetails,
-      totalSeries: seriesDetails.length
+      totalSeries: seriesDetails.length,
+      timezoneInfo: {
+        serverTimezone: 'UTC',
+        colombiaTimezone: 'UTC-5',
+        processedAtColombia: adjustToColombiaFromUTC(new Date()).toLocaleString('es-CO')
+      }
     });
 
   } catch (error) {
@@ -1462,5 +1736,8 @@ module.exports = {
   
   // Controladores específicos para reservas repetitivas
   checkRepeatAvailability,
-  getRepeatSeries
+  getRepeatSeries,
+
+  // Funciones helpers (opcional para testing)
+  
 };

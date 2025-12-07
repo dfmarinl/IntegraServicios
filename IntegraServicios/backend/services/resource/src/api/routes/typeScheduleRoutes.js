@@ -38,7 +38,7 @@ router.patch(
 router.get(
   "/:typeId/schedules",
   verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
+  authorizeRoles("administrador", "empleado_unidad","estudiante","profesor"),
   getTypeSchedules
 );
 
