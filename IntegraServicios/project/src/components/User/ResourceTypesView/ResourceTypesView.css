@@ -376,3 +376,92 @@
   opacity: 1;
   left: 100%;
 }
+
+/* Estilos para los horarios */
+.type-schedules-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.schedules-title {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.schedules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-group {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.schedule-day {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.schedule-time {
+  font-size: 0.8rem;
+  color: #666;
+  padding-left: 8px;
+  position: relative;
+}
+
+.schedule-time:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #007bff;
+}
+
+.no-schedules {
+  font-size: 0.85rem;
+  color: #999;
+  font-style: italic;
+}
+
+.schedule-error {
+  font-size: 0.85rem;
+  color: #dc3545;
+}
+
+/* Mejorar la tarjeta para acomodar los horarios */
+.type-card {
+  height: 100%;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.type-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.type-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.type-info {
+  flex: 1;
+}
+
+/* Ajustar el contenedor de la tarjeta */
+.type-card-wrapper {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.type-card-wrapper:hover {
+  transform: translateY(-2px);
+}

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DatePicker from "react-datepicker";
 import { es } from "date-fns/locale";
 import { useResourceAvailability } from "../hooks/useResourceAvailability";
+import { getTypeSchedulesApi } from "../../../../api/Resource/typeSchedule";
 import "react-datepicker/dist/react-datepicker.css";
 import "./ReservationCalendar.css";
 
@@ -12,17 +13,49 @@ const ReservationCalendar = ({
   onCreateReservation,
   onCancel 
 }) => {
-  // Fecha por defecto: mañana a las 9:00 AM
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9, 0, 0, 0);
+  // Ref para evitar múltiples llamadas
+  const isFetchingSlots = useRef(false);
+  const lastDateFetched = useRef(null);
+  
+  // Función para obtener fecha inicial segura
+  const getInitialDate = useCallback(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    // Crear mañana a las 9:00 como fallback
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    
+    // Si es después de las 21:00, NO usar hoy
+    if (hour >= 21) {
+      return tomorrow;
+    }
+    
+    // Si es antes de las 9:00, usar hoy a las 9:00
+    if (hour < 9) {
+      const todayAt9 = new Date(now);
+      todayAt9.setHours(9, 0, 0, 0);
+      return todayAt9;
+    }
+    
+    // Entre 9:00 y 21:00, usar la siguiente hora en punto HOY
+    const nextHour = new Date(now);
+    nextHour.setHours(hour + 1, 0, 0, 0);
+    return nextHour;
+  }, []);
 
-  const [selectedDate, setSelectedDate] = useState(tomorrow);
+  const [selectedDate, setSelectedDate] = useState(getInitialDate());
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [purpose, setPurpose] = useState("");
   const [attendees, setAttendees] = useState(1);
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  
+  // Estado para horarios del tipo de recurso
+  const [typeSchedules, setTypeSchedules] = useState([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [typeScheduleError, setTypeScheduleError] = useState("");
   
   // Estado para reservas repetitivas
   const [isRepetitive, setIsRepetitive] = useState(false);
@@ -31,10 +64,14 @@ const ReservationCalendar = ({
   const [repeatOccurrences, setRepeatOccurrences] = useState(4);
   const [repeatEndDate, setRepeatEndDate] = useState(null);
   const [selectedDays, setSelectedDays] = useState([]);
-  const [repeatType, setRepeatType] = useState("occurrences"); // "occurrences" o "endDate"
+  const [repeatType, setRepeatType] = useState("occurrences");
   
   // Estado para mostrar información de repetición
   const [calculatedDates, setCalculatedDates] = useState([]);
+  
+  // Estado para error de fecha
+  const [dateError, setDateError] = useState("");
+  const [isTodaySelected, setIsTodaySelected] = useState(false);
   
   const { 
     checkingAvailability, 
@@ -46,16 +83,41 @@ const ReservationCalendar = ({
     clearAvailabilityResult 
   } = useResourceAvailability();
 
-  // Cargar slots disponibles cuando cambia la fecha o el recurso
+  // Cargar horarios del tipo de recurso cuando el componente se monta
   useEffect(() => {
-    if (resource && selectedDate) {
-      loadAvailableSlots();
+    if (resourceType?.id) {
+      loadTypeSchedules();
+    }
+  }, [resourceType]);
+
+  // Verificar si la fecha seleccionada es hoy
+  useEffect(() => {
+    const today = new Date();
+    const selected = new Date(selectedDate);
+    
+    today.setHours(0, 0, 0, 0);
+    selected.setHours(0, 0, 0, 0);
+    
+    setIsTodaySelected(today.getTime() === selected.getTime());
+  }, [selectedDate]);
+
+  // Cargar slots disponibles SOLO cuando cambia la fecha o el recurso
+  useEffect(() => {
+    if (resource && selectedDate && !isFetchingSlots.current) {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      
+      // Evitar llamadas duplicadas para la misma fecha
+      if (lastDateFetched.current !== dateStr) {
+        loadAvailableSlots();
+        lastDateFetched.current = dateStr;
+      }
     }
   }, [selectedDate, resource]);
 
   // Limpiar resultados cuando cambia la fecha/hora
   useEffect(() => {
     clearAvailabilityResult();
+    setDateError("");
   }, [selectedDate, startTime, endTime]);
 
   // Calcular fechas de repetición cuando cambia la configuración
@@ -68,13 +130,128 @@ const ReservationCalendar = ({
   }, [isRepetitive, selectedDate, startTime, endTime, repeatFrequency, repeatInterval, 
       repeatOccurrences, repeatEndDate, selectedDays, repeatType]);
 
-  const loadAvailableSlots = async () => {
+  // Función para cargar horarios del tipo de recurso
+  const loadTypeSchedules = async () => {
     try {
+      setLoadingSchedules(true);
+      setTypeScheduleError("");
+      
+      const response = await getTypeSchedulesApi(resourceType.id);
+      const schedulesArray = response.schedules || [];
+      setTypeSchedules(schedulesArray);
+      
+    } catch (error) {
+      console.error('❌ Error cargando horarios del tipo:', error);
+      setTypeScheduleError("No se pudieron cargar los horarios del tipo de recurso");
+      setTypeSchedules([]);
+    } finally {
+      setLoadingSchedules(false);
+    }
+  };
+
+  // Función para mapear días de la semana en español a números (0-6)
+  const mapDayOfWeekToNumber = (dayString) => {
+    if (!dayString) return 1; // Default a lunes
+    
+    const normalizedDay = dayString.toLowerCase().trim();
+    
+    const dayMap = {
+      'domingo': 0,
+      'lunes': 1,
+      'martes': 2,
+      'miercoles': 3,
+      'miércoles': 3,
+      'jueves': 4,
+      'viernes': 5,
+      'sábado': 6,
+      'sabado': 6
+    };
+    
+    return dayMap[normalizedDay] ?? 1; // Default a lunes si no se encuentra
+  };
+
+  // Función para agrupar horarios por día
+  const groupSchedulesByDay = (schedules) => {
+    if (!Array.isArray(schedules)) {
+      return [];
+    }
+    
+    const groups = {};
+    
+    schedules.forEach(schedule => {
+      const dayNumber = mapDayOfWeekToNumber(schedule.dayOfWeek);
+      
+      if (dayNumber !== undefined) {
+        if (!groups[dayNumber]) {
+          groups[dayNumber] = [];
+        }
+        groups[dayNumber].push(schedule);
+      }
+    });
+
+    // Ordenar por día (0-6)
+    return Object.keys(groups)
+      .sort((a, b) => parseInt(a) - parseInt(b))
+      .map(day => ({
+        day: parseInt(day),
+        schedules: groups[day].sort((a, b) => 
+          a.startTime.localeCompare(b.startTime)
+        )
+      }));
+  };
+
+  // Función para formatear hora (HH:MM:SS a HH:MM)
+  const formatTime = (timeString) => {
+    if (!timeString) return "00:00";
+    return timeString.substring(0, 5);
+  };
+
+  // Función para formatear día de la semana
+  const formatDayOfWeek = (dayNumber) => {
+    const daysMap = {
+      0: 'Domingo',
+      1: 'Lunes',
+      2: 'Martes',
+      3: 'Miércoles',
+      4: 'Jueves',
+      5: 'Viernes',
+      6: 'Sábado'
+    };
+    return daysMap[dayNumber] || `Día ${dayNumber}`;
+  };
+
+  // Carga de slots disponibles - CORREGIDA
+  const loadAvailableSlots = async () => {
+    // Verificar fecha pasada antes de hacer la llamada
+    const now = new Date();
+    const selected = new Date(selectedDate);
+    
+    // Solo comparar la parte de fecha (sin hora)
+    const selectedDateOnly = new Date(selected);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    
+    // Si es una fecha pasada, no hacer la llamada
+    if (selectedDateOnly < today) {
+      setDateError("⚠️ No se pueden consultar fechas pasadas");
+      setAvailableTimeSlots([]);
+      setStartTime("09:00");
+      setEndTime("10:00");
+      return;
+    }
+    
+    // Prevenir múltiples llamadas simultáneas
+    if (isFetchingSlots.current) {
+      return;
+    }
+    
+    try {
+      isFetchingSlots.current = true;
+      
       const dateStr = selectedDate.toISOString().split('T')[0];
-      console.log('📅 Cargando slots para:', {
-        recurso: resource.name,
-        fecha: dateStr
-      });
+      console.log('🔍 Solicitando slots para fecha:', dateStr);
       
       const result = await getAvailableSlots(resource.id, dateStr);
       
@@ -83,8 +260,8 @@ const ReservationCalendar = ({
           .filter(slot => slot.isAvailable)
           .map(slot => slot.startTimeFormatted);
       
-        console.log('⏰ Horarios disponibles encontrados:', availableSlotsList);
         setAvailableTimeSlots(availableSlotsList);
+        setDateError("");
 
         if (availableSlotsList.length > 0) {
           setStartTime(availableSlotsList[0]);
@@ -96,19 +273,36 @@ const ReservationCalendar = ({
           setEndTime("10:00");
         }
       } else {
-        console.warn('⚠️ No se recibieron slots del servidor o están vacíos');
+        console.warn('⚠️ No se recibieron slots del servidor');
         setAvailableTimeSlots([]);
       }
       
     } catch (error) {
       console.error('❌ Error cargando slots:', error);
+      
+      // Manejar diferentes tipos de errores
+      if (error.message && error.message.includes("No se puede consultar disponibilidad en fechas pasadas")) {
+        setDateError("⚠️ La fecha seleccionada ya pasó en hora Colombia");
+        
+        // Solo resetear si realmente es una fecha pasada
+        const nowColombia = new Date(Date.now() - 5 * 60 * 60 * 1000); // UTC-5
+        const selectedColombia = new Date(selectedDate.getTime() - 5 * 60 * 60 * 1000);
+        
+        if (selectedColombia < nowColombia) {
+          const safeDate = getInitialDate();
+          setSelectedDate(safeDate);
+        }
+      }
+      
       setAvailableTimeSlots([]);
       setStartTime("09:00");
       setEndTime("10:00");
+    } finally {
+      isFetchingSlots.current = false;
     }
   };
 
-  // Función para calcular fechas de repetición
+  // FUNCIÓN PARA CALCULAR FECHAS DE REPETICIÓN
   const calculateRepeatDates = () => {
     const dates = [];
     const startDateTime = new Date(selectedDate);
@@ -190,10 +384,12 @@ const ReservationCalendar = ({
       "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
       "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
       "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
-      "17:00", "17:30", "18:00"
+      "17:00", "17:30", "18:00", "18:30", "19:00", "19:30",
+      "20:00", "20:30"
     ];
   };
 
+  // Verificar disponibilidad
   const handleCheckAvailability = async () => {
     try {
       const startDateTime = new Date(selectedDate);
@@ -204,18 +400,18 @@ const ReservationCalendar = ({
       const [endHours, endMinutes] = endTime.split(':');
       endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
 
-      console.log('🔍 Verificando disponibilidad:');
-      console.log('   Start:', startDateTime.toISOString());
-      console.log('   End:', endDateTime.toISOString());
-
       // Validaciones del frontend
       if (startDateTime >= endDateTime) {
         alert("❌ La hora de fin debe ser posterior a la hora de inicio");
         return;
       }
 
-      if (startDateTime < new Date()) {
-        alert("❌ No se pueden hacer reservas en el pasado");
+      // Validar que sea al menos 15 minutos en el futuro
+      const now = new Date();
+      const diffMinutes = Math.floor((startDateTime - now) / (1000 * 60));
+      
+      if (diffMinutes < 15) {
+        alert(`⚠️ Las reservas deben hacerse con al menos 15 minutos de anticipación.\n\nTiempo hasta la reserva: ${diffMinutes} minutos`);
         return;
       }
 
@@ -235,6 +431,7 @@ const ReservationCalendar = ({
     }
   };
 
+  // Crear reserva
   const handleCreateReservation = async () => {
     if (!purpose.trim()) {
       alert("❌ Por favor, ingresa el propósito de la reserva");
@@ -278,14 +475,18 @@ const ReservationCalendar = ({
       const [endHours, endMinutes] = endTime.split(':');
       endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
 
+      const now = new Date();
+      
       // Validaciones finales
       if (startDateTime >= endDateTime) {
         alert("❌ La hora de fin debe ser posterior a la hora de inicio");
         return;
       }
 
-      if (startDateTime < new Date()) {
-        alert("❌ No se pueden crear reservas en el pasado");
+      // Validar margen mínimo de 15 minutos
+      const diffMinutes = Math.floor((startDateTime - now) / (1000 * 60));
+      if (diffMinutes < 15) {
+        alert(`⚠️ Las reservas deben hacerse con al menos 15 minutos de anticipación.\n\nTiempo hasta la reserva: ${diffMinutes} minutos`);
         return;
       }
 
@@ -324,7 +525,6 @@ const ReservationCalendar = ({
         reservationData.repeatConfig = repeatConfig;
       }
 
-      console.log('📦 Enviando datos de reserva:', reservationData);
       await onCreateReservation(reservationData);
 
     } catch (error) {
@@ -333,13 +533,33 @@ const ReservationCalendar = ({
     }
   };
 
+  // Cambiar fecha - CORREGIDA
   const handleDateChange = (date) => {
+    if (!date) return;
+    
+    const now = new Date();
+    
+    // Solo comparar la parte de fecha (sin hora)
+    const selectedDateOnly = new Date(date);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    
+    // SOLO bloquear si es un día anterior, NO si es hoy
+    if (selectedDateOnly < today) {
+      alert("❌ No se pueden seleccionar fechas pasadas. Por favor selecciona hoy o una fecha futura.");
+      return;
+    }
+    
     setSelectedDate(date);
     // Limpiar selecciones de tiempo al cambiar fecha
     setStartTime("09:00");
     setEndTime("10:00");
+    setDateError("");
   };
 
+  // Seleccionar días para repetición semanal
   const handleDaySelection = (dayIndex) => {
     if (selectedDays.includes(dayIndex)) {
       setSelectedDays(selectedDays.filter(d => d !== dayIndex));
@@ -367,7 +587,7 @@ const ReservationCalendar = ({
     day: 'numeric' 
   });
 
-  // Días de la semana
+  // Días de la semana (0-6)
   const daysOfWeek = [
     { index: 0, label: 'Domingo', short: 'D' },
     { index: 1, label: 'Lunes', short: 'L' },
@@ -378,6 +598,18 @@ const ReservationCalendar = ({
     { index: 6, label: 'Sábado', short: 'S' }
   ];
 
+  // Obtener horarios agrupados por día
+  const groupedSchedules = groupSchedulesByDay(typeSchedules);
+  
+  // Obtener día de la semana seleccionado (0-6)
+  const selectedDayOfWeek = selectedDate.getDay();
+  
+  // Filtrar horarios para el día seleccionado
+  const schedulesForSelectedDay = groupedSchedules.find(group => group.day === selectedDayOfWeek)?.schedules || [];
+
+  // Calcular si hay horarios disponibles para el día seleccionado
+  const hasSchedulesForSelectedDay = schedulesForSelectedDay.length > 0;
+
   return (
     <div className="reservation-calendar">
       <div className="calendar-header">
@@ -387,10 +619,109 @@ const ReservationCalendar = ({
           <span className="granularity-info">
             ⚙️ Granularidad: {resourceType?.granularity || 30} minutos
           </span>
+          <span className="timezone-info">
+            🌍 Zona horaria: Colombia (UTC-5)
+          </span>
         </div>
       </div>
 
       <div className="calendar-content">
+        {/* Mostrar horarios del tipo de recurso */}
+        <div className="type-schedules-card">
+          <div className="type-schedules-header">
+            <h4>📋 Horarios del Tipo de Recurso</h4>
+            {loadingSchedules ? (
+              <span className="loading-text">Cargando...</span>
+            ) : typeScheduleError ? (
+              <span className="error-text-small">⚠️ {typeScheduleError}</span>
+            ) : (
+              <button 
+                onClick={loadTypeSchedules}
+                className="btn-refresh"
+                title="Actualizar horarios"
+              >
+                🔄
+              </button>
+            )}
+          </div>
+          
+          {loadingSchedules ? (
+            <div className="loading-schedules">
+              <div className="loading-spinner-small"></div>
+              <span>Cargando horarios...</span>
+            </div>
+          ) : groupedSchedules.length > 0 ? (
+            <div className="type-schedules-list">
+              {groupedSchedules.map((group) => (
+                <div key={group.day} className="schedule-day-group">
+                  <div className={`schedule-day-header ${group.day === selectedDayOfWeek ? 'selected-day' : ''}`}>
+                    <span className="day-name">{formatDayOfWeek(group.day)}</span>
+                    {group.day === selectedDayOfWeek && (
+                      <>
+                        {hasSchedulesForSelectedDay ? (
+                          <span className="available-indicator"> ✅ Disponible</span>
+                        ) : (
+                          <span className="unavailable-indicator"> ❌ No disponible</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="day-schedules">
+                    {group.schedules.map((schedule, index) => {
+                      const startTimeStr = formatTime(schedule.startTime);
+                      const endTimeStr = formatTime(schedule.endTime);
+                      const isAvailableForDay = group.day === selectedDayOfWeek;
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          className={`schedule-time-item ${isAvailableForDay ? 'available-today' : ''}`}
+                          title={`${startTimeStr} - ${endTimeStr} ${isAvailableForDay ? '(Disponible hoy)' : ''}`}
+                        >
+                          <span className="schedule-time">{startTimeStr} - {endTimeStr}</span>
+                          {isAvailableForDay && <span className="today-badge">Hoy</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : typeScheduleError ? (
+            <div className="schedules-error">
+              <span className="error-text">{typeScheduleError}</span>
+            </div>
+          ) : (
+            <div className="no-schedules">
+              <span className="warning-text">⚠️ No hay horarios definidos para este tipo de recurso</span>
+            </div>
+          )}
+          
+          {/* Mostrar horarios específicos para el día seleccionado */}
+          {hasSchedulesForSelectedDay && (
+            <div className="selected-day-schedules">
+              <h5>⏰ Horarios para {formatDayOfWeek(selectedDayOfWeek)}:</h5>
+              <div className="selected-day-slots">
+                {schedulesForSelectedDay.map((schedule, index) => {
+                  const startTimeStr = formatTime(schedule.startTime);
+                  const endTimeStr = formatTime(schedule.endTime);
+                  
+                  return (
+                    <div key={index} className="selected-day-slot">
+                      <span className="slot-time">{startTimeStr} - {endTimeStr}</span>
+                      {availableTimeSlots.includes(startTimeStr) ? (
+                        <span className="slot-status available">✅ Disponible</span>
+                      ) : (
+                        <span className="slot-status unavailable">❌ Ocupado</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Información de slots cargados */}
         <div className="slots-info-card">
           {loadingSlots ? (
@@ -401,9 +732,17 @@ const ReservationCalendar = ({
           ) : (
             <div className="slots-summary">
               <span className="slots-count">
-                📊 {availableTimeSlots.length} horarios disponibles
+                {availableTimeSlots.length > 0 ? (
+                  `📊 ${availableTimeSlots.length} horarios disponibles`
+                ) : dateError ? (
+                  <span className="error-text">{dateError}</span>
+                ) : (
+                  <span className="warning-text">⚠️ No hay horarios disponibles</span>
+                )}
               </span>
-              <span className="selected-date">{formattedDate}</span>
+              <span className="selected-date">
+                {formattedDate} {isTodaySelected && ' (Hoy)'}
+              </span>
             </div>
           )}
         </div>
@@ -415,12 +754,30 @@ const ReservationCalendar = ({
             id="date-picker"
             selected={selectedDate}
             onChange={handleDateChange}
-            minDate={new Date()}
+            minDate={new Date()} // Permite hoy
             locale={es}
             dateFormat="dd/MM/yyyy"
             className="date-picker"
             placeholderText="Selecciona una fecha"
+            filterDate={(date) => {
+              // Solo bloquear días anteriores, NO hoy
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const selected = new Date(date);
+              selected.setHours(0, 0, 0, 0);
+              return selected >= today;
+            }}
           />
+          <small className="date-hint">
+            {isTodaySelected ? (
+              "✅ Hoy - selecciona una hora con al menos 15 minutos de anticipación"
+            ) : (
+              "Solo se pueden seleccionar hoy o fechas futuras"
+            )}
+          </small>
+          {dateError && (
+            <small className="error-text">{dateError}</small>
+          )}
         </div>
 
         {/* Selección de horario */}
@@ -432,19 +789,26 @@ const ReservationCalendar = ({
               value={startTime} 
               onChange={(e) => setStartTime(e.target.value)}
               className="time-select"
-              disabled={loadingSlots}
+              disabled={loadingSlots || dateError || availableTimeSlots.length === 0}
             >
-              {timeOptions.map(slot => (
-                <option 
-                  key={`start-${slot}`} 
-                  value={slot}
-                  disabled={!availableTimeSlots.includes(slot)}
-                >
-                  {slot} {availableTimeSlots.includes(slot) ? '✅' : '❌'}
+              {timeOptions.length > 0 ? (
+                timeOptions.map(slot => (
+                  <option 
+                    key={`start-${slot}`} 
+                    value={slot}
+                    disabled={!availableTimeSlots.includes(slot)}
+                  >
+                    {slot} {availableTimeSlots.includes(slot) ? '✅' : '❌'}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  {dateError ? 'Fecha rechazada' : 'No hay horarios disponibles'}
                 </option>
-              ))}
+              )}
             </select>
             {loadingSlots && <small className="loading-text">Cargando horarios...</small>}
+            {dateError && <small className="error-text">Selecciona otra fecha</small>}
           </div>
 
           <div className="form-group">
@@ -454,25 +818,31 @@ const ReservationCalendar = ({
               value={endTime} 
               onChange={(e) => setEndTime(e.target.value)}
               className="time-select"
-              disabled={loadingSlots}
+              disabled={loadingSlots || dateError || availableTimeSlots.length === 0}
             >
-              {timeOptions.map(slot => (
-                <option 
-                  key={`end-${slot}`} 
-                  value={slot}
-                  disabled={!availableTimeSlots.includes(slot)}
-                >
-                  {slot} {availableTimeSlots.includes(slot) ? '✅' : '❌'}
+              {timeOptions.length > 0 ? (
+                timeOptions.map(slot => (
+                  <option 
+                    key={`end-${slot}`} 
+                    value={slot}
+                    disabled={!availableTimeSlots.includes(slot)}
+                  >
+                    {slot} {availableTimeSlots.includes(slot) ? '✅' : '❌'}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  {dateError ? 'Fecha rechazada' : 'No hay horarios disponibles'}
                 </option>
-              ))}
+              )}
             </select>
           </div>
         </div>
 
         {/* Previsualización de slots del día */}
-        {availableSlots && availableSlots.length > 0 && (
+        {availableSlots && availableSlots.length > 0 && !dateError && (
           <div className="available-slots-preview">
-            <h4>📋 Horarios del día:</h4>
+            <h4>📋 Horarios del día (disponibilidad):</h4>
             <div className="slots-grid">
               {availableSlots.slice(0, 8).map((slot, index) => (
                 <div 
@@ -505,12 +875,14 @@ const ReservationCalendar = ({
                 type="checkbox"
                 checked={isRepetitive}
                 onChange={(e) => setIsRepetitive(e.target.checked)}
+                disabled={dateError}
               />
               <span className="repeat-label">🔄 Crear reserva repetitiva</span>
             </label>
+            {dateError && <small className="error-text">(No disponible)</small>}
           </div>
 
-          {isRepetitive && (
+          {isRepetitive && !dateError && (
             <div className="repeat-configuration">
               <div className="repeat-fields">
                 <div className="form-group">
@@ -648,9 +1020,10 @@ const ReservationCalendar = ({
             id="purpose"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            placeholder="Describe el propósito de esta reserva (reunión, estudio, trabajo en equipo, etc.)..."
+            placeholder="Describe el propósito de esta reserva..."
             rows="3"
             className="purpose-textarea"
+            disabled={dateError}
           />
         </div>
 
@@ -664,6 +1037,7 @@ const ReservationCalendar = ({
             value={attendees}
             onChange={(e) => setAttendees(e.target.value)}
             className="attendees-input"
+            disabled={dateError}
           />
         </div>
 
@@ -671,7 +1045,7 @@ const ReservationCalendar = ({
         <div className="availability-section">
           <button 
             onClick={handleCheckAvailability}
-            disabled={checkingAvailability || !startTime || !endTime}
+            disabled={checkingAvailability || !startTime || !endTime || dateError || availableTimeSlots.length === 0}
             className="btn-check-availability"
           >
             {checkingAvailability ? (
@@ -711,9 +1085,13 @@ const ReservationCalendar = ({
           </button>
           <button 
             onClick={handleCreateReservation}
-            disabled={!isFormValid || checkingAvailability || (availabilityResult && !availabilityResult.isAvailable) || !isRepeatValid}
+            disabled={!isFormValid || checkingAvailability || (availabilityResult && !availabilityResult.isAvailable) || !isRepeatValid || dateError}
             className="btn-confirm-reservation"
-            title={!isFormValid ? "Completa todos los campos requeridos" : ""}
+            title={
+              dateError ? "Fecha rechazada por el servidor" :
+              !isFormValid ? "Completa todos los campos requeridos" :
+              ""
+            }
           >
             {checkingAvailability ? (
               <>
@@ -732,11 +1110,12 @@ const ReservationCalendar = ({
         <div className="help-info">
           <h4>💡 Información importante:</h4>
           <ul>
-            <li>Selecciona una fecha y verifica los horarios disponibles</li>
-            <li>Los horarios marcados con ✅ están disponibles</li>
+            <li><strong>Horarios del tipo de recurso</strong> definen las franjas permitidas</li>
+            <li>Los horarios marcados con <strong>✅ están disponibles</strong> para reserva</li>
+            <li>Se pueden seleccionar <strong>HOY y fechas futuras</strong></li>
+            <li>Las reservas requieren al menos <strong>15 minutos de anticipación</strong></li>
             <li>Activa "Crear reserva repetitiva" para programar múltiples fechas</li>
             <li>Verifica la disponibilidad antes de confirmar</li>
-            <li>La granularidad mínima es de {resourceType?.granularity || 30} minutos</li>
           </ul>
         </div>
       </div>

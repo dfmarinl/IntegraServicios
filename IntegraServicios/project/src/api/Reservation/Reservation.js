@@ -188,7 +188,7 @@ export const getAllRepeatSeriesApi = async () => {
 // Get available time slots for a resource on specific date
 export const getAvailableSlotsApi = async (resourceId, date) => {
   const token = localStorage.getItem("token");
-
+  
   const response = await fetch(`${API_URL}/resource/${resourceId}/availability?date=${date}`, {
     method: "GET",
     headers: {
