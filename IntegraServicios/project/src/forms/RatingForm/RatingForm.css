@@ -1,0 +1,387 @@
+/* RatingForm.css */
+
+.rating-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 100%;
+}
+
+/* Categorías de calificación */
+.rating-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rating-categories h4 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 20px;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+.rating-instructions {
+  margin: 0 0 16px 0;
+  color: #718096;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.category-rating {
+  padding: 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.category-rating:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.category-info {
+  flex: 1;
+}
+
+.category-title {
+  margin: 0 0 8px 0;
+  color: #2d3748;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.category-description {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.category-feedback {
+  background: #e6f7ff;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1px solid #91d5ff;
+}
+
+.feedback-text {
+  color: #1890ff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.category-stars {
+  margin-bottom: 12px;
+}
+
+/* Estrellas input */
+.stars-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #cbd5e0;
+  cursor: pointer;
+  padding: 4px;
+  transition: all 0.2s;
+  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.star-btn:hover {
+  color: #f6ad55;
+  transform: scale(1.1);
+  background: rgba(246, 173, 85, 0.1);
+}
+
+.star-btn.star-active {
+  color: #f6ad55;
+}
+
+.rating-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #4a5568;
+  min-width: 50px;
+}
+
+.rating-value:empty {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+/* Advertencia para calificaciones bajas */
+.low-rating-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.warning-icon {
+  font-size: 16px;
+}
+
+.low-rating-warning span:last-child {
+  color: #9c4221;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Puntuación promedio */
+.average-rating-section {
+  text-align: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+}
+
+.average-rating-section h4 {
+  margin: 0 0 16px 0;
+  color: #2d3748;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.average-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.average-stars {
+  display: flex;
+  gap: 8px;
+}
+
+.average-star {
+  font-size: 32px;
+  color: #cbd5e0;
+  transition: all 0.2s;
+}
+
+.average-star.filled {
+  color: #f6ad55;
+}
+
+.average-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.average-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.average-max {
+  font-size: 20px;
+  color: #718096;
+}
+
+.average-feedback {
+  display: inline-block;
+  background: #e6f7ff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #91d5ff;
+  margin-top: 8px;
+}
+
+/* Sección de comentario */
+.comment-section {
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.comment-section h4 {
+  margin: 0 0 8px 0;
+  color: #2d3748;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.comment-instructions {
+  margin: 0 0 16px 0;
+  color: #718096;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.comment-textarea::placeholder {
+  color: #a0aec0;
+}
+
+.comment-counter {
+  text-align: right;
+  margin-top: 8px;
+  color: #a0aec0;
+  font-size: 12px;
+}
+
+/* Validación de calificaciones */
+.validation-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.validation-warning .warning-icon {
+  font-size: 20px;
+}
+
+.validation-warning span:last-child {
+  color: #9c4221;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Botones */
+.rating-form-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Aviso */
+.rating-disclaimer {
+  padding: 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+}
+
+.disclaimer-text {
+  margin: 0;
+  color: #0369a1;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.disclaimer-text::before {
+  content: "ⓘ";
+  font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .rating-form {
+    gap: 20px;
+  }
+
+  .category-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .category-feedback {
+    align-self: flex-start;
+  }
+
+  .stars-input {
+    gap: 8px;
+  }
+
+  .star-btn {
+    font-size: 24px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .average-display {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .rating-form-buttons {
+    flex-direction: column;
+  }
+
+  .rating-form-buttons button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .average-rating-section,
+  .category-rating,
+  .comment-section {
+    padding: 16px;
+  }
+
+  .average-star {
+    font-size: 28px;
+  }
+
+  .average-number {
+    font-size: 32px;
+  }
+
+  .star-btn {
+    font-size: 22px;
+    width: 32px;
+    height: 32px;
+  }
+}

@@ -14,9 +14,9 @@ const reservationRoutes = require("./services/reservation/src/api/routes/reserva
 const reservationManagementRoutes = require("./services/reservation/src/api/routes/reservationManagementRoutes");
 const loanRoutes = require("./services/loan/src/api/routes/loanRoutes");
 const returnRoutes = require("./services/loan/src/api/routes/returnRoutes");
+const ratingRoutes = require("./services/rating/src/api/routes/ratingRoutes");
 
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
-const ratingRoutes = require("./services/user/src/api/routes/ratingRoutes");
 const failureRoutes = require("./services/user/src/api/routes/failureRoutes");
 
 const PORT = process.env.PORT || 3001;

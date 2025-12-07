@@ -4,47 +4,47 @@ import { useUI } from "../../context/UIContext";
 import Card from "../../components/common/Card";
 import Button from "../../components/common/Button";
 import Table from "../../components/common/Table";
-import Modal from "../../components/common/Modal";
 import Loader from "../../components/common/Loader";
 import Select from "../../components/common/Select";
+import GenericModal from "../../modals/GenericModal/GenericModal";
 import {
   getMyReservationsApi,
   cancelReservationApi,
 } from "../../api/Reservation/Reservation";
+import { createRatingApi } from "../../api/rating/rating"; // Importa la API de calificaciones
 import { generateReservationsPDF } from "../../utils/pdfGenerator";
+import RatingForm from "../../forms/RatingForm/RatingForm"; // Importa el nuevo componente de formulario
 import "./MyReservations.css";
 
 const MyReservations = () => {
   const { user } = useAuth();
   const { showSuccess, showError, showWarning, showInfo } = useUI();
-  
+
   // Estados principales
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancelModal, setCancelModal] = useState({
+    open: false,
+    reservation: null,
+    options: null,
+  });
   const [ratingModal, setRatingModal] = useState({
     open: false,
     reservation: null,
   });
-  const [cancelModal, setCancelModal] = useState({
-    open: false,
-    reservation: null,
-    options: null, // Opciones para reservas repetitivas
-  });
   const [pdfModal, setPdfModal] = useState({
     open: false,
-    type: 'structured'
+    type: "structured",
   });
   const [cancelling, setCancelling] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  
+
   // Estados para filtros
   const [filters, setFilters] = useState({
     status: "all",
     startDate: "",
     endDate: "",
-    isRepetitive: "", // Nuevo filtro para repetitivas
+    isRepetitive: "",
     page: 1,
     limit: 10,
   });
@@ -66,22 +66,22 @@ const MyReservations = () => {
 
   const loadReservations = async () => {
     setLoading(true);
-    
+
     try {
       // Preparar filtros para la API
       const apiFilters = {
         page: filters.page,
         limit: filters.limit,
       };
-      
+
       if (filters.status !== "all") {
         apiFilters.status = filters.status;
       }
-      
+
       if (filters.startDate) {
         apiFilters.startDate = filters.startDate;
       }
-      
+
       if (filters.endDate) {
         apiFilters.endDate = filters.endDate;
       }
@@ -89,20 +89,20 @@ const MyReservations = () => {
       if (filters.isRepetitive !== "") {
         apiFilters.isRepetitive = filters.isRepetitive === "true";
       }
-      
+
       const response = await getMyReservationsApi(apiFilters);
-      
+
       // Verificar si la respuesta tiene la estructura esperada
       let reservationsData = [];
-      
+
       if (response && response.reservations) {
         reservationsData = response.reservations;
       } else if (Array.isArray(response)) {
         reservationsData = response;
       }
-      
+
       setReservations(reservationsData);
-      
+
       // Manejar paginación
       if (response && response.total) {
         setPagination({
@@ -128,27 +128,27 @@ const MyReservations = () => {
 
     // Si es una reserva repetitiva, mostrar opciones
     if (reservation.isRepetitive) {
-      setCancelModal({ 
-        open: true, 
+      setCancelModal({
+        open: true,
         reservation,
         options: {
           showOptions: true,
-          selectedOption: 'single', // single, future, all
-          hasRelatedReservations: true
-        }
+          selectedOption: "single",
+          hasRelatedReservations: true,
+        },
       });
     } else {
-      setCancelModal({ 
-        open: true, 
+      setCancelModal({
+        open: true,
         reservation,
-        options: null 
+        options: null,
       });
     }
   };
 
   const handleCancelReservation = async () => {
     if (!cancelModal.reservation) return;
-    
+
     setCancelling(true);
     try {
       // Determinar qué opción de cancelación usar
@@ -157,52 +157,53 @@ const MyReservations = () => {
 
       if (cancelModal.options && cancelModal.reservation.isRepetitive) {
         switch (cancelModal.options.selectedOption) {
-          case 'all':
+          case "all":
             cancelAll = true;
             break;
-          case 'future':
+          case "future":
             cancelFuture = true;
             break;
-          case 'single':
+          case "single":
           default:
-            // No se envían parámetros adicionales
             break;
         }
       }
 
       const response = await cancelReservationApi(
-        cancelModal.reservation.id, 
-        cancelAll, 
+        cancelModal.reservation.id,
+        cancelAll,
         cancelFuture
       );
-      
+
       if (response && (response.success || response.message)) {
         let successMessage = "Reserva cancelada exitosamente";
-        
+
         if (cancelModal.options && cancelModal.reservation.isRepetitive) {
           switch (cancelModal.options.selectedOption) {
-            case 'all':
-              successMessage = response.message || "Todas las repeticiones han sido canceladas";
+            case "all":
+              successMessage =
+                response.message ||
+                "Todas las repeticiones han sido canceladas";
               break;
-            case 'future':
-              successMessage = response.message || "Repeticiones futuras canceladas";
+            case "future":
+              successMessage =
+                response.message || "Repeticiones futuras canceladas";
               break;
-            case 'single':
-              successMessage = response.message || "Reserva cancelada exitosamente";
+            case "single":
+              successMessage =
+                response.message || "Reserva cancelada exitosamente";
               break;
           }
-          
-          // Si se cancelaron todas o futuras, recargar las reservas
+
           if (cancelAll || cancelFuture) {
             showSuccess(successMessage);
             setTimeout(() => {
               loadReservations();
             }, 500);
           } else {
-            // Solo actualizar esta reserva localmente
-            setReservations(prevReservations => 
-              prevReservations.map(res => 
-                res.id === cancelModal.reservation.id 
+            setReservations((prevReservations) =>
+              prevReservations.map((res) =>
+                res.id === cancelModal.reservation.id
                   ? { ...res, status: "cancelada" }
                   : res
               )
@@ -210,17 +211,15 @@ const MyReservations = () => {
             showSuccess(successMessage);
           }
         } else {
-          // Reserva única
-          setReservations(prevReservations => 
-            prevReservations.map(res => 
-              res.id === cancelModal.reservation.id 
+          setReservations((prevReservations) =>
+            prevReservations.map((res) =>
+              res.id === cancelModal.reservation.id
                 ? { ...res, status: "cancelada" }
                 : res
             )
           );
           showSuccess(response.message || "Reserva cancelada exitosamente");
         }
-        
       } else {
         showError("Error al cancelar la reserva");
       }
@@ -234,32 +233,54 @@ const MyReservations = () => {
   };
 
   const handleCancelOptionChange = (option) => {
-    setCancelModal(prev => ({
+    setCancelModal((prev) => ({
       ...prev,
       options: {
         ...prev.options,
-        selectedOption: option
-      }
+        selectedOption: option,
+      },
     }));
   };
 
-  const handleOpenRating = (reservation) => {
+  // Nueva función para abrir el modal de calificación
+  const handleOpenRatingModal = (reservation) => {
+    if (!canRateReservation(reservation)) {
+      showError("Solo se pueden calificar reservas finalizadas");
+      return;
+    }
     setRatingModal({ open: true, reservation });
-    setRating(5);
-    setComment("");
   };
 
-  const handleSubmitRating = async () => {
+  // Función para manejar el envío de la calificación
+  const handleSubmitRating = async (ratingData) => {
     try {
-      // IMPORTANTE: Necesitarías agregar esta función a tu API
-      const response = { success: true, message: "Calificación enviada exitosamente" };
-      
-      showSuccess(response.message);
-      setRatingModal({ open: false, reservation: null });
-      loadReservations();
+      // Agregar el reservationId al ratingData
+      const ratingWithReservationId = {
+        ...ratingData,
+        reservationId: ratingModal.reservation.id,
+      };
+
+      const response = await createRatingApi(ratingWithReservationId);
+
+      if (response.success) {
+        showSuccess(response.message || "Calificación enviada exitosamente");
+
+        // Actualizar la reserva para mostrar que ya tiene calificación
+        setReservations((prevReservations) =>
+          prevReservations.map((res) =>
+            res.id === ratingModal.reservation.id
+              ? { ...res, hasRating: true, rating: response.rating }
+              : res
+          )
+        );
+
+        setRatingModal({ open: false, reservation: null });
+      } else {
+        showError(response.message || "Error al enviar la calificación");
+      }
     } catch (error) {
       console.error("Error al enviar calificación:", error);
-      showError("Error al enviar la calificación");
+      showError(error.message || "Error al enviar la calificación");
     }
   };
 
@@ -269,28 +290,26 @@ const MyReservations = () => {
       showError("No hay reservas para exportar");
       return;
     }
-    setPdfModal({ open: true, type: 'structured' });
+    setPdfModal({ open: true, type: "structured" });
   };
 
   const closePdfModal = () => {
-    setPdfModal({ open: false, type: 'structured' });
+    setPdfModal({ open: false, type: "structured" });
   };
 
   const handleGeneratePDF = async () => {
     try {
       setGeneratingPDF(true);
       closePdfModal();
-      
-      // Generar PDF estructurado
+
       await generateReservationsPDF(reservations, filters, {
-        title: `Mis Reservas - ${new Date().toLocaleDateString('es-ES')}`,
-        filename: `mis-reservas-${new Date().toISOString().split('T')[0]}.pdf`,
+        title: `Mis Reservas- ${new Date().toLocaleDateString("es-ES")}`,
+        filename: `mis-reservas-${new Date().toISOString().split("T")[0]}.pdf`,
         includeFilters: true,
-        includeSummary: true
+        includeSummary: true,
       });
-      
+
       showSuccess("PDF generado exitosamente");
-      
     } catch (error) {
       console.error("Error generando PDF:", error);
       showError("Error al generar el PDF");
@@ -301,24 +320,22 @@ const MyReservations = () => {
 
   // Manejar cambios en filtros
   const handleFilterChange = (name, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       [name]: value,
-      page: 1, // Resetear a primera página al cambiar filtros
+      page: 1,
     }));
   };
 
-  // Manejar cambio de página
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setFilters(prev => ({
+      setFilters((prev) => ({
         ...prev,
         page: newPage,
       }));
     }
   };
 
-  // Limpiar filtros
   const handleClearFilters = () => {
     setFilters({
       status: "all",
@@ -330,7 +347,6 @@ const MyReservations = () => {
     });
   };
 
-  // Formatear fecha para mostrar
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "N/A";
     try {
@@ -346,7 +362,6 @@ const MyReservations = () => {
     }
   };
 
-  // Formatear hora para mostrar
   const formatDisplayTime = (dateString) => {
     if (!dateString) return "N/A";
     try {
@@ -364,18 +379,18 @@ const MyReservations = () => {
   // Determinar si una reserva puede ser cancelada
   const canCancelReservation = (reservation) => {
     const status = reservation.status?.toLowerCase();
-    
-    // Solo reservas pendientes o activas pueden cancelarse
+
     if (status !== "pendiente" && status !== "activa") {
       return false;
     }
-    
+
     try {
-      const startDate = new Date(reservation.startDateTime || reservation.startTime || reservation.date);
+      const startDate = new Date(
+        reservation.startDateTime || reservation.startTime || reservation.date
+      );
       const now = new Date();
       const hoursDifference = (startDate - now) / (1000 * 60 * 60);
-      
-      // Permitir cancelación hasta 1 hora antes (ajustable)
+
       return hoursDifference > 1;
     } catch (error) {
       console.error("Error calculando si se puede cancelar:", error);
@@ -386,17 +401,22 @@ const MyReservations = () => {
   // Determinar si una reserva puede ser calificada
   const canRateReservation = (reservation) => {
     const status = reservation.status?.toLowerCase();
-    const hasRating = !!(reservation.rating || reservation.ratingValue);
-    
+    const hasRating = reservation.hasRating || reservation.Rating; // Verificar si ya tiene calificación
+
     // Solo reservas finalizadas sin calificación pueden calificarse
     return status === "finalizada" && !hasRating;
   };
 
-  // Obtener texto de estado (traducción al español)
+  // Verificar si una reserva ya tiene calificación
+  const hasRating = (reservation) => {
+    return reservation.hasRating || reservation.Rating;
+  };
+
+  // Obtener texto de estado
   const getStatusText = (status) => {
     const statusLower = status?.toLowerCase();
-    
-    switch(statusLower) {
+
+    switch (statusLower) {
       case "pendiente":
         return "Pendiente";
       case "activa":
@@ -410,10 +430,9 @@ const MyReservations = () => {
     }
   };
 
-  // Obtener clase CSS para el estado
   const getStatusClass = (status) => {
     const statusLower = status?.toLowerCase();
-    switch(statusLower) {
+    switch (statusLower) {
       case "pendiente":
         return "pendiente";
       case "activa":
@@ -427,40 +446,41 @@ const MyReservations = () => {
     }
   };
 
-  // Función para obtener icono de repetitiva
   const getRepeatIcon = (isRepetitive) => {
     return isRepetitive ? (
-      <span className="repeat-icon" title="Reserva repetitiva">🔄</span>
+      <span className="repeat-icon" title="Reserva repetitiva">
+        🔄
+      </span>
     ) : null;
   };
 
-  // Columnas de la tabla
+  // Columnas de la tabla - Actualizadas con botón de calificar
   const columns = [
-    { 
-      key: "resource", 
+    {
+      key: "resource",
       label: "Recurso",
       render: (row) => {
-        const resourceName = 
-          row.resource?.name || 
-          row.Resource?.name || 
-          row.resourceName || 
-          (typeof row.resource === 'string' ? row.resource : "N/A");
-        
+        const resourceName =
+          row.resource?.name ||
+          row.Resource?.name ||
+          row.resourceName ||
+          (typeof row.resource === "string" ? row.resource : "N/A");
+
         return (
           <div className="resource-cell">
             {resourceName}
             {getRepeatIcon(row.isRepetitive)}
           </div>
         );
-      }
+      },
     },
-    { 
-      key: "date", 
+    {
+      key: "date",
       label: "Fecha",
       render: (row) => {
         const date = row.startDateTime || row.date || row.startDate;
         return formatDisplayDate(date);
-      }
+      },
     },
     {
       key: "time",
@@ -478,7 +498,7 @@ const MyReservations = () => {
         const status = row.status?.toLowerCase();
         const statusText = getStatusText(row.status);
         const statusClass = getStatusClass(row.status);
-        
+
         return (
           <span className={`status-badge status-${statusClass}`}>
             {statusText}
@@ -493,8 +513,8 @@ const MyReservations = () => {
       render: (row) => {
         const canCancel = canCancelReservation(row);
         const canRate = canRateReservation(row);
-        const hasRating = !!(row.rating || row.ratingValue);
-        
+        const alreadyRated = hasRating(row);
+
         return (
           <div className="table-actions">
             {canCancel && (
@@ -506,30 +526,34 @@ const MyReservations = () => {
                 {row.isRepetitive ? "Cancelar 🔄" : "Cancelar"}
               </Button>
             )}
-            
+
             {canRate && (
               <Button
                 size="small"
                 variant="success"
-                onClick={() => handleOpenRating(row)}
+                onClick={() => handleOpenRatingModal(row)}
               >
-                Calificar
+                Calificar ⭐
               </Button>
             )}
-            
-            {hasRating && (
+
+            {alreadyRated && (
               <span className="rating-display">
-                ⭐ {row.rating || row.ratingValue}/5
-                {(row.comment || row.commentText) && (
-                  <span className="comment-hint" title={row.comment || row.commentText}> 💬</span>
+                ⭐ Calificado
+                {(row.Rating?.comment || row.comment) && (
+                  <span
+                    className="comment-hint"
+                    title={row.Rating?.comment || row.comment}
+                  >
+                    {" "}
+                    💬
+                  </span>
                 )}
               </span>
             )}
-            
-            {!canCancel && !canRate && !hasRating && (
-              <span className="no-actions-info">
-                Sin acciones disponibles
-              </span>
+
+            {!canCancel && !canRate && !alreadyRated && (
+              <span className="no-actions-info">Sin acciones disponibles</span>
             )}
           </div>
         );
@@ -544,7 +568,7 @@ const MyReservations = () => {
   return (
     <div className="my-reservations-page">
       <h1 className="page-title">Mis Reservas</h1>
-      
+
       {/* Filtros */}
       <Card className="filters-card">
         <div className="filters-section">
@@ -564,12 +588,14 @@ const MyReservations = () => {
                 ]}
               />
             </div>
-            
+
             <div className="filter-group">
               <label>Tipo:</label>
               <Select
                 value={filters.isRepetitive}
-                onChange={(e) => handleFilterChange("isRepetitive", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("isRepetitive", e.target.value)
+                }
                 options={[
                   { value: "", label: "Todos" },
                   { value: "true", label: "Repetitivas 🔄" },
@@ -577,18 +603,20 @@ const MyReservations = () => {
                 ]}
               />
             </div>
-            
+
             <div className="filter-group">
               <label>Desde:</label>
               <input
                 type="date"
                 value={filters.startDate}
-                onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("startDate", e.target.value)
+                }
                 max={filters.endDate}
                 className="filter-date-input"
               />
             </div>
-            
+
             <div className="filter-group">
               <label>Hasta:</label>
               <input
@@ -599,7 +627,7 @@ const MyReservations = () => {
                 className="filter-date-input"
               />
             </div>
-            
+
             <div className="filter-actions">
               <Button
                 variant="secondary"
@@ -622,13 +650,13 @@ const MyReservations = () => {
                 disabled={reservations.length === 0 || loading}
                 className="export-button"
               >
-                {generatingPDF ? 'Generando PDF...' : 'Exportar a PDF'}
+                {generatingPDF ? "Generando PDF..." : "Exportar a PDF"}
               </Button>
             </div>
           </div>
         </div>
       </Card>
-      
+
       {/* Tabla de reservas */}
       <Card>
         {loading && reservations.length > 0 ? (
@@ -639,24 +667,31 @@ const MyReservations = () => {
         ) : reservations.length === 0 ? (
           <div className="no-reservations">
             <p>No tienes reservas registradas con los filtros actuales.</p>
-            {(filters.status !== "all" || filters.startDate || filters.endDate || filters.isRepetitive !== "") ? (
+            {filters.status !== "all" ||
+            filters.startDate ||
+            filters.endDate ||
+            filters.isRepetitive !== "" ? (
               <Button onClick={handleClearFilters} variant="outline">
                 Limpiar filtros para ver todas las reservas
               </Button>
             ) : (
-              <p className="empty-state-text">¡Comienza a hacer reservas para verlas aquí!</p>
+              <p className="empty-state-text">
+                ¡Comienza a hacer reservas para verlas aquí!
+              </p>
             )}
           </div>
         ) : (
           <>
             <div className="reservations-count">
               <p>
-                Mostrando {reservations.length} reserva{reservations.length !== 1 ? 's' : ''} de {pagination.totalItems} total
+                Mostrando {reservations.length} reserva
+                {reservations.length !== 1 ? "s" : ""} de{" "}
+                {pagination.totalItems} total
                 {filters.isRepetitive === "true" && " (Repetitivas 🔄)"}
                 {filters.isRepetitive === "false" && " (Únicas)"}
               </p>
             </div>
-            
+
             <div id="reservations-table">
               <Table
                 columns={columns}
@@ -665,7 +700,7 @@ const MyReservations = () => {
                 loading={loading}
               />
             </div>
-            
+
             {/* Paginación */}
             {pagination.totalPages > 1 && (
               <div className="pagination-controls">
@@ -676,11 +711,11 @@ const MyReservations = () => {
                 >
                   Anterior
                 </Button>
-                
+
                 <span className="pagination-info">
                   Página {pagination.currentPage} de {pagination.totalPages}
                 </span>
-                
+
                 <Button
                   onClick={() => handlePageChange(pagination.currentPage + 1)}
                   disabled={pagination.currentPage === pagination.totalPages}
@@ -694,85 +729,134 @@ const MyReservations = () => {
         )}
       </Card>
 
-      {/* Modal de cancelación - Actualizado para repetitivas */}
-      <Modal
+      {/* Modal de cancelación */}
+      <GenericModal
         isOpen={cancelModal.open}
-        onClose={() => !cancelling && setCancelModal({ open: false, reservation: null, options: null })}
-        title={cancelModal.reservation?.isRepetitive ? "Cancelar Reserva Repetitiva 🔄" : "Cancelar Reserva"}
+        onClose={() =>
+          !cancelling &&
+          setCancelModal({ open: false, reservation: null, options: null })
+        }
+        title={
+          cancelModal.reservation?.isRepetitive
+            ? "Cancelar Reserva Repetitiva 🔄"
+            : "Cancelar Reserva"
+        }
         size="small"
       >
         {cancelModal.reservation && (
           <div className="cancel-form">
-            {cancelModal.reservation.isRepetitive && cancelModal.options?.showOptions && (
-              <div className="repeat-cancel-options">
-                <div className="repeat-warning">
-                  <div className="warning-icon">🔄</div>
-                  <h4>Esta es una reserva repetitiva</h4>
-                  <p>¿Qué deseas cancelar?</p>
+            {cancelModal.reservation.isRepetitive &&
+              cancelModal.options?.showOptions && (
+                <div className="repeat-cancel-options">
+                  <div className="repeat-warning">
+                    <div className="warning-icon">🔄</div>
+                    <h4>Esta es una reserva repetitiva</h4>
+                    <p>¿Qué deseas cancelar?</p>
+                  </div>
+
+                  <div className="cancel-options-list">
+                    <label className="cancel-option">
+                      <input
+                        type="radio"
+                        name="cancelOption"
+                        value="single"
+                        checked={
+                          cancelModal.options.selectedOption === "single"
+                        }
+                        onChange={() => handleCancelOptionChange("single")}
+                      />
+                      <div className="option-content">
+                        <strong>Solo esta reserva</strong>
+                        <p>Cancelarás únicamente esta fecha específica.</p>
+                      </div>
+                    </label>
+
+                    <label className="cancel-option">
+                      <input
+                        type="radio"
+                        name="cancelOption"
+                        value="future"
+                        checked={
+                          cancelModal.options.selectedOption === "future"
+                        }
+                        onChange={() => handleCancelOptionChange("future")}
+                      />
+                      <div className="option-content">
+                        <strong>Repeticiones futuras</strong>
+                        <p>
+                          Cancelarás esta reserva y todas las futuras de la
+                          serie.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="cancel-option">
+                      <input
+                        type="radio"
+                        name="cancelOption"
+                        value="all"
+                        checked={cancelModal.options.selectedOption === "all"}
+                        onChange={() => handleCancelOptionChange("all")}
+                      />
+                      <div className="option-content">
+                        <strong>Todas las repeticiones</strong>
+                        <p>
+                          Cancelarás todas las reservas de esta serie (pasadas y
+                          futuras).
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
-                
-                <div className="cancel-options-list">
-                  <label className="cancel-option">
-                    <input
-                      type="radio"
-                      name="cancelOption"
-                      value="single"
-                      checked={cancelModal.options.selectedOption === 'single'}
-                      onChange={() => handleCancelOptionChange('single')}
-                    />
-                    <div className="option-content">
-                      <strong>Solo esta reserva</strong>
-                      <p>Cancelarás únicamente esta fecha específica.</p>
-                    </div>
-                  </label>
-                  
-                  <label className="cancel-option">
-                    <input
-                      type="radio"
-                      name="cancelOption"
-                      value="future"
-                      checked={cancelModal.options.selectedOption === 'future'}
-                      onChange={() => handleCancelOptionChange('future')}
-                    />
-                    <div className="option-content">
-                      <strong>Repeticiones futuras</strong>
-                      <p>Cancelarás esta reserva y todas las futuras de la serie.</p>
-                    </div>
-                  </label>
-                  
-                  <label className="cancel-option">
-                    <input
-                      type="radio"
-                      name="cancelOption"
-                      value="all"
-                      checked={cancelModal.options.selectedOption === 'all'}
-                      onChange={() => handleCancelOptionChange('all')}
-                    />
-                    <div className="option-content">
-                      <strong>Todas las repeticiones</strong>
-                      <p>Cancelarás todas las reservas de esta serie (pasadas y futuras).</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            )}
-            
+              )}
+
             <div className="cancel-warning">
               <div className="warning-icon">⚠️</div>
               <h4>
-                {cancelModal.reservation.isRepetitive 
-                  ? `¿Estás seguro de cancelar ${cancelModal.options?.selectedOption === 'single' ? 'esta reserva' : 
-                     cancelModal.options?.selectedOption === 'future' ? 'las repeticiones futuras' : 'todas las repeticiones'}?`
+                {cancelModal.reservation.isRepetitive
+                  ? `¿Estás seguro de cancelar ${
+                      cancelModal.options?.selectedOption === "single"
+                        ? "esta reserva"
+                        : cancelModal.options?.selectedOption === "future"
+                        ? "las repeticiones futuras"
+                        : "todas las repeticiones"
+                    }?`
                   : "¿Estás seguro de cancelar esta reserva?"}
               </h4>
               <p>Esta acción no se puede deshacer.</p>
             </div>
-            
+
             <div className="reservation-details">
-              <p><strong>Recurso:</strong> {cancelModal.reservation.resource?.name || cancelModal.reservation.Resource?.name || cancelModal.reservation.resourceName || "N/A"}</p>
-              <p><strong>Fecha:</strong> {formatDisplayDate(cancelModal.reservation.startDateTime || cancelModal.reservation.date)}</p>
-              <p><strong>Horario:</strong> {formatDisplayTime(cancelModal.reservation.startDateTime || cancelModal.reservation.startTime)} - {formatDisplayTime(cancelModal.reservation.endDateTime || cancelModal.reservation.endTime)}</p>
-              <p><strong>Estado actual:</strong> {getStatusText(cancelModal.reservation.status)}</p>
+              <p>
+                <strong>Recurso:</strong>{" "}
+                {cancelModal.reservation.resource?.name ||
+                  cancelModal.reservation.Resource?.name ||
+                  cancelModal.reservation.resourceName ||
+                  "N/A"}
+              </p>
+              <p>
+                <strong>Fecha:</strong>{" "}
+                {formatDisplayDate(
+                  cancelModal.reservation.startDateTime ||
+                    cancelModal.reservation.date
+                )}
+              </p>
+              <p>
+                <strong>Horario:</strong>{" "}
+                {formatDisplayTime(
+                  cancelModal.reservation.startDateTime ||
+                    cancelModal.reservation.startTime
+                )}{" "}
+                -{" "}
+                {formatDisplayTime(
+                  cancelModal.reservation.endDateTime ||
+                    cancelModal.reservation.endTime
+                )}
+              </p>
+              <p>
+                <strong>Estado actual:</strong>{" "}
+                {getStatusText(cancelModal.reservation.status)}
+              </p>
               {cancelModal.reservation.isRepetitive && (
                 <p className="repeat-info">
                   <strong>Tipo:</strong> Reserva repetitiva 🔄
@@ -781,96 +865,64 @@ const MyReservations = () => {
             </div>
 
             <div className="cancel-buttons">
-              <Button 
-                onClick={() => setCancelModal({ open: false, reservation: null, options: null })}
+              <Button
+                onClick={() =>
+                  setCancelModal({
+                    open: false,
+                    reservation: null,
+                    options: null,
+                  })
+                }
                 variant="outline"
                 disabled={cancelling}
               >
-                No, mantener {cancelModal.reservation.isRepetitive ? 'reserva(s)' : 'reserva'}
+                No, mantener{" "}
+                {cancelModal.reservation.isRepetitive
+                  ? "reserva(s)"
+                  : "reserva"}
               </Button>
-              <Button 
+              <Button
                 onClick={handleCancelReservation}
                 variant="danger"
                 loading={cancelling}
                 disabled={cancelling}
               >
-                {cancelling ? "Cancelando..." : 
-                 cancelModal.reservation.isRepetitive 
-                  ? `Sí, cancelar ${cancelModal.options?.selectedOption === 'single' ? 'esta reserva' : 
-                     cancelModal.options?.selectedOption === 'future' ? 'repeticiones futuras' : 'todas las repeticiones'}`
+                {cancelling
+                  ? "Cancelando..."
+                  : cancelModal.reservation.isRepetitive
+                  ? `Sí, cancelar ${
+                      cancelModal.options?.selectedOption === "single"
+                        ? "esta reserva"
+                        : cancelModal.options?.selectedOption === "future"
+                        ? "repeticiones futuras"
+                        : "todas las repeticiones"
+                    }`
                   : "Sí, cancelar reserva"}
               </Button>
             </div>
           </div>
         )}
-      </Modal>
+      </GenericModal>
 
-      {/* Resto de modales (rating y PDF) permanecen igual */}
       {/* Modal de calificación */}
-      <Modal
+      <GenericModal
         isOpen={ratingModal.open}
         onClose={() => setRatingModal({ open: false, reservation: null })}
-        title="Calificar Servicio"
-        size="small"
+        title="Calificar Reserva"
+        subtitle="Evalúa tu experiencia con esta reserva"
+        size="medium"
       >
         {ratingModal.reservation && (
-          <div className="rating-form">
-            <div className="reservation-info">
-              <p><strong>Recurso:</strong> {ratingModal.reservation.resource?.name || ratingModal.reservation.Resource?.name || ratingModal.reservation.resourceName || "N/A"}</p>
-              <p><strong>Fecha:</strong> {formatDisplayDate(ratingModal.reservation.startDateTime || ratingModal.reservation.date)}</p>
-              <p><strong>Estado:</strong> {getStatusText(ratingModal.reservation.status)}</p>
-            </div>
-            
-            <div className="rating-stars">
-              <label>Calificación:</label>
-              <div className="stars">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className={`star ${rating >= star ? "star-active" : ""}`}
-                    onClick={() => setRating(star)}
-                    aria-label={`Calificar con ${star} estrella${star !== 1 ? 's' : ''}`}
-                  >
-                    ⭐
-                  </button>
-                ))}
-              </div>
-              <div className="rating-value">{rating}/5</div>
-            </div>
-
-            <div className="rating-comment">
-              <label>Comentario (opcional):</label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Comparte tu experiencia con este recurso..."
-                rows={4}
-                maxLength={500}
-              />
-              <div className="char-counter">{comment.length}/500</div>
-            </div>
-
-            <div className="rating-buttons">
-              <Button 
-                onClick={() => setRatingModal({ open: false, reservation: null })}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleSubmitRating} 
-                variant="primary"
-              >
-                Enviar Calificación
-              </Button>
-            </div>
-          </div>
+          <RatingForm
+            reservation={ratingModal.reservation}
+            onSubmit={handleSubmitRating}
+            onCancel={() => setRatingModal({ open: false, reservation: null })}
+          />
         )}
-      </Modal>
+      </GenericModal>
 
       {/* Modal de PDF */}
-      <Modal
+      <GenericModal
         isOpen={pdfModal.open}
         onClose={closePdfModal}
         title="Exportar a PDF"
@@ -879,9 +931,10 @@ const MyReservations = () => {
         <div className="pdf-options-modal">
           <h4>¿Cómo deseas exportar las reservas?</h4>
           <p className="pdf-modal-description">
-            Se exportarán {reservations.length} reserva{reservations.length !== 1 ? 's' : ''} con los filtros actuales.
+            Se exportarán {reservations.length} reserva
+            {reservations.length !== 1 ? "s" : ""} con los filtros actuales.
           </p>
-          
+
           <div className="pdf-option">
             <div className="pdf-option-header">
               <input
@@ -889,18 +942,21 @@ const MyReservations = () => {
                 id="structured"
                 name="pdfType"
                 value="structured"
-                checked={pdfModal.type === 'structured'}
-                onChange={(e) => setPdfModal(prev => ({ ...prev, type: e.target.value }))}
+                checked={pdfModal.type === "structured"}
+                onChange={(e) =>
+                  setPdfModal((prev) => ({ ...prev, type: e.target.value }))
+                }
               />
               <label htmlFor="structured">
                 <strong>PDF Estructurado (Recomendado)</strong>
               </label>
             </div>
             <p className="pdf-option-description">
-              Formato profesional optimizado para impresión. Incluye resumen, filtros aplicados y diseño claro.
+              Formato profesional optimizado para impresión. Incluye resumen,
+              filtros aplicados y diseño claro.
             </p>
           </div>
-          
+
           <div className="pdf-option">
             <div className="pdf-option-header">
               <input
@@ -908,15 +964,18 @@ const MyReservations = () => {
                 id="snapshot"
                 name="pdfType"
                 value="snapshot"
-                checked={pdfModal.type === 'snapshot'}
-                onChange={(e) => setPdfModal(prev => ({ ...prev, type: e.target.value }))}
+                checked={pdfModal.type === "snapshot"}
+                onChange={(e) =>
+                  setPdfModal((prev) => ({ ...prev, type: e.target.value }))
+                }
               />
               <label htmlFor="snapshot">
                 <strong>Captura de Pantalla</strong>
               </label>
             </div>
             <p className="pdf-option-description">
-              Imagen exacta de la tabla como aparece en pantalla. Útil para compartir vista rápida.
+              Imagen exacta de la tabla como aparece en pantalla. Útil para
+              compartir vista rápida.
             </p>
           </div>
 
@@ -924,16 +983,16 @@ const MyReservations = () => {
             <Button onClick={closePdfModal} variant="outline">
               Cancelar
             </Button>
-            <Button 
-              onClick={handleGeneratePDF} 
+            <Button
+              onClick={handleGeneratePDF}
               variant="primary"
               loading={generatingPDF}
             >
-              {generatingPDF ? 'Generando...' : 'Generar PDF'}
+              {generatingPDF ? "Generando..." : "Generar PDF"}
             </Button>
           </div>
         </div>
-      </Modal>
+      </GenericModal>
     </div>
   );
 };
