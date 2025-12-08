@@ -1,118 +1,184 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Card from "../../../components/common/Card";
-import { getReservations } from "../../../api/reservations";
-import { getResources } from "../../../api/resources";
-import { getUsers } from "../../../api/users";
 import "./AdminHome.css";
 
 const AdminHome = () => {
-  const [stats, setStats] = useState({
-    totalReservations: 0,
-    activeReservations: 0,
-    totalResources: 0,
-    totalUsers: 0,
-  });
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    const [reservationsRes, resourcesRes, usersRes] = await Promise.all([
-      getReservations(),
-      getResources(),
-      getUsers(),
-    ]);
-
-    const activeReservations =
-      reservationsRes.data?.filter((r) => r.status === "confirmed").length || 0;
-
-    setStats({
-      totalReservations: reservationsRes.data?.length || 0,
-      activeReservations,
-      totalResources: resourcesRes.data?.length || 0,
-      totalUsers: usersRes.data?.length || 0,
-    });
-  };
-
-  const statCards = [
+  // Exactamente las mismas opciones que en AdminLayout
+  const quickActions = [
     {
-      title: "Total Reservas",
-      value: stats.totalReservations,
-      icon: "📅",
-      color: "#2563eb",
-    },
-    {
-      title: "Reservas Activas",
-      value: stats.activeReservations,
-      icon: "✅",
-      color: "#16a34a",
+      title: "Tipos de Recurso",
+      description: "Administrar tipos de recursos disponibles",
+      icon: "📋",
+      href: "/admin/resource-types",
+      color: "#10b981",
     },
     {
       title: "Recursos",
-      value: stats.totalResources,
+      description: "Gestionar recursos y su disponibilidad",
       icon: "🏢",
-      color: "#ea580c",
+      href: "/admin/resources",
+      color: "#f59e0b",
+    },
+    {
+      title: "Reservas",
+      description: "Consultar y administrar todas las reservas",
+      icon: "📅",
+      href: "/admin/reservations",
+      color: "#8b5cf6",
+    },
+    {
+      title: "Préstamos",
+      description: "Gestionar préstamos de recursos",
+      icon: "📦",
+      href: "/admin/loans",
+      color: "#ec4899",
     },
     {
       title: "Usuarios",
-      value: stats.totalUsers,
+      description: "Administrar usuarios y permisos",
       icon: "👥",
-      color: "#7c3aed",
+      href: "/admin/users",
+      color: "#14b8a6",
     },
+    {
+      title: "Unidades",
+      description: "Gestionar unidades académicas",
+      icon: "🏛️",
+      href: "/admin/units",
+      color: "#f97316",
+    },
+    {
+      title: "Reportes",
+      description: "Ver estadísticas y generar reportes",
+      icon: "📈",
+      href: "/admin/stats",
+      color: "#6366f1",
+    },
+  ];
+
+  // Estadísticas rápidas (si quieres agregar algo útil)
+  const quickStats = [
+    {
+      label: "Reservas Hoy",
+      value: "0",
+      icon: "📅",
+      color: "#3b82f6",
+      href: "/admin/reservations?filter=today",
+    },
+    {
+      label: "Recursos Activos",
+      value: "0",
+      icon: "✅",
+      color: "#10b981",
+      href: "/admin/resources?status=active",
+    },
+    {
+      label: "Usuarios Activos",
+      value: "0",
+      icon: "👥",
+      color: "#8b5cf6",
+      href: "/admin/users?status=active",
+    },
+    {
+      label: "Préstamos Pendientes",
+      value: "0",
+      icon: "⏳",
+      color: "#f59e0b",
+      href: "/admin/loans?status=pending",
+    },
+  ];
+
+  const adminTips = [
+    "💡 Verifica las reservas pendientes diariamente",
+    "📋 Mantén actualizados los tipos de recursos",
+    "✅ Asegúrate que los recursos estén disponibles",
+    "👥 Revisa regularmente los usuarios registrados",
+    "📊 Genera reportes mensuales para análisis",
+    "⚙️ Configura correctamente las unidades académicas",
+    "📦 Controla los préstamos de recursos físicos",
+    "⭐ Revisa las calificaciones de los usuarios",
   ];
 
   return (
     <div className="admin-home">
-      <h1 className="page-title">Dashboard</h1>
-      <p className="page-subtitle">
-        Bienvenido al sistema de gestión de reservas
-      </p>
+      {/* Header con bienvenida */}
+      <div className="welcome-section">
+        <h1 className="page-title">Dashboard de Administración</h1>
+        <p className="page-subtitle">
+          Bienvenido al panel de control del sistema de gestión de reservas
+        </p>
 
-      <div className="stats-grid">
-        {statCards.map((stat) => (
-          <Card key={stat.title} className="stat-card">
-            <div className="stat-content">
-              <div
-                className="stat-icon"
-                style={{ backgroundColor: stat.color }}
-              >
-                {stat.icon}
-              </div>
-              <div className="stat-details">
-                <p className="stat-title">{stat.title}</p>
-                <p className="stat-value">{stat.value}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="quick-actions">
-        <h2>Acciones Rápidas</h2>
-        <div className="actions-grid">
-          <a href="/admin/units" className="action-card">
-            <span className="action-icon">🏛️</span>
-            <span>Gestionar Unidades</span>
-          </a>
-          <a href="/admin/resources" className="action-card">
-            <span className="action-icon">🏢</span>
-            <span>Gestionar Recursos</span>
-          </a>
-          <a href="/admin/reservations" className="action-card">
-            <span className="action-icon">📅</span>
-            <span>Ver Reservas</span>
-          </a>
-          <a href="/admin/users" className="action-card">
-            <span className="action-icon">👥</span>
-            <span>Gestionar Usuarios</span>
-          </a>
-          <a href="/admin/reports" className="action-card">
-            <span className="action-icon">📈</span>
-            <span>Generar Reportes</span>
-          </a>
+        <div className="welcome-message">
+          <div className="welcome-icon">👋</div>
+          <div>
+            <p className="welcome-text">
+              Desde aquí puedes gestionar todas las funcionalidades del sistema
+              de manera rápida y eficiente.
+            </p>
+            <p className="last-login">
+              Último acceso: Hoy,{" "}
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Acciones Rápidas - Coincide con AdminLayout */}
+      <div className="quick-actions-section">
+        <div className="section-header">
+          <h2 className="section-title">Acciones Rápidas</h2>
+          <p className="section-subtitle">
+            Accede rápidamente a todas las secciones del sistema
+          </p>
+        </div>
+
+        <div className="actions-grid">
+          {quickActions.map((action, index) => (
+            <a
+              key={index}
+              href={action.href}
+              className="action-card"
+              style={{
+                "--action-color": action.color,
+                "--action-color-light": `${action.color}20`,
+              }}
+            >
+              <div
+                className="action-icon-container"
+                style={{ backgroundColor: `${action.color}20` }}
+              >
+                <span className="action-icon" style={{ color: action.color }}>
+                  {action.icon}
+                </span>
+              </div>
+
+              <div className="action-content">
+                <h3 className="action-title">{action.title}</h3>
+                <p className="action-description">{action.description}</p>
+              </div>
+
+              <div className="action-arrow">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 6L15 12L9 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Consejos para administradores */}
     </div>
   );
 };

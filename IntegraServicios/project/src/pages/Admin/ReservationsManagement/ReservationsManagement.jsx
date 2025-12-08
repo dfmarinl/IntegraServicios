@@ -15,10 +15,10 @@ import {
   calculateQuickStats,
   generateExportFilename,
   downloadFile,
-  prepareReservationsForCSV
+  prepareReservationsForCSV,
 } from "../../../api/Reservation/reservationManagementApi";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
-import DeleteConfirmationModal from "../../../modals/DeleteConfirmationModal/DeleteConfirmationModal";
+import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
 import ReservationDetailsModal from "../../../modals/ReservationDetailsModal/ReservationDetailsModal";
 import EditReservationModal from "../../../modals/EditReservationModal/EditReservationModal";
 import ManageRepeatSeriesModal from "../../../modals/ManageRepeatSeriesModal/ManageRepeatSeriesModal";
@@ -33,26 +33,26 @@ const ReservationsManagement = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Estados para selección y detalles
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [selectedReservations, setSelectedReservations] = useState([]);
-  
+
   // Estados para filtros y paginación
   const [filters, setFilters] = useState({
-    status: 'all',
-    unitId: '',
-    resourceId: '',
-    userId: '',
-    isRepetitive: '',
-    startDate: '',
-    endDate: ''
+    status: "all",
+    unitId: "",
+    resourceId: "",
+    userId: "",
+    isRepetitive: "",
+    startDate: "",
+    endDate: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10;
-  
+
   // Estados para modales
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -61,7 +61,7 @@ const ReservationsManagement = () => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isBulkActionsModalOpen, setIsBulkActionsModalOpen] = useState(false);
-  
+
   // Estados para operaciones
   const [operationLoading, setOperationLoading] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState({});
@@ -78,7 +78,7 @@ const ReservationsManagement = () => {
       const dashboard = await getReservationDashboardApi({
         startDate: filters.startDate,
         endDate: filters.endDate,
-        unitId: filters.unitId
+        unitId: filters.unitId,
       });
       setDashboardData(dashboard.dashboard);
     } catch (err) {
@@ -90,21 +90,20 @@ const ReservationsManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await getAllReservationsWithDetailsApi({
         ...filters,
         page: currentPage,
-        limit: limit
+        limit: limit,
       });
-      
+
       setReservations(response.reservations);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.total);
-      
+
       // Calcular estadísticas rápidas
       const quickStats = calculateQuickStats(response.reservations);
       setStats(quickStats);
-      
     } catch (err) {
       console.error("Error al cargar reservas:", err);
       setError(err.message || "Error al cargar las reservas");
@@ -140,10 +139,10 @@ const ReservationsManagement = () => {
   };
 
   // Confirmar eliminación
-  const handleDeleteConfirm = async (reason) => {
+  const handleDeleteConfirm = async () => {
     try {
       setOperationLoading(true);
-      await deleteReservationApi(selectedReservation.id, reason);
+      await deleteReservationApi(selectedReservation.id);
       setIsDeleteModalOpen(false);
       setSelectedReservation(null);
       loadReservations();
@@ -184,12 +183,12 @@ const ReservationsManagement = () => {
     try {
       setLoading(true);
       setSearchCriteria(criteria);
-      
+
       const results = await searchReservationsApi(criteria);
       setReservations(results.reservations);
       setTotalItems(results.count);
       setTotalPages(1); // La búsqueda no usa paginación
-      
+
       setIsSearchModalOpen(false);
     } catch (err) {
       setError(err.message || "Error en búsqueda");
@@ -202,20 +201,20 @@ const ReservationsManagement = () => {
   const handleGenerateReport = async (reportConfig) => {
     try {
       setOperationLoading(true);
-      
+
       const report = await generateReservationsReportApi(reportConfig);
-      
-      if (reportConfig.format === 'csv') {
-        const filename = generateExportFilename('reporte_reservas', 'csv');
-        downloadFile(report, filename, 'text/csv');
-      } else if (reportConfig.format === 'pdf') {
-        const filename = generateExportFilename('reporte_reservas', 'pdf');
-        downloadFile(report, filename, 'application/pdf');
+
+      if (reportConfig.format === "csv") {
+        const filename = generateExportFilename("reporte_reservas", "csv");
+        downloadFile(report, filename, "text/csv");
+      } else if (reportConfig.format === "pdf") {
+        const filename = generateExportFilename("reporte_reservas", "pdf");
+        downloadFile(report, filename, "application/pdf");
       } else {
         // Para JSON, podrías mostrar un modal con el reporte
         console.log("Reporte generado:", report);
       }
-      
+
       setIsReportModalOpen(false);
     } catch (err) {
       setError(err.message || "Error al generar reporte");
@@ -228,14 +227,14 @@ const ReservationsManagement = () => {
   const handleBulkAction = async (action, updates) => {
     try {
       setOperationLoading(true);
-      
-      if (action === 'update' && selectedReservations.length > 0) {
+
+      if (action === "update" && selectedReservations.length > 0) {
         await bulkUpdateReservationsApi(
-          selectedReservations.map(r => r.id),
+          selectedReservations.map((r) => r.id),
           updates
         );
       }
-      
+
       setIsBulkActionsModalOpen(false);
       setSelectedReservations([]);
       loadReservations();
@@ -249,9 +248,13 @@ const ReservationsManagement = () => {
 
   // Manejar selección de reservas
   const handleSelectReservation = (reservation) => {
-    const isSelected = selectedReservations.some(r => r.id === reservation.id);
+    const isSelected = selectedReservations.some(
+      (r) => r.id === reservation.id
+    );
     if (isSelected) {
-      setSelectedReservations(selectedReservations.filter(r => r.id !== reservation.id));
+      setSelectedReservations(
+        selectedReservations.filter((r) => r.id !== reservation.id)
+      );
     } else {
       setSelectedReservations([...selectedReservations, reservation]);
     }
@@ -267,57 +270,67 @@ const ReservationsManagement = () => {
 
   // Manejar cambios de filtro
   const handleFilterChange = (filterName, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [filterName]: value
+      [filterName]: value,
     }));
     setCurrentPage(1);
   };
 
   const clearFilters = () => {
     setFilters({
-      status: 'all',
-      unitId: '',
-      resourceId: '',
-      userId: '',
-      isRepetitive: '',
-      startDate: '',
-      endDate: ''
+      status: "all",
+      unitId: "",
+      resourceId: "",
+      userId: "",
+      isRepetitive: "",
+      startDate: "",
+      endDate: "",
     });
     setCurrentPage(1);
   };
 
+  // Función para obtener el nombre de display de la reserva
+  const getReservationDisplayName = (reservation) => {
+    if (!reservation) return "reserva";
+    return `${reservation.Resource?.name || "Recurso"} - ${new Date(
+      reservation.startDateTime
+    ).toLocaleDateString()}`;
+  };
+
   // Cards del dashboard
-  const dashboardCards = dashboardData ? [
-    {
-      title: "Total Reservas",
-      value: dashboardData.summary.totalReservations,
-      icon: "📊",
-      color: "#2563eb",
-      description: "En el período seleccionado"
-    },
-    {
-      title: "Pendientes",
-      value: dashboardData.summary.byStatus.pendiente || 0,
-      icon: "⏳",
-      color: "#f59e0b",
-      description: "Esperando confirmación"
-    },
-    {
-      title: "Activas",
-      value: dashboardData.summary.byStatus.activa || 0,
-      icon: "✅",
-      color: "#10b981",
-      description: "En curso actualmente"
-    },
-    {
-      title: "Repetitivas",
-      value: stats?.repetitiveCount || 0,
-      icon: "🔄",
-      color: "#8b5cf6",
-      description: "Series programadas"
-    }
-  ] : [];
+  const dashboardCards = dashboardData
+    ? [
+        {
+          title: "Total Reservas",
+          value: dashboardData.summary.totalReservations,
+          icon: "📊",
+          color: "#2563eb",
+          description: "En el período seleccionado",
+        },
+        {
+          title: "Pendientes",
+          value: dashboardData.summary.byStatus.pendiente || 0,
+          icon: "⏳",
+          color: "#f59e0b",
+          description: "Esperando confirmación",
+        },
+        {
+          title: "Activas",
+          value: dashboardData.summary.byStatus.activa || 0,
+          icon: "✅",
+          color: "#10b981",
+          description: "En curso actualmente",
+        },
+        {
+          title: "Repetitivas",
+          value: stats?.repetitiveCount || 0,
+          icon: "🔄",
+          color: "#8b5cf6",
+          description: "Series programadas",
+        },
+      ]
+    : [];
 
   const actionCards = [
     {
@@ -325,14 +338,14 @@ const ReservationsManagement = () => {
       description: "Buscar reservas con múltiples criterios",
       icon: "🔍",
       onClick: () => setIsSearchModalOpen(true),
-      color: "#3b82f6"
+      color: "#3b82f6",
     },
     {
       title: "Generar Reporte",
       description: "Exportar datos en diferentes formatos",
       icon: "📋",
       onClick: () => setIsReportModalOpen(true),
-      color: "#10b981"
+      color: "#10b981",
     },
     {
       title: "Acciones Masivas",
@@ -340,8 +353,8 @@ const ReservationsManagement = () => {
       icon: "⚡",
       onClick: () => setIsBulkActionsModalOpen(true),
       color: "#f59e0b",
-      disabled: selectedReservations.length === 0
-    }
+      disabled: selectedReservations.length === 0,
+    },
   ];
 
   // Función para renderizar el estado con colores
@@ -350,18 +363,22 @@ const ReservationsManagement = () => {
       pendiente: { label: "Pendiente", color: "#f59e0b", bg: "#fef3c7" },
       activa: { label: "Activa", color: "#10b981", bg: "#d1fae5" },
       finalizada: { label: "Finalizada", color: "#6b7280", bg: "#f3f4f6" },
-      cancelada: { label: "Cancelada", color: "#ef4444", bg: "#fee2e2" }
+      cancelada: { label: "Cancelada", color: "#ef4444", bg: "#fee2e2" },
     };
-    
-    const config = statusConfig[status] || { label: status, color: "#6b7280", bg: "#f3f4f6" };
-    
+
+    const config = statusConfig[status] || {
+      label: status,
+      color: "#6b7280",
+      bg: "#f3f4f6",
+    };
+
     return (
-      <span 
+      <span
         className="status-badge"
-        style={{ 
-          color: config.color, 
+        style={{
+          color: config.color,
           backgroundColor: config.bg,
-          borderColor: config.color
+          borderColor: config.color,
         }}
       >
         {config.label}
@@ -394,7 +411,10 @@ const ReservationsManagement = () => {
           {dashboardCards.map((stat) => (
             <Card key={stat.title} className="stat-card">
               <div className="stat-content">
-                <div className="stat-icon" style={{ backgroundColor: stat.color }}>
+                <div
+                  className="stat-icon"
+                  style={{ backgroundColor: stat.color }}
+                >
                   {stat.icon}
                 </div>
                 <div className="stat-details">
@@ -419,7 +439,10 @@ const ReservationsManagement = () => {
               onClick={action.onClick}
               disabled={action.disabled}
             >
-              <div className="action-icon" style={{ backgroundColor: action.color }}>
+              <div
+                className="action-icon"
+                style={{ backgroundColor: action.color }}
+              >
                 {action.icon}
               </div>
               <div className="action-details">
@@ -444,7 +467,7 @@ const ReservationsManagement = () => {
             <label>Estado</label>
             <select
               value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
               className="filter-select"
             >
               <option value="all">Todos los estados</option>
@@ -459,7 +482,9 @@ const ReservationsManagement = () => {
             <label>Tipo</label>
             <select
               value={filters.isRepetitive}
-              onChange={(e) => handleFilterChange('isRepetitive', e.target.value)}
+              onChange={(e) =>
+                handleFilterChange("isRepetitive", e.target.value)
+              }
               className="filter-select"
             >
               <option value="">Todos los tipos</option>
@@ -473,7 +498,7 @@ const ReservationsManagement = () => {
             <input
               type="date"
               value={filters.startDate}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              onChange={(e) => handleFilterChange("startDate", e.target.value)}
               className="filter-input"
             />
           </div>
@@ -483,7 +508,7 @@ const ReservationsManagement = () => {
             <input
               type="date"
               value={filters.endDate}
-              onChange={(e) => handleFilterChange('endDate', e.target.value)}
+              onChange={(e) => handleFilterChange("endDate", e.target.value)}
               className="filter-input"
             />
           </div>
@@ -498,11 +523,10 @@ const ReservationsManagement = () => {
             <span className="selected-count">
               {selectedReservations.length} seleccionadas
             </span>
-            <button
-              onClick={handleSelectAll}
-              className="btn-outline btn-sm"
-            >
-              {selectedReservations.length === reservations.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+            <button onClick={handleSelectAll} className="btn-outline btn-sm">
+              {selectedReservations.length === reservations.length
+                ? "Deseleccionar todo"
+                : "Seleccionar todo"}
             </button>
           </div>
         </div>
@@ -520,10 +544,13 @@ const ReservationsManagement = () => {
           <table className="reservations-table">
             <thead>
               <tr>
-                <th style={{ width: '50px' }}>
+                <th style={{ width: "50px" }}>
                   <input
                     type="checkbox"
-                    checked={selectedReservations.length === reservations.length && reservations.length > 0}
+                    checked={
+                      selectedReservations.length === reservations.length &&
+                      reservations.length > 0
+                    }
                     onChange={handleSelectAll}
                   />
                 </th>
@@ -543,7 +570,9 @@ const ReservationsManagement = () => {
                   <td>
                     <input
                       type="checkbox"
-                      checked={selectedReservations.some(r => r.id === reservation.id)}
+                      checked={selectedReservations.some(
+                        (r) => r.id === reservation.id
+                      )}
                       onChange={() => handleSelectReservation(reservation)}
                     />
                   </td>
@@ -556,18 +585,35 @@ const ReservationsManagement = () => {
                   </td>
                   <td>
                     <div className="user-info">
-                      <strong>{reservation.User?.firstName} {reservation.User?.lastName}</strong>
+                      <strong>
+                        {reservation.User?.firstName}{" "}
+                        {reservation.User?.lastName}
+                      </strong>
                       <small>{reservation.User?.email}</small>
                     </div>
                   </td>
                   <td>
                     <div className="datetime-info">
-                      <div>{new Date(reservation.startDateTime).toLocaleDateString()}</div>
-                      <small>{new Date(reservation.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                      <div>
+                        {new Date(
+                          reservation.startDateTime
+                        ).toLocaleDateString()}
+                      </div>
+                      <small>
+                        {new Date(reservation.startDateTime).toLocaleTimeString(
+                          [],
+                          { hour: "2-digit", minute: "2-digit" }
+                        )}
+                      </small>
                     </div>
                   </td>
                   <td>
-                    {Math.round((new Date(reservation.endDateTime) - new Date(reservation.startDateTime)) / (1000 * 60 * 60))}h
+                    {Math.round(
+                      (new Date(reservation.endDateTime) -
+                        new Date(reservation.startDateTime)) /
+                        (1000 * 60 * 60)
+                    )}
+                    h
                   </td>
                   <td>{renderStatusBadge(reservation.status)}</td>
                   <td>
@@ -621,13 +667,13 @@ const ReservationsManagement = () => {
         {totalPages > 1 && (
           <div className="pagination">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
               className="pagination-btn"
             >
               ← Anterior
             </button>
-            
+
             <div className="pagination-pages">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum;
@@ -640,21 +686,25 @@ const ReservationsManagement = () => {
                 } else {
                   pageNum = currentPage - 2 + i;
                 }
-                
+
                 return (
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`pagination-page ${currentPage === pageNum ? 'active' : ''}`}
+                    className={`pagination-page ${
+                      currentPage === pageNum ? "active" : ""
+                    }`}
                   >
                     {pageNum}
                   </button>
                 );
               })}
             </div>
-            
+
             <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
               disabled={currentPage === totalPages}
               className="pagination-btn"
             >
@@ -682,13 +732,22 @@ const ReservationsManagement = () => {
         }}
       />
 
-      <DeleteConfirmationModal
+      <GenericDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteConfirm}
         item={selectedReservation}
         title="Eliminar Reserva"
-        message={`¿Está seguro de eliminar la reserva #${selectedReservation?.id}? Esta acción no se puede deshacer.`}
+        itemName="reserva"
+        itemDisplayField="id"
+        warningMessage="Esta acción cancelará la reserva y no se puede deshacer."
+        additionalWarning={
+          selectedReservation?.isRepetitive
+            ? "⚠️ Esta es una reserva repetitiva. Solo se eliminará esta ocurrencia específica."
+            : null
+        }
+        confirmButtonText="Sí, Eliminar Reserva"
+        cancelButtonText="Cancelar"
         loading={operationLoading}
       />
 
