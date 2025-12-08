@@ -5,6 +5,13 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "dev:windows": "set NODE_ENV=development && nodemon index.js",
+    "prod:local": "NODE_ENV=production node index.js",
+    
+    "render-build": "npm install",
+    "render-start": "NODE_ENV=production node index.js",
+    "test:railway": "NODE_ENV=production node -e \"require('./config/database').authenticate().then(() => console.log('✅ Conexión Railway OK')).catch(e => console.log('❌', e.message))\"",
+    
     "test": "jest --forceExit --detectOpenHandles",
     "test:unit": "jest Tests/ --forceExit --detectOpenHandles",
     "test:tc-unit-001": "jest Tests/TC-UNIT-001.test.js --forceExit --detectOpenHandles",
@@ -23,7 +30,12 @@
     "test:all": "jest Tests/ IntegrationTests/ --forceExit --detectOpenHandles",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles",
-    "test:coverage-all": "jest --coverage Tests/ IntegrationTests/ --forceExit --detectOpenHandles"
+    "test:coverage-all": "jest --coverage Tests/ IntegrationTests/ --forceExit --detectOpenHandles",
+    
+    "db:migrate": "NODE_ENV=development npx sequelize-cli db:migrate",
+    "db:migrate:prod": "NODE_ENV=production npx sequelize-cli db:migrate",
+    "db:seed": "NODE_ENV=development npx sequelize-cli db:seed:all",
+    "db:reset": "NODE_ENV=development npx sequelize-cli db:migrate:undo:all"
   },
   "keywords": [],
   "author": "",
@@ -46,5 +58,9 @@
     "nodemon": "^3.1.10",
     "sequelize-cli": "^6.6.3",
     "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }
