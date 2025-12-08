@@ -21,6 +21,26 @@ export const createResourceApi = async (resourceData) => {
   return await response.json();
 };
 
+export const createMultipleResourcesApi = async (resourceData) => {
+  const token = localStorage.getItem("token");
+
+  const response = await fetch(`${API_URL}/multiple`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(resourceData),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Error al crear recursos múltiples");
+  }
+
+  return await response.json();
+};
+
 // Get all resources
 export const getResourcesApi = async () => {
   const token = localStorage.getItem("token");

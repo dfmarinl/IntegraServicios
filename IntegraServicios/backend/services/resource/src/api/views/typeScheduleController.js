@@ -1,16 +1,40 @@
-// controllers/typeScheduleController.js - VERSIÓN CORREGIDA
+// controllers/typeScheduleController.js - VERSIÓN CORREGIDA CON FORMATO DE HORAS
 const ResourceType = require("../../../../../models/ResourceType");
 const Unit = require("../../../../../models/Unit");
 const TypeSchedule = require("../../../../../models/TypeSchedule");
 const UnitSchedule = require("../../../../../models/UnitSchedule");
 const { Op } = require("sequelize");
 
-// CONTROLADOR COMPLETO CORREGIDO
+// Función auxiliar para normalizar formato de horas
+const normalizeTime = (timeStr) => {
+  if (!timeStr) return null;
+  
+  // Si ya tiene segundos, devolver como está
+  if (timeStr.includes(':') && timeStr.split(':').length === 3) {
+    return timeStr;
+  }
+  
+  // Si solo tiene horas:minutos, agregar segundos
+  if (timeStr.includes(':') && timeStr.split(':').length === 2) {
+    return timeStr + ':00';
+  }
+  
+  return timeStr;
+};
+
+// Función auxiliar para comparar horas
+const compareTimes = (time1, time2) => {
+  const normalized1 = normalizeTime(time1);
+  const normalized2 = normalizeTime(time2);
+  
+  // Comparar como strings (funciona para formato HH:MM:SS)
+  return normalized1.localeCompare(normalized2);
+};
+
 const getCompleteTypeSchedule = async (req, res) => {
   try {
     const { typeId } = req.params;
 
-    // Obtener datos por separado - SIN INCLUDE
     const resourceType = await ResourceType.findByPk(typeId);
     if (!resourceType) {
       return res.status(404).json({ message: "Tipo de recurso no encontrado" });
@@ -57,7 +81,6 @@ const addScheduleToType = async (req, res) => {
       });
     }
 
-    // Obtener datos por separado - SIN INCLUDE
     const resourceType = await ResourceType.findByPk(typeId);
     if (!resourceType) {
       return res.status(404).json({ message: "Tipo de recurso no encontrado" });
@@ -77,9 +100,16 @@ const addScheduleToType = async (req, res) => {
       });
     }
 
-    if (startTime < unitSchedule.startTime || endTime > unitSchedule.endTime) {
+    // Normalizar horas para comparación
+    const normalizedStartTime = normalizeTime(startTime);
+    const normalizedEndTime = normalizeTime(endTime);
+    const unitStart = normalizeTime(unitSchedule.startTime);
+    const unitEnd = normalizeTime(unitSchedule.endTime);
+
+    // CORREGIDO: Usar función de comparación
+    if (compareTimes(normalizedStartTime, unitStart) < 0 || compareTimes(normalizedEndTime, unitEnd) > 0) {
       return res.status(400).json({
-        message: `El horario debe estar dentro del horario de la unidad: ${unitSchedule.startTime} - ${unitSchedule.endTime}`
+        message: `El horario debe estar dentro o ser igual al horario de la unidad: ${unitSchedule.startTime} - ${unitSchedule.endTime}`
       });
     }
 
@@ -96,8 +126,8 @@ const addScheduleToType = async (req, res) => {
     const schedule = await TypeSchedule.create({
       typeId,
       dayOfWeek,
-      startTime,
-      endTime,
+      startTime: normalizedStartTime,
+      endTime: normalizedEndTime,
       isActive,
     });
 
@@ -156,13 +186,11 @@ const updateTypeSchedule = async (req, res) => {
       return res.status(404).json({ message: "Horario no encontrado" });
     }
 
-    // Obtener datos para validación - SIN INCLUDE
     const resourceType = await ResourceType.findByPk(schedule.typeId);
     if (!resourceType) {
       return res.status(404).json({ message: "Tipo de recurso no encontrado" });
     }
 
-    // Validar contra unidad si se cambian horarios
     if (dayOfWeek || startTime || endTime) {
       const finalDayOfWeek = dayOfWeek || schedule.dayOfWeek;
       
@@ -180,20 +208,23 @@ const updateTypeSchedule = async (req, res) => {
         });
       }
 
-      const finalStartTime = startTime || schedule.startTime;
-      const finalEndTime = endTime || schedule.endTime;
+      const finalStartTime = normalizeTime(startTime || schedule.startTime);
+      const finalEndTime = normalizeTime(endTime || schedule.endTime);
+      const unitStart = normalizeTime(unitSchedule.startTime);
+      const unitEnd = normalizeTime(unitSchedule.endTime);
 
-      if (finalStartTime < unitSchedule.startTime || finalEndTime > unitSchedule.endTime) {
+      // CORREGIDO: Usar función de comparación
+      if (compareTimes(finalStartTime, unitStart) < 0 || compareTimes(finalEndTime, unitEnd) > 0) {
         return res.status(400).json({
-          message: `El horario debe estar dentro del horario de la unidad: ${unitSchedule.startTime} - ${unitSchedule.endTime}`
+          message: `El horario debe estar dentro o ser igual al horario de la unidad: ${unitSchedule.startTime} - ${unitSchedule.endTime}`
         });
       }
     }
 
     await schedule.update({
       dayOfWeek: dayOfWeek || schedule.dayOfWeek,
-      startTime: startTime || schedule.startTime,
-      endTime: endTime || schedule.endTime,
+      startTime: startTime ? normalizeTime(startTime) : schedule.startTime,
+      endTime: endTime ? normalizeTime(endTime) : schedule.endTime,
       isActive: isActive !== undefined ? isActive : schedule.isActive,
     });
 
@@ -234,11 +265,10 @@ const deleteTypeSchedule = async (req, res) => {
   }
 };
 
-// controllers/typeScheduleController.js - toggleDaySchedule corregido
 const toggleDaySchedule = async (req, res) => {
   try {
     const { typeId, dayOfWeek } = req.params;
-    const { isActive } = req.body; // OBTENER EL VALOR DEL BODY
+    const { isActive } = req.body;
 
     console.log("🔧 toggleDaySchedule llamado:", { typeId, dayOfWeek, isActive });
 
@@ -258,7 +288,6 @@ const toggleDaySchedule = async (req, res) => {
       });
     }
 
-    // Actualizar con el valor recibido
     await schedule.update({ isActive: isActive });
     
     res.json({
@@ -285,7 +314,6 @@ const addMultipleSchedules = async (req, res) => {
       });
     }
 
-    // Obtener datos para validación - SIN INCLUDE
     const resourceType = await ResourceType.findByPk(typeId);
     if (!resourceType) {
       return res.status(404).json({ message: "Tipo de recurso no encontrado" });
@@ -299,13 +327,11 @@ const addMultipleSchedules = async (req, res) => {
     const errors = [];
 
     for (const schedule of schedules) {
-      // Validación básica de campos requeridos
       if (!schedule.dayOfWeek || !schedule.startTime || !schedule.endTime) {
         errors.push(`Horario incompleto para algún día: dayOfWeek, startTime y endTime son requeridos`);
         continue;
       }
 
-      // Buscar horario de unidad para este día
       const unitSchedule = unitSchedules.find(us => us.dayOfWeek === schedule.dayOfWeek);
       
       if (!unitSchedule) {
@@ -313,19 +339,23 @@ const addMultipleSchedules = async (req, res) => {
         continue;
       }
 
-      // Validar que el horario esté dentro de los límites de la unidad
-      if (schedule.startTime < unitSchedule.startTime || schedule.endTime > unitSchedule.endTime) {
-        errors.push(`El horario para ${schedule.dayOfWeek} debe estar dentro del horario de la unidad: ${unitSchedule.startTime} - ${unitSchedule.endTime}`);
+      // Normalizar horas para comparación
+      const normalizedStartTime = normalizeTime(schedule.startTime);
+      const normalizedEndTime = normalizeTime(schedule.endTime);
+      const unitStart = normalizeTime(unitSchedule.startTime);
+      const unitEnd = normalizeTime(unitSchedule.endTime);
+
+      // CORREGIDO: Usar función de comparación
+      if (compareTimes(normalizedStartTime, unitStart) < 0 || compareTimes(normalizedEndTime, unitEnd) > 0) {
+        errors.push(`El horario para ${schedule.dayOfWeek} debe estar dentro o ser igual al horario de la unidad: ${unitSchedule.startTime} - ${unitSchedule.endTime}`);
         continue;
       }
 
-      // Validar que startTime sea menor que endTime
-      if (schedule.startTime >= schedule.endTime) {
+      if (compareTimes(normalizedStartTime, normalizedEndTime) >= 0) {
         errors.push(`Para ${schedule.dayOfWeek}: La hora de inicio debe ser menor que la hora de fin`);
         continue;
       }
 
-      // Verificar si ya existe un horario para este día
       const existingSchedule = await TypeSchedule.findOne({
         where: { typeId, dayOfWeek: schedule.dayOfWeek }
       });
@@ -335,11 +365,10 @@ const addMultipleSchedules = async (req, res) => {
         continue;
       }
 
-      // Si pasa todas las validaciones, agregar a la lista
       validatedSchedules.push({
         dayOfWeek: schedule.dayOfWeek,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
+        startTime: normalizedStartTime,
+        endTime: normalizedEndTime,
         typeId: parseInt(typeId),
         isActive: schedule.isActive !== undefined ? schedule.isActive : true
       });
@@ -352,7 +381,6 @@ const addMultipleSchedules = async (req, res) => {
       });
     }
 
-    // Si no hay horarios válidos después de la validación
     if (validatedSchedules.length === 0) {
       return res.status(400).json({ 
         message: "No hay horarios válidos para guardar después de la validación"
@@ -361,9 +389,8 @@ const addMultipleSchedules = async (req, res) => {
 
     console.log("📋 Horarios validados para crear:", validatedSchedules);
 
-    // Crear los horarios
     const createdSchedules = await TypeSchedule.bulkCreate(validatedSchedules, {
-      validate: true // Asegurar validación a nivel de modelo
+      validate: true
     });
 
     res.status(201).json({
@@ -413,7 +440,6 @@ const updateAllTypeSchedules = async (req, res) => {
       });
     }
 
-    // Obtener datos para validación
     const resourceType = await ResourceType.findByPk(typeId);
     if (!resourceType) {
       return res.status(404).json({ message: "Tipo de recurso no encontrado" });
@@ -433,28 +459,25 @@ const updateAllTypeSchedules = async (req, res) => {
       created: [],
       updated: [],
       errors: [],
-      skipped: []  // Nuevo: para días sin horario
+      skipped: []
     };
 
-    // Procesar cada horario como en unitSchedules
     for (const scheduleData of schedules) {
       try {
         const { dayOfWeek, startTime, endTime, isActive = true } = scheduleData;
 
         console.log(`🔍 Procesando ${dayOfWeek}:`, { startTime, endTime, isActive });
 
-        // Si no tiene horario, marcarlo como inactivo y continuar
         if (!startTime || !endTime) {
           console.log(`⏭️ ${dayOfWeek}: Sin horario, marcando como inactivo`);
           
-          // Buscar si existe para desactivarlo
           const existingSchedule = await TypeSchedule.findOne({
             where: { typeId, dayOfWeek }
           });
 
           if (existingSchedule) {
             await existingSchedule.update({
-              startTime: null,  // O string vacío según tu modelo
+              startTime: null,
               endTime: null,
               isActive: false
             });
@@ -474,7 +497,6 @@ const updateAllTypeSchedules = async (req, res) => {
           continue;
         }
 
-        // Solo validar contra unidad si SÍ tiene horario
         const unitSchedule = unitSchedules.find(us => us.dayOfWeek === dayOfWeek);
         if (!unitSchedule) {
           results.errors.push({
@@ -484,17 +506,22 @@ const updateAllTypeSchedules = async (req, res) => {
           continue;
         }
 
-        // Validar que esté dentro de los límites de la unidad
-        if (startTime < unitSchedule.startTime || endTime > unitSchedule.endTime) {
+        // Normalizar horas para comparación
+        const normalizedStartTime = normalizeTime(startTime);
+        const normalizedEndTime = normalizeTime(endTime);
+        const unitStart = normalizeTime(unitSchedule.startTime);
+        const unitEnd = normalizeTime(unitSchedule.endTime);
+
+        // CORREGIDO: Usar función de comparación
+        if (compareTimes(normalizedStartTime, unitStart) < 0 || compareTimes(normalizedEndTime, unitEnd) > 0) {
           results.errors.push({
             dayOfWeek,
-            error: `Debe estar dentro de: ${unitSchedule.startTime} - ${unitSchedule.endTime}`
+            error: `Debe estar dentro o ser igual a: ${unitSchedule.startTime} - ${unitSchedule.endTime}`
           });
           continue;
         }
 
-        // Validar que startTime sea menor que endTime
-        if (startTime >= endTime) {
+        if (compareTimes(normalizedStartTime, normalizedEndTime) >= 0) {
           results.errors.push({
             dayOfWeek,
             error: "La hora de inicio debe ser menor que la hora de fin"
@@ -502,16 +529,14 @@ const updateAllTypeSchedules = async (req, res) => {
           continue;
         }
 
-        // Buscar si ya existe un horario para este día
         const existingSchedule = await TypeSchedule.findOne({
           where: { typeId, dayOfWeek }
         });
 
         if (existingSchedule) {
-          // Actualizar horario existente
           await existingSchedule.update({
-            startTime,
-            endTime,
+            startTime: normalizedStartTime,
+            endTime: normalizedEndTime,
             isActive
           });
           results.updated.push({
@@ -520,12 +545,11 @@ const updateAllTypeSchedules = async (req, res) => {
             action: 'updated'
           });
         } else {
-          // Crear nuevo horario
           const newSchedule = await TypeSchedule.create({
             typeId: parseInt(typeId),
             dayOfWeek,
-            startTime,
-            endTime,
+            startTime: normalizedStartTime,
+            endTime: normalizedEndTime,
             isActive
           });
           results.created.push({
@@ -544,10 +568,8 @@ const updateAllTypeSchedules = async (req, res) => {
       }
     }
 
-    // Resumen final
     console.log("📊 Resultados del procesamiento:", results);
 
-    // Si hay errores pero también éxitos, devolver 207 (Multi-Status)
     if (results.errors.length > 0 && (results.created.length > 0 || results.updated.length > 0)) {
       return res.status(207).json({
         message: "Algunos horarios fueron procesados con errores",
@@ -563,7 +585,6 @@ const updateAllTypeSchedules = async (req, res) => {
       });
     }
 
-    // Si solo hay errores
     if (results.errors.length > 0 && results.created.length === 0 && results.updated.length === 0) {
       return res.status(400).json({
         message: "Todos los horarios tuvieron errores",
@@ -571,7 +592,6 @@ const updateAllTypeSchedules = async (req, res) => {
       });
     }
 
-    // Éxito total
     res.json({
       message: "Todos los horarios han sido procesados exitosamente",
       results,

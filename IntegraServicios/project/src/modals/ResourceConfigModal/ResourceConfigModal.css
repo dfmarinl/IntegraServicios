@@ -271,3 +271,82 @@
     line-height: 1.4;
   }
 }
+/* Sección de sincronización */
+.sync-section {
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f3ff 100%);
+  border-bottom: 1px solid #e0e7ff;
+  border-top: 1px solid #e0e7ff;
+  margin-bottom: 15px;
+}
+
+.sync-unit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.2);
+}
+
+.sync-unit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+}
+
+.sync-unit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.sync-unit-btn:disabled {
+  background: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 100%);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.sync-unit-btn svg {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Spinner para estado de carga */
+.sync-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Descripción */
+.sync-description {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+  max-width: 600px;
+}

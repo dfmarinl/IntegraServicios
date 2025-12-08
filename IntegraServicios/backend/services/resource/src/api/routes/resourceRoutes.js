@@ -11,6 +11,7 @@ const {
   updateResource,
   deleteResource,
   destroyResource,
+  createMultipleResources,
 } = require("../views/resourceController");
 const {
   verifyToken,
@@ -96,6 +97,13 @@ router.post(
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   createResource
+);
+
+router.post(
+  "/multiple",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  createMultipleResources
 );
 
 router.get(

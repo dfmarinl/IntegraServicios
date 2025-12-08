@@ -84,6 +84,140 @@ const createResource = async (req, res) => {
   }
 };
 
+// Crear múltiples recursos del mismo tipo
+const createMultipleResources = async (req, res) => {
+  try {
+    const { name, photoUrl, features, typeId, quantity } = req.body;
+
+    // Validaciones básicas
+    if (!name) {
+      return res.status(400).json({ message: "El nombre es requerido" });
+    }
+
+    if (!photoUrl) {
+      return res.status(400).json({ message: "La URL de la foto es requerida" });
+    }
+
+    if (!typeId) {
+      return res.status(400).json({ message: "El ID del tipo de recurso es requerido" });
+    }
+
+    // Validar cantidad
+    if (!quantity || quantity <= 0 || !Number.isInteger(quantity)) {
+      return res.status(400).json({ 
+        message: "La cantidad debe ser un número entero mayor a 0" 
+      });
+    }
+
+    if (quantity > 100) {
+      return res.status(400).json({ 
+        message: "La cantidad máxima permitida es 100 recursos por lote" 
+      });
+    }
+
+    // Verificar que el tipo de recurso exista
+    const resourceType = await ResourceType.findByPk(typeId);
+    if (!resourceType) {
+      return res.status(404).json({ message: "Tipo de recurso no encontrado" });
+    }
+
+    // Verificar si ya existen recursos con el mismo nombre base en este tipo
+    const existingResources = await Resource.findAll({
+      where: {
+        typeId,
+        name: {
+          [Op.iLike]: `${name}%`,
+        },
+      },
+    });
+
+    // Generar nombres únicos para los nuevos recursos
+    const existingNames = existingResources.map(r => r.name.toLowerCase());
+    const newResources = [];
+
+    for (let i = 1; i <= quantity; i++) {
+      let resourceName = quantity === 1 ? name.trim() : `${name.trim()} ${i}`;
+      
+      // Si el nombre ya existe, agregar sufijo incremental
+      let counter = 0;
+      while (existingNames.includes(resourceName.toLowerCase())) {
+        counter++;
+        resourceName = quantity === 1 
+          ? `${name.trim()} ${counter + 1}`
+          : `${name.trim()} ${i}-${counter + 1}`;
+      }
+
+      existingNames.push(resourceName.toLowerCase());
+      newResources.push({
+        name: resourceName,
+        photoUrl,
+        features: features || {},
+        typeId,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    // Crear todos los recursos en una transacción
+    const createdResources = await Resource.bulkCreate(newResources, {
+      returning: true,
+      validate: true
+    });
+
+    // Obtener los recursos creados con sus relaciones
+    const resourceIds = createdResources.map(r => r.id);
+    const resourcesWithRelations = await Resource.findAll({
+      where: {
+        id: {
+          [Op.in]: resourceIds
+        }
+      },
+      include: [
+        {
+          model: ResourceType,
+          include: [
+            {
+              model: Unit,
+              attributes: ["id", "name", "description"],
+            },
+          ],
+        },
+      ],
+      order: [["name", "ASC"]],
+    });
+
+    res.status(201).json({
+      message: `${quantity} recursos creados exitosamente`,
+      count: createdResources.length,
+      resources: resourcesWithRelations,
+    });
+  } catch (err) {
+    console.error("Error al crear múltiples recursos:", err);
+
+    // Manejar errores de Sequelize
+    if (err.name === "SequelizeUniqueConstraintError") {
+      return res.status(400).json({
+        message: "Ya existe un recurso con este nombre en el tipo de recurso",
+      });
+    }
+
+    if (err.name === "SequelizeValidationError") {
+      const errors = err.errors.map(error => error.message);
+      return res.status(400).json({
+        message: "Error de validación",
+        errors
+      });
+    }
+
+    res.status(400).json({ 
+      message: "Error al crear recursos", 
+      error: err.message 
+    });
+  }
+};
+
+
 // Obtener todos los recursos
 const getResources = async (req, res) => {
   try {
@@ -410,4 +544,5 @@ module.exports = {
   updateResource,
   deleteResource,
   destroyResource,
+  createMultipleResources,
 };
