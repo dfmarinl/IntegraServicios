@@ -1,48 +1,25 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { createLoanApi } from "../../api/loan/loans";
+import Button from "../../components/common/Button";
 import "./LoanForm.css";
 
 const LoanForm = ({ reservation, onSuccess, onCancel }) => {
-  const [formData, setFormData] = useState({
-    reservationId: reservation?.id || "",
-    deliveryTime: "",
-    comments: "",
-    resourceCondition: "excelente",
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [timeInfo, setTimeInfo] = useState(null);
 
-  useEffect(() => {
-    if (reservation) {
-      const now = new Date();
-      const reservationStart = new Date(reservation.startDateTime);
-      const timeDiff = (reservationStart - now) / (1000 * 60);
-      const hasFailure = Math.abs(timeDiff) > 5;
+  // Calcular si está dentro de la ventana de entrega
+  const calculateDeliveryStatus = () => {
+    const now = new Date();
+    const startTime = new Date(reservation.startDateTime);
+    const timeDiff = (startTime - now) / (1000 * 60); // minutos
 
-      setTimeInfo({
-        reservationStart,
-        currentTime: now,
-        timeDiff,
-        hasFailure,
-      });
+    const withinWindow = Math.abs(timeDiff) <= 5;
+    const isLate = timeDiff < -5;
 
-      const nowISO = now.toISOString().slice(0, 16);
-      setFormData((prev) => ({
-        ...prev,
-        deliveryTime: nowISO,
-        reservationId: reservation.id,
-      }));
-    }
-  }, [reservation]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    return { withinWindow, isLate, timeDiff: Math.round(timeDiff) };
   };
+
+  const deliveryStatus = calculateDeliveryStatus();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,84 +27,65 @@ const LoanForm = ({ reservation, onSuccess, onCancel }) => {
     setError(null);
 
     try {
-      if (!formData.deliveryTime) {
-        throw new Error("Debe especificar la hora de entrega");
-      }
+      // Usar la hora actual del sistema
+      const deliveryTime = new Date().toISOString();
 
       const loanData = {
-        reservationId: formData.reservationId,
-        deliveryTime: new Date(formData.deliveryTime).toISOString(),
+        reservationId: reservation.id,
+        deliveryTime: deliveryTime,
       };
 
       const response = await createLoanApi(loanData);
 
       if (response.success) {
-        const message = response.message;
-        const details = response.serviceInfo;
-
-        alert(
-          `✅ ${message}\n\n📊 Detalles:\n• Hora programada: ${new Date(
-            details.reservationStart
-          ).toLocaleString()}\n• Hora de entrega: ${new Date(
-            details.actualDelivery
-          ).toLocaleString()}\n• Diferencia: ${
-            details.timeDifference
-          }\n• Estado: ${
-            details.withinWindow
-              ? "✅ Dentro de ventana"
-              : "⚠️ Fuera de ventana"
-          }`
-        );
-
-        if (onSuccess) {
-          onSuccess(response.loan);
-        }
+        onSuccess(response.loan);
+      } else {
+        setError(response.message || "Error al registrar el préstamo");
       }
     } catch (err) {
-      console.error("Error al crear préstamo:", err);
-      setError(err.message || "Error al registrar la entrega");
+      console.error("Error al registrar préstamo:", err);
+      setError(err.message || "Error al registrar el préstamo");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!reservation) {
-    return (
-      <div className="error-message">
-        <p>No se encontró información de la reserva</p>
-      </div>
-    );
-  }
-
   return (
     <div className="loan-form">
-      <div className="form-header">
-        <h3>Registrar Entrega de Recurso</h3>
-        <p className="subtitle">
-          Reserva #{reservation.id} - {reservation.Resource?.name}
-        </p>
-      </div>
-
-      <div className="reservation-info">
+      {/* Información de la reserva */}
+      <div className="reservation-info-section">
+        <h3>Información de la Reserva</h3>
         <div className="info-grid">
           <div className="info-item">
             <span className="info-label">Recurso:</span>
+            <span className="info-value">{reservation.Resource?.name}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Tipo:</span>
             <span className="info-value">
-              <strong>{reservation.Resource?.name}</strong>
-              <small>{reservation.Resource?.ResourceType?.name}</small>
+              {reservation.Resource?.ResourceType?.name}
             </span>
           </div>
           <div className="info-item">
             <span className="info-label">Usuario:</span>
             <span className="info-value">
               {reservation.User?.firstName} {reservation.User?.lastName}
-              <small>{reservation.User?.email}</small>
             </span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Email:</span>
+            <span className="info-value">{reservation.User?.email}</span>
           </div>
           <div className="info-item">
             <span className="info-label">Hora programada:</span>
             <span className="info-value">
-              {new Date(reservation.startDateTime).toLocaleString()}
+              {new Date(reservation.startDateTime).toLocaleString("es-ES", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </span>
           </div>
           <div className="info-item">
@@ -137,127 +95,103 @@ const LoanForm = ({ reservation, onSuccess, onCancel }) => {
         </div>
       </div>
 
-      {timeInfo && (
-        <div
-          className={`time-info ${timeInfo.hasFailure ? "warning" : "success"}`}
-        >
-          <div className="time-info-content">
-            <div className="time-icon">{timeInfo.hasFailure ? "⚠️" : "✅"}</div>
-            <div className="time-details">
-              <h4>
-                {timeInfo.hasFailure
-                  ? "Fuera de ventana de entrega"
-                  : "Dentro de ventana de entrega"}
-              </h4>
-              <p>
-                Diferencia: {Math.abs(Math.round(timeInfo.timeDiff))} minutos
-                {timeInfo.timeDiff > 0 ? " antes" : " después"} del horario
-                programado
-              </p>
-              <small>Ventana permitida: ±5 minutos del horario de inicio</small>
-            </div>
+      {/* Estado de la ventana de entrega */}
+      <div
+        className={`delivery-status-alert ${
+          deliveryStatus.withinWindow
+            ? "status-success"
+            : deliveryStatus.isLate
+            ? "status-warning"
+            : "status-error"
+        }`}
+      >
+        <div className="status-icon">
+          {deliveryStatus.withinWindow
+            ? "✅"
+            : deliveryStatus.isLate
+            ? "⚠️"
+            : "❌"}
+        </div>
+        <div className="status-content">
+          <h4>
+            {deliveryStatus.withinWindow
+              ? "Dentro de la ventana de entrega"
+              : deliveryStatus.isLate
+              ? "Entrega retrasada"
+              : "Fuera de la ventana de entrega"}
+          </h4>
+          <p>
+            {deliveryStatus.withinWindow
+              ? "La entrega se realizará en el lapso adecuado (±5 minutos)."
+              : deliveryStatus.isLate
+              ? `La reserva inició hace ${Math.abs(
+                  deliveryStatus.timeDiff
+                )} minutos. Se marcará como fallo de servicio.`
+              : `Faltan ${deliveryStatus.timeDiff} minutos para la ventana de entrega. No se puede registrar aún.`}
+          </p>
+        </div>
+      </div>
+
+      {/* Información de hora de entrega */}
+      <div className="delivery-time-section">
+        <h3>Hora de Entrega</h3>
+        <div className="current-time-display">
+          <div className="time-icon">🕐</div>
+          <div className="time-content">
+            <p className="time-label">Hora actual del sistema:</p>
+            <p className="time-value">
+              {new Date().toLocaleString("es-ES", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </p>
+            <small className="time-note">
+              Esta hora se registrará automáticamente al confirmar la entrega
+            </small>
           </div>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="error-alert">
+          <span className="error-icon">❌</span>
+          <p>{error}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="deliveryTime">
-            Hora de entrega *
-            <small>
-              La hora exacta en que se entrega el recurso al usuario
-            </small>
-          </label>
-          <input
-            type="datetime-local"
-            id="deliveryTime"
-            name="deliveryTime"
-            value={formData.deliveryTime}
-            onChange={handleChange}
-            required
-            className="form-control"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="resourceCondition">
-            Estado del recurso
-            <small>
-              Condición en que se encuentra el recurso al momento de la entrega
-            </small>
-          </label>
-          <select
-            id="resourceCondition"
-            name="resourceCondition"
-            value={formData.resourceCondition}
-            onChange={handleChange}
-            className="form-control"
-          >
-            <option value="excelente">
-              Excelente - Sin daños, funciona perfectamente
-            </option>
-            <option value="bueno">
-              Bueno - Pequeños signos de uso, funciona bien
-            </option>
-            <option value="regular">
-              Regular - Marcas de uso visible, funciona adecuadamente
-            </option>
-            <option value="defectuoso">
-              Defectuoso - Problemas funcionales que requieren reparación
-            </option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="comments">
-            Observaciones
-            <small>Notas adicionales sobre la entrega</small>
-          </label>
-          <textarea
-            id="comments"
-            name="comments"
-            value={formData.comments}
-            onChange={handleChange}
-            rows="3"
-            className="form-control"
-            placeholder="Ej: Usuario recibió capacitación básica, recurso con batería al 80%, etc."
-          />
-        </div>
-
-        {error && (
-          <div className="error-message">
-            <p>{error}</p>
-          </div>
-        )}
-
-        <div className="form-actions">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn btn-outline"
-            disabled={loading}
-          >
-            Cancelar
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="spinner"></span>
-                Registrando...
-              </>
-            ) : (
-              "✅ Registrar Entrega"
-            )}
-          </button>
-        </div>
-
+      {/* Formulario */}
+      <form onSubmit={handleSubmit} className="loan-form-container">
         <div className="form-note">
           <p>
-            <strong>Nota:</strong> El sistema calculará automáticamente si hubo
-            fallo de servicio basándose en la diferencia entre la hora
-            programada y la hora de entrega. Falla de servicio = diferencia
-            mayor a ±5 minutos.
+            <strong>Importante:</strong> Al confirmar, se registrará que el
+            recurso <strong>{reservation.Resource?.name}</strong> fue entregado
+            a <strong>{reservation.User?.firstName}</strong> en este momento.
           </p>
+          {!deliveryStatus.withinWindow && (
+            <p className="warning-note">
+              ⚠️ La entrega está fuera del lapso adecuado y se marcará
+              automáticamente como <strong>fallo de servicio</strong>.
+            </p>
+          )}
+        </div>
+
+        <div className="form-buttons">
+          <Button type="button" onClick={onCancel} variant="secondary">
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={loading}
+            disabled={loading}
+          >
+            {loading ? "Registrando..." : "Confirmar Entrega del Recurso"}
+          </Button>
         </div>
       </form>
     </div>

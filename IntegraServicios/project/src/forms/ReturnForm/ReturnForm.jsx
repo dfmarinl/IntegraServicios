@@ -6,10 +6,7 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
     loanId: loan?.id || "",
     returnTime: "",
-    resourceCondition: "excelente",
-    notes: "",
     hasDamage: false,
-    damageDescription: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,14 +16,20 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
     if (loan) {
       const now = new Date();
       const reservationEnd = new Date(loan.Reservation?.endDateTime);
-      const timeDiff = (now - reservationEnd) / (1000 * 60);
-      const hasFailure = Math.abs(timeDiff) > 5;
+      const timeDiff = (now - reservationEnd) / (1000 * 60); // minutos
+
+      // Solo es fallo si se devuelve MÁS DE 5 minutos DESPUÉS del fin
+      const hasFailure = timeDiff > 5;
+      const isEarly = now < reservationEnd;
+      const isOnTime = timeDiff >= 0 && timeDiff <= 5;
 
       setTimeInfo({
         reservationEnd,
         currentTime: now,
         timeDiff,
         hasFailure,
+        isEarly,
+        isOnTime,
       });
 
       const nowISO = now.toISOString().slice(0, 16);
@@ -56,13 +59,15 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
         throw new Error("Debe especificar la hora de devolución");
       }
 
+      // Validar que el préstamo no tenga ya una devolución
+      if (loan.Return) {
+        throw new Error("Este préstamo ya tiene una devolución registrada");
+      }
+
       const returnData = {
         loanId: formData.loanId,
         returnTime: new Date(formData.returnTime).toISOString(),
-        resourceCondition: formData.resourceCondition,
-        notes: formData.notes,
         hasDamage: formData.hasDamage,
-        damageDescription: formData.hasDamage ? formData.damageDescription : "",
       };
 
       const response = await createReturnApi(returnData);
@@ -71,18 +76,25 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
         const message = response.message;
         const details = response.timeInfo;
 
+        let statusEmoji = "✅";
+        let statusText = "A tiempo";
+
+        if (details.isEarly) {
+          statusEmoji = "✅";
+          statusText = "Devolución anticipada";
+        } else if (details.hasFailure) {
+          statusEmoji = "⚠️";
+          statusText = "Devolución tardía";
+        }
+
         alert(
-          `✅ ${message}\n\n📊 Detalles:\n• Hora programada de fin: ${new Date(
+          `${statusEmoji} ${message}\n\n📊 Detalles:\n• Hora programada de fin: ${new Date(
             details.reservationEnd
           ).toLocaleString()}\n• Hora de devolución: ${new Date(
             details.actualReturn
           ).toLocaleString()}\n• Diferencia: ${
             details.timeDifference
-          }\n• Estado: ${
-            details.withinWindow
-              ? "✅ Dentro de ventana"
-              : "⚠️ Fuera de ventana"
-          }`
+          }\n• Estado: ${statusText}`
         );
 
         if (onSuccess) {
@@ -100,7 +112,20 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
   if (!loan) {
     return (
       <div className="error-message">
-        <p>No se encontró información del préstamo</p>
+        <p>❌ No se encontró información del préstamo</p>
+      </div>
+    );
+  }
+
+  // Verificar si el préstamo ya tiene devolución
+  if (loan.Return) {
+    return (
+      <div className="error-message">
+        <p>⚠️ Este préstamo ya tiene una devolución registrada</p>
+        <p style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
+          Devolución registrada el:{" "}
+          {new Date(loan.Return.returnTime).toLocaleString()}
+        </p>
       </div>
     );
   }
@@ -132,19 +157,28 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
             </span>
           </div>
           <div className="info-item">
-            <span className="info-label">Entrega realizada:</span>
+            <span className="info-label">Horario de la reserva:</span>
             <span className="info-value">
-              {new Date(loan.deliveryTime).toLocaleString()}
+              {new Date(loan.Reservation?.startDateTime).toLocaleString()}
               <small>
-                {loan.hasFailure ? "⚠️ Con fallo de servicio" : "✅ Sin fallo"}
+                hasta{" "}
+                {new Date(loan.Reservation?.endDateTime).toLocaleTimeString(
+                  [],
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }
+                )}
               </small>
             </span>
           </div>
           <div className="info-item">
-            <span className="info-label">Entregado por:</span>
+            <span className="info-label">Entrega realizada:</span>
             <span className="info-value">
-              {loan.Employee?.firstName} {loan.Employee?.lastName}
-              <small>ID: {loan.Employee?.identificationNumber}</small>
+              {new Date(loan.deliveryTime).toLocaleString()}
+              <small>
+                por {loan.Employee?.firstName} {loan.Employee?.lastName}
+              </small>
             </span>
           </div>
         </div>
@@ -155,20 +189,38 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
           className={`time-info ${timeInfo.hasFailure ? "warning" : "success"}`}
         >
           <div className="time-info-content">
-            <div className="time-icon">{timeInfo.hasFailure ? "⚠️" : "✅"}</div>
+            <div className="time-icon">
+              {timeInfo.isEarly ? "🕐" : timeInfo.isOnTime ? "✅" : "⚠️"}
+            </div>
             <div className="time-details">
               <h4>
-                {timeInfo.hasFailure
-                  ? "Fuera de ventana de devolución"
-                  : "Dentro de ventana de devolución"}
+                {timeInfo.isEarly
+                  ? "Devolución anticipada"
+                  : timeInfo.isOnTime
+                  ? "Ventana de devolución a tiempo"
+                  : "Fuera de ventana de devolución"}
               </h4>
               <p>
-                Diferencia: {Math.abs(Math.round(timeInfo.timeDiff))} minutos
-                {timeInfo.timeDiff > 0 ? " después" : " antes"} del horario
-                programado de fin
+                {timeInfo.isEarly ? (
+                  <>
+                    Devolviendo {Math.abs(Math.round(timeInfo.timeDiff))}{" "}
+                    minutos <strong>antes</strong> del horario programado de fin
+                  </>
+                ) : (
+                  <>
+                    Diferencia: {Math.abs(Math.round(timeInfo.timeDiff))}{" "}
+                    minutos
+                    {timeInfo.timeDiff > 0 ? " después" : " antes"} del horario
+                    programado de fin
+                  </>
+                )}
               </p>
               <small>
-                Ventana permitida: ±5 minutos del horario de fin de la reserva
+                {timeInfo.isEarly
+                  ? "✅ Las devoluciones anticipadas no generan fallo de servicio"
+                  : timeInfo.isOnTime
+                  ? "✅ Dentro de la ventana permitida (±5 minutos)"
+                  : "⚠️ Ventana permitida: ±5 minutos del horario de fin"}
               </small>
             </div>
           </div>
@@ -193,85 +245,26 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="resourceCondition">
-            Estado del recurso al devolver *
-            <small>
-              Condición en que se encuentra el recurso al momento de la
-              devolución
-            </small>
+          <label htmlFor="hasDamage">
+            ¿El recurso presenta daños? *
+            <small>Indique si el recurso tiene algún daño o desperfecto</small>
           </label>
           <select
-            id="resourceCondition"
-            name="resourceCondition"
-            value={formData.resourceCondition}
-            onChange={handleChange}
+            id="hasDamage"
+            name="hasDamage"
+            value={formData.hasDamage ? "true" : "false"}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                hasDamage: e.target.value === "true",
+              }))
+            }
             required
             className="form-control"
           >
-            <option value="excelente">
-              Excelente - Sin daños, funciona perfectamente
-            </option>
-            <option value="bueno">
-              Bueno - Pequeños signos de uso, funciona bien
-            </option>
-            <option value="regular">
-              Regular - Marcas de uso visible, funciona adecuadamente
-            </option>
-            <option value="defectuoso">
-              Defectuoso - Problemas funcionales que requieren reparación
-            </option>
+            <option value="false">No - El recurso está en buen estado</option>
+            <option value="true">Sí - El recurso presenta daños</option>
           </select>
-        </div>
-
-        <div className="form-group">
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              id="hasDamage"
-              name="hasDamage"
-              checked={formData.hasDamage}
-              onChange={handleChange}
-              className="checkbox-input"
-            />
-            <label htmlFor="hasDamage" className="checkbox-label">
-              El recurso presenta daños
-            </label>
-          </div>
-        </div>
-
-        {formData.hasDamage && (
-          <div className="form-group">
-            <label htmlFor="damageDescription">
-              Descripción del daño *
-              <small>Describa en detalle los daños encontrados</small>
-            </label>
-            <textarea
-              id="damageDescription"
-              name="damageDescription"
-              value={formData.damageDescription}
-              onChange={handleChange}
-              rows="3"
-              required
-              className="form-control"
-              placeholder="Ej: Pantalla rayada, botón roto, cable dañado, etc."
-            />
-          </div>
-        )}
-
-        <div className="form-group">
-          <label htmlFor="notes">
-            Observaciones
-            <small>Notas adicionales sobre la devolución</small>
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            value={formData.notes}
-            onChange={handleChange}
-            rows="3"
-            className="form-control"
-            placeholder="Ej: Usuario reportó funcionamiento normal, batería baja, accesorios completos, etc."
-          />
         </div>
 
         {error && (
@@ -303,10 +296,11 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
 
         <div className="form-note">
           <p>
-            <strong>Nota:</strong> El sistema calculará automáticamente si hubo
-            fallo de servicio basándose en la diferencia entre la hora
-            programada de fin y la hora de devolución. Falla de servicio =
-            diferencia mayor a ±5 minutos.
+            <strong>Nota importante:</strong> Las devoluciones anticipadas
+            (antes del horario de fin) no generan fallo de servicio. Solo se
+            marca fallo si la devolución se realiza
+            <strong> más de 5 minutos después</strong> del horario programado de
+            fin.
           </p>
         </div>
       </form>

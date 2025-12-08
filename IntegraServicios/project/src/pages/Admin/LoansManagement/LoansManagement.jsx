@@ -30,8 +30,6 @@ const LoansManagement = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState(null);
   const [selectedReservation, setSelectedReservation] = useState(null);
-  const [selectedLoan, setSelectedLoan] = useState(null);
-  const [hasReturn, setHasReturn] = useState(false);
 
   // Cargar reservas activas
   useEffect(() => {
@@ -63,96 +61,62 @@ const LoansManagement = () => {
   };
 
   // Funciones para abrir modales
-  const openLoanModal = async (reservation) => {
-    setSelectedReservation(reservation);
-
-    try {
-      // Verificar si ya existe préstamo para esta reserva
-      // const existingLoan = await getLoanByReservationApi(reservation.id);
-
-      if (existingLoan) {
-        alert(
-          `⚠️ Esta reserva ya tiene un préstamo registrado.\n\nPréstamo #${
-            existingLoan.id
-          }\nHora de entrega: ${new Date(
-            existingLoan.deliveryTime
-          ).toLocaleString()}\nEntregado por: ${
-            existingLoan.Employee?.firstName || "N/A"
-          } ${existingLoan.Employee?.lastName || ""}`
-        );
-
-        // Verificar si ya tiene devolución
-        //*  const returnExists = await checkReturnExistsForLoanApi(existingLoan.id);
-        //*  setHasReturn(returnExists.exists);
-
-        if (!returnExists.exists) {
-          // Si no tiene devolución, preguntar si quiere registrar devolución
-          if (confirm("¿Desea registrar la devolución de este préstamo?")) {
-            setSelectedLoan(existingLoan);
-            setModalContent("return");
-            setModalOpen(true);
-          }
-        }
-        return;
-      }
-
-      // Si no existe préstamo, abrir modal para crear uno
-      setModalContent("loan");
-      setModalOpen(true);
-    } catch (err) {
-      console.error("Error al verificar préstamo:", err);
-      // Si hay error al verificar, permitir crear el préstamo
-      setModalContent("loan");
-      setModalOpen(true);
+  const openLoanModal = (reservation) => {
+    // Verificar si ya tiene préstamo
+    if (reservation.Loan) {
+      alert(
+        `⚠️ Esta reserva ya tiene un préstamo registrado.\n\nPréstamo #${
+          reservation.Loan.id
+        }\nHora de entrega: ${new Date(
+          reservation.Loan.deliveryTime
+        ).toLocaleString()}\nEntregado por: ${
+          reservation.Loan.Employee?.firstName || "N/A"
+        } ${reservation.Loan.Employee?.lastName || ""}`
+      );
+      return;
     }
+
+    // Verificar si está en la ventana de entrega
+    if (!reservation.canRegisterPickup) {
+      alert(
+        "⚠️ La entrega solo puede registrarse dentro de la ventana de ±5 minutos del horario de inicio de la reserva."
+      );
+      return;
+    }
+
+    setSelectedReservation(reservation);
+    setModalContent("loan");
+    setModalOpen(true);
   };
 
-  const openReturnModal = async (reservation) => {
-    setSelectedReservation(reservation);
-
-    try {
-      // Buscar el préstamo asociado a esta reserva
-      // const loan = await getLoanByReservationApi(reservation.id);
-
-      if (!loan) {
-        alert(
-          "❌ No se encontró un préstamo registrado para esta reserva.\nPrimero debe registrar la entrega del recurso."
-        );
-        return;
-      }
-
-      // Verificar si ya tiene devolución
-      //* const returnExists = await checkReturnExistsForLoanApi(loan.id);
-
-      if (returnExists.exists) {
-        alert(
-          `⚠️ Este préstamo ya tiene una devolución registrada.\n\nDevolución registrada el: ${new Date(
-            returnExists.return?.returnTime
-          ).toLocaleString()}\nRecibido por: ${
-            returnExists.return?.Employee?.firstName || "N/A"
-          } ${returnExists.return?.Employee?.lastName || ""}`
-        );
-        return;
-      }
-
-      setSelectedLoan(loan);
-      setHasReturn(false);
-      setModalContent("return");
-      setModalOpen(true);
-    } catch (err) {
-      console.error("Error al verificar devolución:", err);
+  const openReturnModal = (reservation) => {
+    // Verificar si tiene préstamo
+    if (!reservation.Loan) {
       alert(
-        "❌ Error al verificar el préstamo. Por favor, intente nuevamente."
+        "❌ No se encontró un préstamo registrado para esta reserva.\nPrimero debe registrar la entrega del recurso."
       );
+      return;
     }
+
+    // Verificar si ya tiene devolución
+    if (reservation.Loan.Return) {
+      alert(
+        `⚠️ Este préstamo ya tiene una devolución registrada.\n\nDevolución registrada el: ${new Date(
+          reservation.Loan.Return.returnTime
+        ).toLocaleString()}`
+      );
+      return;
+    }
+
+    setSelectedReservation(reservation);
+    setModalContent("return");
+    setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setSelectedReservation(null);
-    setSelectedLoan(null);
     setModalContent(null);
-    setHasReturn(false);
   };
 
   const handleLoanSuccess = (loan) => {
@@ -174,7 +138,6 @@ const LoansManagement = () => {
     if (absMinutes < 60) {
       return `${Math.round(minutes)} min`;
     } else if (absMinutes < 1440) {
-      // Menos de 24 horas
       const hours = Math.floor(absMinutes / 60);
       const mins = Math.round(absMinutes % 60);
       return `${minutes < 0 ? "-" : ""}${hours}h ${
@@ -187,16 +150,6 @@ const LoansManagement = () => {
         hours > 0 ? `${hours}h` : ""
       }`;
     }
-  };
-
-  // Determinar si puede registrar entrega
-  const canRegisterPickup = (reservation) => {
-    const now = new Date();
-    const startTime = new Date(reservation.startDateTime);
-    const timeDiff = (startTime - now) / (1000 * 60); // minutos
-
-    // Puede registrar si está dentro de ±5 minutos O si ya pasó (retrasado)
-    return Math.abs(timeDiff) <= 5 || timeDiff < -5;
   };
 
   // Renderizar tiempo faltante con colores
@@ -256,6 +209,19 @@ const LoansManagement = () => {
     );
   };
 
+  // Renderizar estado del proceso
+  const renderProcessStatus = (reservation) => {
+    if (reservation.Loan) {
+      if (reservation.Loan.Return) {
+        return <span className="process-badge completed">✅ Completado</span>;
+      } else {
+        return <span className="process-badge delivered">📦 Entregado</span>;
+      }
+    } else {
+      return <span className="process-badge pending">⏳ Sin entregar</span>;
+    }
+  };
+
   // Manejar cambios de filtro
   const handleFilterChange = (filterName, value) => {
     setFilters((prev) => ({
@@ -279,24 +245,10 @@ const LoansManagement = () => {
   const getStats = () => {
     const stats = {
       total: reservations.length,
-      readyForPickup: reservations.filter((r) => {
-        const now = new Date();
-        const startTime = new Date(r.startDateTime);
-        const timeDiff = (startTime - now) / (1000 * 60);
-        return Math.abs(timeDiff) <= 5;
-      }).length,
-      overdue: reservations.filter((r) => {
-        const now = new Date();
-        const startTime = new Date(r.startDateTime);
-        const timeDiff = (startTime - now) / (1000 * 60);
-        return timeDiff < -5;
-      }).length,
-      future: reservations.filter((r) => {
-        const now = new Date();
-        const startTime = new Date(r.startDateTime);
-        const timeDiff = (startTime - now) / (1000 * 60);
-        return timeDiff > 5;
-      }).length,
+      pendingDelivery: reservations.filter((r) => !r.Loan).length,
+      delivered: reservations.filter((r) => r.Loan && !r.Loan.Return).length,
+      readyForPickup: reservations.filter((r) => r.canRegisterPickup).length,
+      readyForReturn: reservations.filter((r) => r.canRegisterReturn).length,
     };
     return stats;
   };
@@ -331,22 +283,9 @@ const LoansManagement = () => {
                 📋
               </div>
               <div className="stat-details">
-                <h3 className="stat-title">Total Reservas</h3>
+                <h3 className="stat-title">Total Activas</h3>
                 <p className="stat-value">{stats.total}</p>
-                <p className="stat-description">Activas y sin préstamo</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="stat-card">
-            <div className="stat-content">
-              <div className="stat-icon" style={{ backgroundColor: "#10b981" }}>
-                ✅
-              </div>
-              <div className="stat-details">
-                <h3 className="stat-title">Listas para entrega</h3>
-                <p className="stat-value">{stats.readyForPickup}</p>
-                <p className="stat-description">Dentro de ±5 minutos</p>
+                <p className="stat-description">En proceso</p>
               </div>
             </div>
           </Card>
@@ -357,22 +296,40 @@ const LoansManagement = () => {
                 ⏳
               </div>
               <div className="stat-details">
-                <h3 className="stat-title">Futuras</h3>
-                <p className="stat-value">{stats.future}</p>
-                <p className="stat-description">Más de 5 min de diferencia</p>
+                <h3 className="stat-title">Sin Entregar</h3>
+                <p className="stat-value">{stats.pendingDelivery}</p>
+                <p className="stat-description">Esperando entrega</p>
               </div>
             </div>
           </Card>
 
           <Card className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon" style={{ backgroundColor: "#ef4444" }}>
-                ⚠️
+              <div className="stat-icon" style={{ backgroundColor: "#10b981" }}>
+                📦
               </div>
               <div className="stat-details">
-                <h3 className="stat-title">Retrasados</h3>
-                <p className="stat-value">{stats.overdue}</p>
-                <p className="stat-description">Fuera de lapso</p>
+                <h3 className="stat-title">Entregados</h3>
+                <p className="stat-value">{stats.delivered}</p>
+                <p className="stat-description">Esperando devolución</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="stat-card">
+            <div className="stat-content">
+              <div className="stat-icon" style={{ backgroundColor: "#8b5cf6" }}>
+                ✅
+              </div>
+              <div className="stat-details">
+                <h3 className="stat-title">Listos</h3>
+                <p className="stat-value">
+                  {stats.readyForPickup + stats.readyForReturn}
+                </p>
+                <p className="stat-description">
+                  {stats.readyForPickup} para entregar, {stats.readyForReturn}{" "}
+                  para devolver
+                </p>
               </div>
             </div>
           </Card>
@@ -436,7 +393,7 @@ const LoansManagement = () => {
             <p>📭 No hay reservas activas en este momento</p>
             <small>
               Las reservas aparecerán aquí cuando estén confirmadas y pendientes
-              de entrega
+              de entrega o devolución
             </small>
           </div>
         ) : (
@@ -448,7 +405,7 @@ const LoansManagement = () => {
                   <th>Recurso</th>
                   <th>Usuario</th>
                   <th>Fecha/Hora Inicio</th>
-                  <th>Propósito</th>
+                  <th>Estado del Proceso</th>
                   <th>Tiempo Faltante</th>
                   <th>Ventana de Entrega</th>
                   <th>Acciones</th>
@@ -465,17 +422,6 @@ const LoansManagement = () => {
                           {reservation.Resource.ResourceType.name} •{" "}
                           {reservation.Resource.ResourceType.Unit.name}
                         </small>
-                        {reservation.Resource.features && (
-                          <small className="resource-features">
-                            {Object.entries(reservation.Resource.features).map(
-                              ([key, value]) => (
-                                <span key={key}>
-                                  {key}: {value}
-                                </span>
-                              )
-                            )}
-                          </small>
-                        )}
                       </div>
                     </td>
                     <td>
@@ -485,10 +431,6 @@ const LoansManagement = () => {
                           {reservation.User.lastName}
                         </strong>
                         <small>{reservation.User.email}</small>
-                        <small>
-                          {reservation.User.rol} • ID:{" "}
-                          {reservation.User.identificationNumber}
-                        </small>
                       </div>
                     </td>
                     <td>
@@ -506,48 +448,53 @@ const LoansManagement = () => {
                             minute: "2-digit",
                           })}
                         </small>
-                        <small>
-                          Duración:{" "}
-                          {Math.round(
-                            (new Date(reservation.endDateTime) -
-                              new Date(reservation.startDateTime)) /
-                              (1000 * 60)
-                          )}{" "}
-                          min
-                        </small>
                       </div>
                     </td>
-                    <td>
-                      <div className="purpose-info">
-                        {reservation.purpose}
-                        <small>Asistentes: {reservation.attendees}</small>
-                      </div>
-                    </td>
+                    <td>{renderProcessStatus(reservation)}</td>
                     <td>{renderTimeRemaining(reservation)}</td>
                     <td>{formatDeliveryWindow(reservation)}</td>
                     <td>
                       <div className="action-buttons">
-                        <button
-                          onClick={() => openLoanModal(reservation)}
-                          className="btn-action btn-pickup"
-                          title="Registrar entrega"
-                          disabled={!canRegisterPickup(reservation)}
-                        >
-                          📦 Entregar
-                        </button>
-
-                        <button
-                          onClick={() => openReturnModal(reservation)}
-                          className="btn-action btn-return"
-                          title="Registrar devolución"
-                        >
-                          ↩️ Devolver
-                        </button>
-                        <small className="action-note">
-                          {!canRegisterPickup(reservation)
-                            ? "Disponible dentro de la ventana de entrega"
-                            : "Haz clic para registrar entrega"}
-                        </small>
+                        {!reservation.Loan ? (
+                          <>
+                            <button
+                              onClick={() => openLoanModal(reservation)}
+                              className="btn-action btn-pickup"
+                              title="Registrar entrega"
+                              disabled={!reservation.canRegisterPickup}
+                            >
+                              📦 Entregar
+                            </button>
+                            <small className="action-note">
+                              {!reservation.canRegisterPickup
+                                ? "Disponible dentro de la ventana de entrega"
+                                : "Haz clic para registrar entrega"}
+                            </small>
+                          </>
+                        ) : !reservation.Loan.Return ? (
+                          <>
+                            <button
+                              onClick={() => openReturnModal(reservation)}
+                              className="btn-action btn-return"
+                              title="Registrar devolución"
+                            >
+                              ↩️ Devolver
+                            </button>
+                            <small className="action-note action-note-success">
+                              Entregado el{" "}
+                              {new Date(
+                                reservation.Loan.deliveryTime
+                              ).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </small>
+                          </>
+                        ) : (
+                          <small className="action-note action-note-completed">
+                            ✅ Proceso completado
+                          </small>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -613,37 +560,34 @@ const LoansManagement = () => {
         <h3>📋 Instrucciones para préstamos:</h3>
         <ol>
           <li>
+            <strong>Ciclo completo</strong>: Las reservas permanecen en la lista
+            hasta que se completa la devolución
+          </li>
+          <li>
             <strong>Ventana de entrega</strong>: ±5 minutos del horario de
             inicio de la reserva
           </li>
           <li>
             <strong>Botón "Entregar"</strong>: Solo disponible DENTRO de la
-            ventana de entrega o si YA PASÓ (retrasado)
+            ventana de entrega
           </li>
           <li>
-            <strong>Fallo de servicio</strong>: Se marca automáticamente si la
-            entrega está fuera de ±5 minutos
+            <strong>Botón "Devolver"</strong>: Disponible DESPUÉS de registrar
+            la entrega
           </li>
           <li>
-            <strong>Botón "Devolver"</strong>: Solo disponible después de
-            registrar la entrega y antes de registrar la devolución
-          </li>
-          <li>
-            <strong>Tiempo faltante</strong>:
+            <strong>Estados del proceso</strong>:
             <ul>
               <li>
-                <span className="time-badge ready">✅</span> Dentro de ventana
-                (±5 min)
+                <span className="process-badge pending">⏳</span> Sin entregar
               </li>
               <li>
-                <span className="time-badge overdue">⚠️</span> Retrasado (fuera
-                de ventana)
+                <span className="process-badge delivered">📦</span> Entregado
+                (esperando devolución)
               </li>
               <li>
-                <span className="time-badge soon">🕐</span> Próximo (5-60 min)
-              </li>
-              <li>
-                <span className="time-badge future">📅</span> Futuro (+60 min)
+                <span className="process-badge completed">✅</span> Completado
+                (sale de la lista)
               </li>
             </ul>
           </li>
@@ -664,10 +608,8 @@ const LoansManagement = () => {
             ? selectedReservation
               ? `Reserva #${selectedReservation.id} - ${selectedReservation.Resource?.name}`
               : "Cargando..."
-            : selectedLoan
-            ? `Préstamo #${selectedLoan.id} - ${
-                selectedLoan.Reservation?.Resource?.name || "N/A"
-              }`
+            : selectedReservation
+            ? `Préstamo #${selectedReservation.Loan?.id} - ${selectedReservation.Resource?.name}`
             : "Cargando..."
         }
         size="large"
@@ -680,9 +622,9 @@ const LoansManagement = () => {
           />
         )}
 
-        {modalContent === "return" && selectedLoan && (
+        {modalContent === "return" && selectedReservation?.Loan && (
           <ReturnForm
-            loan={selectedLoan}
+            loan={selectedReservation.Loan}
             onSuccess={handleReturnSuccess}
             onCancel={closeModal}
           />

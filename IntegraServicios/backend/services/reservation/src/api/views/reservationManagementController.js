@@ -250,23 +250,36 @@ const reservationManagementController = {
         };
       }
 
-      // Obtener IDs de reservas que ya tienen préstamo registrado
-      // CORRECCIÓN: Solo verificar si existe el préstamo, sin consultar status
-      const existingLoans = await Loan.findAll({
-        attributes: ["reservationId"],
-        where: {
-          // Si Loan NO tiene campo status, solo consultamos por existencia
-          reservationId: { [Op.not]: null },
-        },
+      // Obtener IDs de reservas que ya tienen DEVOLUCIÓN registrada
+      // Solo excluir las que ya completaron todo el ciclo
+      const Return = require("../../../../../models/Return");
+
+      const completedReservations = await Reservation.findAll({
+        attributes: ["id"],
+        include: [
+          {
+            model: Loan,
+            attributes: ["id"],
+            required: true,
+            include: [
+              {
+                model: Return,
+                attributes: ["id"],
+                required: true, // Solo las que tienen devolución
+              },
+            ],
+          },
+        ],
+        raw: true,
       });
 
-      const loanedReservationIds = existingLoans.map(
-        (loan) => loan.reservationId
+      const completedReservationIds = completedReservations.map(
+        (item) => item.id
       );
 
-      // Excluir reservas que ya tienen préstamo
-      if (loanedReservationIds.length > 0) {
-        whereConditions.id = { [Op.notIn]: loanedReservationIds };
+      // Excluir reservas que ya tienen devolución registrada
+      if (completedReservationIds.length > 0) {
+        whereConditions.id = { [Op.notIn]: completedReservationIds };
       }
 
       const offset = (page - 1) * limit;
@@ -304,14 +317,18 @@ const reservationManagementController = {
           // Incluir préstamo si existe
           {
             model: Loan,
-            as: "Loan",
             attributes: ["id", "deliveryTime", "hasFailure", "employeeId"],
-            required: false, // LEFT JOIN, no INNER JOIN
+            required: false, // LEFT JOIN
             include: [
               {
                 model: User,
                 as: "Employee",
                 attributes: ["id", "firstName", "lastName"],
+                required: false,
+              },
+              {
+                model: Return,
+                attributes: ["id", "returnTime", "hasFailure"],
                 required: false,
               },
             ],
@@ -323,37 +340,40 @@ const reservationManagementController = {
         distinct: true,
       });
 
-      // Filtrar para asegurar que no tengan préstamo registrado
-      // Si el préstamo tiene deliveryTime, significa que ya fue entregado
-      const filteredReservations = reservations.filter(
-        (reservation) => !reservation.Loan || !reservation.Loan.deliveryTime
-      );
-
-      // Calcular tiempos para cada reserva
+      // Calcular información para cada reserva
       const now = new Date();
-      const reservationsWithTimeInfo = filteredReservations.map(
-        (reservation) => {
-          const reservationData = reservation.toJSON();
-          const startTime = new Date(reservation.startDateTime);
-          const timeDiff = (startTime - now) / (1000 * 60); // minutos
+      const reservationsWithTimeInfo = reservations.map((reservation) => {
+        const reservationData = reservation.toJSON();
+        const startTime = new Date(reservation.startDateTime);
+        const timeDiff = (startTime - now) / (1000 * 60); // minutos
 
-          // Determinar si está dentro del lapso de entrega (±5 minutos)
-          const withinDeliveryWindow = timeDiff <= 5 && timeDiff >= -5;
+        // Determinar si está dentro del lapso de entrega (±5 minutos)
+        const withinDeliveryWindow = timeDiff <= 5 && timeDiff >= -5;
 
-          return {
-            ...reservationData,
-            canRegisterPickup: withinDeliveryWindow,
-            timeUntilStart: Math.round(timeDiff),
-            pickupStatus: reservation.Loan ? "has_loan" : "pending",
-            isOverdue: timeDiff < -5,
-            deliveryWindow: {
-              start: new Date(startTime.getTime() - 5 * 60000).toISOString(),
-              end: new Date(startTime.getTime() + 5 * 60000).toISOString(),
-              currentTime: now.toISOString(),
-            },
-          };
+        // Determinar estado del proceso
+        let processStatus = "pending_delivery"; // Esperando entrega
+        if (reservation.Loan) {
+          if (reservation.Loan.Return) {
+            processStatus = "completed"; // Completado (no debería aparecer aquí)
+          } else {
+            processStatus = "pending_return"; // Esperando devolución
+          }
         }
-      );
+
+        return {
+          ...reservationData,
+          canRegisterPickup: !reservation.Loan && withinDeliveryWindow,
+          canRegisterReturn: reservation.Loan && !reservation.Loan.Return,
+          timeUntilStart: Math.round(timeDiff),
+          processStatus,
+          isOverdue: timeDiff < -5,
+          deliveryWindow: {
+            start: new Date(startTime.getTime() - 5 * 60000).toISOString(),
+            end: new Date(startTime.getTime() + 5 * 60000).toISOString(),
+            currentTime: now.toISOString(),
+          },
+        };
+      });
 
       res.json({
         success: true,
@@ -366,8 +386,10 @@ const reservationManagementController = {
           availableForPickup: reservationsWithTimeInfo.filter(
             (r) => r.canRegisterPickup
           ).length,
+          availableForReturn: reservationsWithTimeInfo.filter(
+            (r) => r.canRegisterReturn
+          ).length,
           overdue: reservationsWithTimeInfo.filter((r) => r.isOverdue).length,
-          availableCount: filteredReservations.length,
         },
       });
     } catch (error) {
