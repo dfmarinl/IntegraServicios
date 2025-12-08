@@ -1,7 +1,7 @@
 // api/waysoftApi.js
 // Cliente para consumir la API Waysoft
 
-const API_URL = 'http://localhost:4001';
+const API_URL = 'https://integracion-ozlg.onrender.com';
 const API_KEY = 'waysoft-consultas-only-2024';
 
 /**
