@@ -17,6 +17,10 @@ const ReservationCalendar = ({
   const isFetchingSlots = useRef(false);
   const lastDateFetched = useRef(null);
   
+  // Estado para slots filtrados
+  const [filteredTimeSlots, setFilteredTimeSlots] = useState([]);
+  const [filteredAvailableSlots, setFilteredAvailableSlots] = useState([]);
+  
   // Función para obtener fecha inicial segura
   const getInitialDate = useCallback(() => {
     const now = new Date();
@@ -98,8 +102,82 @@ const ReservationCalendar = ({
     today.setHours(0, 0, 0, 0);
     selected.setHours(0, 0, 0, 0);
     
-    setIsTodaySelected(today.getTime() === selected.getTime());
+    const isToday = today.getTime() === selected.getTime();
+    setIsTodaySelected(isToday);
+    
+    // Si cambia el estado de "hoy", aplicar filtro
+    if (availableTimeSlots.length > 0) {
+      applyTodayFilter(isToday);
+    }
   }, [selectedDate]);
+
+  // Aplicar filtro cuando cambia el estado de "hoy" o los slots
+  useEffect(() => {
+    if (availableTimeSlots.length > 0) {
+      applyTodayFilter(isTodaySelected);
+    }
+  }, [availableTimeSlots, isTodaySelected]);
+
+  // Aplicar filtro a availableSlots también
+  useEffect(() => {
+    if (availableSlots && availableSlots.length > 0) {
+      applyFilterToAvailableSlots(isTodaySelected);
+    }
+  }, [availableSlots, isTodaySelected]);
+
+  // Función para aplicar filtro cuando es hoy
+  const applyTodayFilter = (isToday) => {
+    if (isToday && availableTimeSlots.length > 0) {
+      const filtered = filterTodaySlots(availableTimeSlots);
+      setFilteredTimeSlots(filtered);
+      
+      // Si no hay slots filtrados, limpiar selección
+      if (filtered.length === 0) {
+        setStartTime("");
+        setEndTime("");
+      } else if (!filtered.includes(startTime)) {
+        // Si la hora actual seleccionada no está en los filtrados, seleccionar la primera disponible
+        setStartTime(filtered[0]);
+        if (filtered.length > 1) {
+          setEndTime(filtered[1]);
+        }
+      }
+    } else {
+      setFilteredTimeSlots(availableTimeSlots);
+    }
+  };
+
+  // Función para aplicar filtro a availableSlots
+  const applyFilterToAvailableSlots = (isToday) => {
+    if (isToday && availableSlots && availableSlots.length > 0) {
+      const filtered = availableSlots.filter(slot => {
+        const slotTime = slot.startTimeFormatted;
+        const now = new Date();
+        const minTime = new Date(now.getTime() + 15 * 60 * 1000);
+        const currentHour = minTime.getHours();
+        const currentMinute = minTime.getMinutes();
+        
+        // Redondear al siguiente intervalo
+        const granularity = resourceType?.granularity || 30;
+        const roundedMinutes = Math.ceil(currentMinute / granularity) * granularity;
+        
+        let nextHour = currentHour;
+        let nextMinute = roundedMinutes;
+        
+        if (nextMinute >= 60) {
+          nextHour += 1;
+          nextMinute = 0;
+        }
+        
+        const minTimeStr = `${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`;
+        
+        return slotTime >= minTimeStr;
+      });
+      setFilteredAvailableSlots(filtered);
+    } else {
+      setFilteredAvailableSlots(availableSlots || []);
+    }
+  };
 
   // Cargar slots disponibles SOLO cuando cambia la fecha o el recurso
   useEffect(() => {
@@ -118,6 +196,8 @@ const ReservationCalendar = ({
   useEffect(() => {
     clearAvailabilityResult();
     setDateError("");
+    setFilteredTimeSlots([]);
+    setFilteredAvailableSlots([]);
   }, [selectedDate, startTime, endTime]);
 
   // Calcular fechas de repetición cuando cambia la configuración
@@ -220,7 +300,51 @@ const ReservationCalendar = ({
     return daysMap[dayNumber] || `Día ${dayNumber}`;
   };
 
-  // Carga de slots disponibles - CORREGIDA
+  // Función para filtrar slots disponibles cuando es hoy
+  const filterTodaySlots = (slots) => {
+    if (!isTodaySelected || !Array.isArray(slots) || slots.length === 0) {
+      return slots;
+    }
+    
+    const now = new Date();
+    // Calcular la hora mínima para reservas hoy (15 minutos de anticipación)
+    const minTime = new Date(now.getTime() + 15 * 60 * 1000);
+    const currentHour = minTime.getHours();
+    const currentMinute = minTime.getMinutes();
+    
+    // Redondear al siguiente intervalo según la granularidad
+    const granularity = resourceType?.granularity || 30;
+    const roundedMinutes = Math.ceil(currentMinute / granularity) * granularity;
+    
+    let nextHour = currentHour;
+    let nextMinute = roundedMinutes;
+    
+    if (nextMinute >= 60) {
+      nextHour += 1;
+      nextMinute = 0;
+    }
+    
+    // Formatear la hora mínima como string HH:MM
+    const minTimeStr = `${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`;
+    
+    console.log(`🕒 Hoy - Hora actual: ${now.getHours()}:${now.getMinutes()}`);
+    console.log(`⏱️  Hora mínima para reserva (15 min anticipación): ${minTimeStr}`);
+    console.log(`📊 Slots recibidos:`, slots);
+    
+    // Filtrar slots que sean iguales o posteriores a la hora mínima
+    const filteredSlots = slots.filter(slot => {
+      // slot puede ser un string "HH:MM" o un objeto con startTimeFormatted
+      const slotTime = typeof slot === 'string' ? slot : slot.startTimeFormatted;
+      return slotTime >= minTimeStr;
+    });
+    
+    console.log(`📊 Slots originales: ${slots.length}, Slots filtrados para hoy: ${filteredSlots.length}`);
+    console.log(`📋 Slots filtrados:`, filteredSlots);
+    
+    return filteredSlots;
+  };
+
+  // Carga de slots disponibles - MODIFICADA
   const loadAvailableSlots = async () => {
     // Verificar fecha pasada antes de hacer la llamada
     const now = new Date();
@@ -237,8 +361,9 @@ const ReservationCalendar = ({
     if (selectedDateOnly < today) {
       setDateError("⚠️ No se pueden consultar fechas pasadas");
       setAvailableTimeSlots([]);
-      setStartTime("09:00");
-      setEndTime("10:00");
+      setFilteredTimeSlots([]);
+      setStartTime("");
+      setEndTime("");
       return;
     }
     
@@ -251,30 +376,57 @@ const ReservationCalendar = ({
       isFetchingSlots.current = true;
       
       const dateStr = selectedDate.toISOString().split('T')[0];
-      console.log('🔍 Solicitando slots para fecha:', dateStr);
+      console.log('🔍 Solicitando slots para fecha:', dateStr, 'Hoy:', isTodaySelected);
       
       const result = await getAvailableSlots(resource.id, dateStr);
       
       if (result && result.length > 0) {
+        // Filtrar slots disponibles y formatearlos
         const availableSlotsList = result
           .filter(slot => slot.isAvailable)
           .map(slot => slot.startTimeFormatted);
-      
+        
         setAvailableTimeSlots(availableSlotsList);
         setDateError("");
 
-        if (availableSlotsList.length > 0) {
-          setStartTime(availableSlotsList[0]);
-          const nextSlotIndex = 1;
-          const endTimeValue = availableSlotsList[nextSlotIndex] || availableSlotsList[0];
-          setEndTime(endTimeValue);
+        // Aplicar filtro si es hoy
+        let finalSlots = availableSlotsList;
+        if (isTodaySelected) {
+          finalSlots = filterTodaySlots(availableSlotsList);
+          setFilteredTimeSlots(finalSlots);
         } else {
-          setStartTime("09:00");
-          setEndTime("10:00");
+          setFilteredTimeSlots(availableSlotsList);
+        }
+
+        if (finalSlots.length > 0) {
+          // Seleccionar el primer slot disponible
+          setStartTime(finalSlots[0]);
+          
+          // Intentar seleccionar el siguiente slot como hora de fin
+          if (finalSlots.length > 1) {
+            setEndTime(finalSlots[1]);
+          } else {
+            // Si solo hay un slot, usar una hora después como fallback
+            const startTimeParts = finalSlots[0].split(':');
+            let endHour = parseInt(startTimeParts[0]) + 1;
+            if (endHour > 23) endHour = 23;
+            setEndTime(`${endHour.toString().padStart(2, '0')}:${startTimeParts[1]}`);
+          }
+        } else {
+          // No hay slots disponibles
+          setStartTime("");
+          setEndTime("");
+          
+          if (isTodaySelected) {
+            setDateError("⚠️ No hay horarios disponibles para hoy en este momento");
+          }
         }
       } else {
         console.warn('⚠️ No se recibieron slots del servidor');
         setAvailableTimeSlots([]);
+        setFilteredTimeSlots([]);
+        setStartTime("");
+        setEndTime("");
       }
       
     } catch (error) {
@@ -295,8 +447,9 @@ const ReservationCalendar = ({
       }
       
       setAvailableTimeSlots([]);
-      setStartTime("09:00");
-      setEndTime("10:00");
+      setFilteredTimeSlots([]);
+      setStartTime("");
+      setEndTime("");
     } finally {
       isFetchingSlots.current = false;
     }
@@ -373,20 +526,33 @@ const ReservationCalendar = ({
     setCalculatedDates(dates);
   };
 
-  // Función para generar opciones de tiempo
+  // Función para generar opciones de tiempo - USAR filteredTimeSlots
   const generateTimeOptions = () => {
+    // Usar los slots filtrados si hay
+    if (filteredTimeSlots.length > 0) {
+      return filteredTimeSlots;
+    }
+    
+    // Si no hay slots filtrados pero sí hay slots originales (cuando no es hoy)
     if (availableTimeSlots.length > 0) {
       return availableTimeSlots;
     }
     
     // Fallback: horarios predeterminados
-    return [
+    const defaultSlots = [
       "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
       "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
       "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
       "17:00", "17:30", "18:00", "18:30", "19:00", "19:30",
       "20:00", "20:30"
     ];
+    
+    // Si es hoy, filtrar los slots predeterminados
+    if (isTodaySelected) {
+      return filterTodaySlots(defaultSlots);
+    }
+    
+    return defaultSlots;
   };
 
   // Verificar disponibilidad
@@ -401,6 +567,11 @@ const ReservationCalendar = ({
       endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
 
       // Validaciones del frontend
+      if (!startTime || !endTime) {
+        alert("❌ Por favor selecciona horarios válidos");
+        return;
+      }
+
       if (startDateTime >= endDateTime) {
         alert("❌ La hora de fin debe ser posterior a la hora de inicio");
         return;
@@ -410,14 +581,14 @@ const ReservationCalendar = ({
       const now = new Date();
       const diffMinutes = Math.floor((startDateTime - now) / (1000 * 60));
       
-      if (diffMinutes < 15) {
+      if (isTodaySelected && diffMinutes < 15) {
         alert(`⚠️ Las reservas deben hacerse con al menos 15 minutos de anticipación.\n\nTiempo hasta la reserva: ${diffMinutes} minutos`);
         return;
       }
 
       // Verificar que los horarios seleccionados estén disponibles
-      const isStartTimeAvailable = availableTimeSlots.includes(startTime);
-      const isEndTimeAvailable = availableTimeSlots.includes(endTime);
+      const isStartTimeAvailable = filteredTimeSlots.includes(startTime);
+      const isEndTimeAvailable = filteredTimeSlots.includes(endTime);
 
       if (!isStartTimeAvailable || !isEndTimeAvailable) {
         alert("⚠️ Los horarios seleccionados pueden no estar disponibles. Por favor verifica la disponibilidad.");
@@ -478,16 +649,23 @@ const ReservationCalendar = ({
       const now = new Date();
       
       // Validaciones finales
+      if (!startTime || !endTime) {
+        alert("❌ Por favor selecciona horarios válidos");
+        return;
+      }
+
       if (startDateTime >= endDateTime) {
         alert("❌ La hora de fin debe ser posterior a la hora de inicio");
         return;
       }
 
-      // Validar margen mínimo de 15 minutos
-      const diffMinutes = Math.floor((startDateTime - now) / (1000 * 60));
-      if (diffMinutes < 15) {
-        alert(`⚠️ Las reservas deben hacerse con al menos 15 minutos de anticipación.\n\nTiempo hasta la reserva: ${diffMinutes} minutos`);
-        return;
+      // Validar margen mínimo de 15 minutos si es hoy
+      if (isTodaySelected) {
+        const diffMinutes = Math.floor((startDateTime - now) / (1000 * 60));
+        if (diffMinutes < 15) {
+          alert(`⚠️ Las reservas deben hacerse con al menos 15 minutos de anticipación.\n\nTiempo hasta la reserva: ${diffMinutes} minutos`);
+          return;
+        }
       }
 
       // Si hay resultado de disponibilidad, verificar que sea positiva
@@ -554,9 +732,11 @@ const ReservationCalendar = ({
     
     setSelectedDate(date);
     // Limpiar selecciones de tiempo al cambiar fecha
-    setStartTime("09:00");
-    setEndTime("10:00");
+    setStartTime("");
+    setEndTime("");
     setDateError("");
+    setFilteredTimeSlots([]);
+    setFilteredAvailableSlots([]);
   };
 
   // Seleccionar días para repetición semanal
@@ -568,6 +748,7 @@ const ReservationCalendar = ({
     }
   };
 
+  // Usar filteredTimeSlots para las opciones
   const timeOptions = generateTimeOptions();
   const isFormValid = purpose.trim() && startTime && endTime && parseInt(attendees) >= 1;
   
@@ -610,6 +791,10 @@ const ReservationCalendar = ({
   // Calcular si hay horarios disponibles para el día seleccionado
   const hasSchedulesForSelectedDay = schedulesForSelectedDay.length > 0;
 
+  // Calcular slots disponibles para mostrar en el contador
+  const slotsToShowCount = filteredTimeSlots.length > 0 ? filteredTimeSlots.length : 
+                         (availableTimeSlots.length > 0 ? availableTimeSlots.length : 0);
+
   return (
     <div className="reservation-calendar">
       <div className="calendar-header">
@@ -622,6 +807,11 @@ const ReservationCalendar = ({
           <span className="timezone-info">
             🌍 Zona horaria: Colombia (UTC-5)
           </span>
+          {isTodaySelected && (
+            <span className="today-restriction">
+              ⏰ Hoy: slots desde hora actual + 15 min
+            </span>
+          )}
         </div>
       </div>
 
@@ -709,7 +899,7 @@ const ReservationCalendar = ({
                   return (
                     <div key={index} className="selected-day-slot">
                       <span className="slot-time">{startTimeStr} - {endTimeStr}</span>
-                      {availableTimeSlots.includes(startTimeStr) ? (
+                      {(filteredTimeSlots.includes(startTimeStr) || availableTimeSlots.includes(startTimeStr)) ? (
                         <span className="slot-status available">✅ Disponible</span>
                       ) : (
                         <span className="slot-status unavailable">❌ Ocupado</span>
@@ -732,8 +922,8 @@ const ReservationCalendar = ({
           ) : (
             <div className="slots-summary">
               <span className="slots-count">
-                {availableTimeSlots.length > 0 ? (
-                  `📊 ${availableTimeSlots.length} horarios disponibles`
+                {slotsToShowCount > 0 ? (
+                  `📊 ${slotsToShowCount} horarios disponibles ${isTodaySelected ? '(filtrados para hoy)' : ''}`
                 ) : dateError ? (
                   <span className="error-text">{dateError}</span>
                 ) : (
@@ -741,7 +931,7 @@ const ReservationCalendar = ({
                 )}
               </span>
               <span className="selected-date">
-                {formattedDate} {isTodaySelected && ' (Hoy)'}
+                {formattedDate} {isTodaySelected && ' (Hoy - slots filtrados)'}
               </span>
             </div>
           )}
@@ -770,7 +960,7 @@ const ReservationCalendar = ({
           />
           <small className="date-hint">
             {isTodaySelected ? (
-              "✅ Hoy - selecciona una hora con al menos 15 minutos de anticipación"
+              "✅ Hoy - slots desde hora actual + 15 min de anticipación"
             ) : (
               "Solo se pueden seleccionar hoy o fechas futuras"
             )}
@@ -789,23 +979,21 @@ const ReservationCalendar = ({
               value={startTime} 
               onChange={(e) => setStartTime(e.target.value)}
               className="time-select"
-              disabled={loadingSlots || dateError || availableTimeSlots.length === 0}
+              disabled={loadingSlots || dateError || slotsToShowCount === 0}
             >
-              {timeOptions.length > 0 ? (
-                timeOptions.map(slot => (
-                  <option 
-                    key={`start-${slot}`} 
-                    value={slot}
-                    disabled={!availableTimeSlots.includes(slot)}
-                  >
-                    {slot} {availableTimeSlots.includes(slot) ? '✅' : '❌'}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>
-                  {dateError ? 'Fecha rechazada' : 'No hay horarios disponibles'}
+              <option value="" disabled>
+                {loadingSlots ? 'Cargando...' : 
+                 dateError ? 'Fecha rechazada' : 
+                 slotsToShowCount === 0 ? 'No hay slots disponibles' : 'Selecciona hora'}
+              </option>
+              {timeOptions.length > 0 && timeOptions.map(slot => (
+                <option 
+                  key={`start-${slot}`} 
+                  value={slot}
+                >
+                  {slot} {(filteredTimeSlots.includes(slot) || availableTimeSlots.includes(slot)) ? '✅' : '❌'}
                 </option>
-              )}
+              ))}
             </select>
             {loadingSlots && <small className="loading-text">Cargando horarios...</small>}
             {dateError && <small className="error-text">Selecciona otra fecha</small>}
@@ -818,33 +1006,31 @@ const ReservationCalendar = ({
               value={endTime} 
               onChange={(e) => setEndTime(e.target.value)}
               className="time-select"
-              disabled={loadingSlots || dateError || availableTimeSlots.length === 0}
+              disabled={loadingSlots || dateError || slotsToShowCount === 0}
             >
-              {timeOptions.length > 0 ? (
-                timeOptions.map(slot => (
-                  <option 
-                    key={`end-${slot}`} 
-                    value={slot}
-                    disabled={!availableTimeSlots.includes(slot)}
-                  >
-                    {slot} {availableTimeSlots.includes(slot) ? '✅' : '❌'}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>
-                  {dateError ? 'Fecha rechazada' : 'No hay horarios disponibles'}
+              <option value="" disabled>
+                {loadingSlots ? 'Cargando...' : 
+                 dateError ? 'Fecha rechazada' : 
+                 slotsToShowCount === 0 ? 'No hay slots disponibles' : 'Selecciona hora'}
+              </option>
+              {timeOptions.length > 0 && timeOptions.map(slot => (
+                <option 
+                  key={`end-${slot}`} 
+                  value={slot}
+                >
+                  {slot} {(filteredTimeSlots.includes(slot) || availableTimeSlots.includes(slot)) ? '✅' : '❌'}
                 </option>
-              )}
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Previsualización de slots del día */}
-        {availableSlots && availableSlots.length > 0 && !dateError && (
+        {/* Previsualización de slots del día - USAR filteredAvailableSlots */}
+        {filteredAvailableSlots && filteredAvailableSlots.length > 0 && !dateError && (
           <div className="available-slots-preview">
             <h4>📋 Horarios del día (disponibilidad):</h4>
             <div className="slots-grid">
-              {availableSlots.slice(0, 8).map((slot, index) => (
+              {filteredAvailableSlots.slice(0, 8).map((slot, index) => (
                 <div 
                   key={index} 
                   className={`slot-item ${slot.isAvailable ? 'available' : 'occupied'} ${
@@ -859,14 +1045,15 @@ const ReservationCalendar = ({
                 </div>
               ))}
             </div>
-            {availableSlots.length > 8 && (
+            {filteredAvailableSlots.length > 8 && (
               <small className="more-slots">
-                ... y {availableSlots.length - 8} horarios más
+                ... y {filteredAvailableSlots.length - 8} horarios más
               </small>
             )}
           </div>
         )}
 
+        {/* Resto del componente se mantiene igual... */}
         {/* Configuración de repetición */}
         <div className="repeat-section">
           <div className="repeat-toggle">
@@ -1045,7 +1232,7 @@ const ReservationCalendar = ({
         <div className="availability-section">
           <button 
             onClick={handleCheckAvailability}
-            disabled={checkingAvailability || !startTime || !endTime || dateError || availableTimeSlots.length === 0}
+            disabled={checkingAvailability || !startTime || !endTime || dateError || slotsToShowCount === 0}
             className="btn-check-availability"
           >
             {checkingAvailability ? (
@@ -1116,6 +1303,7 @@ const ReservationCalendar = ({
             <li>Las reservas requieren al menos <strong>15 minutos de anticipación</strong></li>
             <li>Activa "Crear reserva repetitiva" para programar múltiples fechas</li>
             <li>Verifica la disponibilidad antes de confirmar</li>
+            <li><strong>HOY:</strong> solo se muestran slots desde la hora actual + 15 minutos</li>
           </ul>
         </div>
       </div>

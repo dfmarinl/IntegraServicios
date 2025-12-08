@@ -462,3 +462,80 @@
     flex-direction: column;
   }
 }
+
+/* Estilos para la sección de ajuste al horario de la unidad */
+.unit-adjust-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.unit-adjust-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit-adjust-section h4::before {
+  content: "⚙️";
+  font-size: 18px;
+}
+
+.adjust-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-adjust {
+  background: rgba(255, 255, 255, 0.9);
+  color: #764ba2;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-adjust:hover:not(:disabled) {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-adjust:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adjust-info {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+  flex-grow: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .adjust-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .btn-adjust {
+    width: 100%;
+    justify-content: center;
+  }
+}

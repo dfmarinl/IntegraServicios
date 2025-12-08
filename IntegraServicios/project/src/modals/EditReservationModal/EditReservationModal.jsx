@@ -6,10 +6,6 @@ import "./EditReservationModal.css";
 const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
   const [formData, setFormData] = useState({
     status: '',
-    startDateTime: '',
-    endDateTime: '',
-    purpose: '',
-    attendees: 1,
     notes: ''
   });
   const [loading, setLoading] = useState(false);
@@ -20,10 +16,6 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
     if (reservation) {
       setFormData({
         status: reservation.status,
-        startDateTime: reservation.startDateTime ? new Date(reservation.startDateTime).toISOString().slice(0, 16) : '',
-        endDateTime: reservation.endDateTime ? new Date(reservation.endDateTime).toISOString().slice(0, 16) : '',
-        purpose: reservation.purpose || '',
-        attendees: reservation.attendees || 1,
         notes: ''
       });
     }
@@ -31,35 +23,13 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
 
   const validateForm = () => {
     const errors = {};
-    const now = new Date();
 
     if (!formData.status) {
       errors.status = "El estado es requerido";
     }
 
-    if (formData.startDateTime) {
-      const startDate = new Date(formData.startDateTime);
-      if (startDate < now && reservation.status === 'pendiente') {
-        errors.startDateTime = "No se puede programar en el pasado";
-      }
-    }
-
-    if (formData.endDateTime) {
-      const endDate = new Date(formData.endDateTime);
-      if (formData.startDateTime) {
-        const startDate = new Date(formData.startDateTime);
-        if (endDate <= startDate) {
-          errors.endDateTime = "La fecha de fin debe ser posterior a la de inicio";
-        }
-      }
-    }
-
-    if (formData.purpose && formData.purpose.trim().length === 0) {
-      errors.purpose = "El propósito no puede estar vacío";
-    }
-
-    if (formData.attendees < 1) {
-      errors.attendees = "Debe haber al menos 1 asistente";
+    if (formData.notes && formData.notes.trim().length === 0) {
+      errors.notes = "Las notas no pueden estar vacías";
     }
 
     return errors;
@@ -80,25 +50,26 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
       setValidationErrors({});
 
       const updates = {};
+      
+      // Solo actualizamos el estado
       if (formData.status !== reservation.status) {
         updates.status = formData.status;
       }
-      if (formData.startDateTime && formData.endDateTime) {
-        updates.startDateTime = new Date(formData.startDateTime).toISOString();
-        updates.endDateTime = new Date(formData.endDateTime).toISOString();
-      }
-      if (formData.purpose !== reservation.purpose) {
-        updates.purpose = formData.purpose.trim();
-      }
-      if (formData.attendees !== reservation.attendees) {
-        updates.attendees = formData.attendees;
-      }
+      
+      // Agregar notas solo si se proporcionan
       if (formData.notes.trim()) {
         updates.notes = formData.notes.trim();
       }
 
+      // Si no hay cambios reales, no hacemos la llamada
+      if (Object.keys(updates).length === 0) {
+        onClose();
+        return;
+      }
+
       await updateReservationApi(reservation.id, updates);
       onSuccess();
+      onClose();
     } catch (err) {
       console.error("Error al actualizar reserva:", err);
       setError(err.message || "Error al actualizar la reserva");
@@ -111,7 +82,7 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'attendees' ? parseInt(value) || 1 : value
+      [name]: value
     }));
     // Clear validation error when user starts typing
     if (validationErrors[name]) {
@@ -125,7 +96,7 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Editar Reserva #${reservation.id}`}
+      title={`Editar Estado de Reserva #${reservation.id}`}
       size="medium"
     >
       <form onSubmit={handleSubmit} className="edit-reservation-form">
@@ -136,8 +107,8 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
         )}
 
         <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="status">Estado *</label>
+          <div className="form-group full-width">
+            <label htmlFor="status">Estado Actual *</label>
             <select
               id="status"
               name="status"
@@ -157,117 +128,42 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
             )}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="purpose">Propósito</label>
-            <input
-              type="text"
-              id="purpose"
-              name="purpose"
-              value={formData.purpose}
-              onChange={handleChange}
-              placeholder="Propósito de la reserva"
-              className={`form-input ${validationErrors.purpose ? 'error' : ''}`}
-              disabled={loading}
-            />
-            {validationErrors.purpose && (
-              <span className="error-text">{validationErrors.purpose}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="attendees">Asistentes</label>
-            <input
-              type="number"
-              id="attendees"
-              name="attendees"
-              value={formData.attendees}
-              onChange={handleChange}
-              min="1"
-              max="100"
-              className={`form-input ${validationErrors.attendees ? 'error' : ''}`}
-              disabled={loading}
-            />
-            {validationErrors.attendees && (
-              <span className="error-text">{validationErrors.attendees}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="startDateTime">Fecha y hora de inicio</label>
-            <input
-              type="datetime-local"
-              id="startDateTime"
-              name="startDateTime"
-              value={formData.startDateTime}
-              onChange={handleChange}
-              className={`form-input ${validationErrors.startDateTime ? 'error' : ''}`}
-              disabled={loading || reservation.status !== 'pendiente'}
-            />
-            {validationErrors.startDateTime && (
-              <span className="error-text">{validationErrors.startDateTime}</span>
-            )}
-            {reservation.status !== 'pendiente' && (
-              <small className="help-text">Solo se pueden modificar fechas en reservas pendientes</small>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="endDateTime">Fecha y hora de fin</label>
-            <input
-              type="datetime-local"
-              id="endDateTime"
-              name="endDateTime"
-              value={formData.endDateTime}
-              onChange={handleChange}
-              className={`form-input ${validationErrors.endDateTime ? 'error' : ''}`}
-              disabled={loading || reservation.status !== 'pendiente'}
-            />
-            {validationErrors.endDateTime && (
-              <span className="error-text">{validationErrors.endDateTime}</span>
-            )}
-          </div>
-
           <div className="form-group full-width">
-            <label htmlFor="notes">Notas administrativas</label>
+            <label htmlFor="notes">Notas del Cambio de Estado</label>
             <textarea
               id="notes"
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              placeholder="Agregar notas para esta edición..."
+              placeholder="Motivo del cambio de estado o comentarios..."
               rows="3"
-              className="form-textarea"
+              className={`form-textarea ${validationErrors.notes ? 'error' : ''}`}
               disabled={loading}
             />
-            <small className="help-text">Las notas serán agregadas al historial de la reserva</small>
+            {validationErrors.notes && (
+              <span className="error-text">{validationErrors.notes}</span>
+            )}
+            <small className="help-text">
+              Las notas serán registradas en el historial de la reserva
+            </small>
           </div>
         </div>
 
         <div className="form-summary">
-          <h4>Resumen de cambios</h4>
+          <h4>Resumen de Cambios</h4>
           <ul>
-            {formData.status !== reservation.status && (
+            {formData.status !== reservation.status ? (
               <li>
                 <strong>Estado:</strong> {reservation.status} → {formData.status}
               </li>
+            ) : (
+              <li className="no-changes">No hay cambios en el estado</li>
             )}
-            {formData.purpose !== reservation.purpose && (
+            
+            {formData.notes.trim() && (
               <li>
-                <strong>Propósito:</strong> "{reservation.purpose}" → "{formData.purpose}"
+                <strong>Notas:</strong> "{formData.notes}"
               </li>
-            )}
-            {formData.attendees !== reservation.attendees && (
-              <li>
-                <strong>Asistentes:</strong> {reservation.attendees} → {formData.attendees}
-              </li>
-            )}
-            {formData.startDateTime && formData.endDateTime && (
-              <li>
-                <strong>Horario:</strong> Cambio de fechas programado
-              </li>
-            )}
-            {!Object.keys(formData).some(key => formData[key] !== (reservation[key] || '')) && (
-              <li className="no-changes">No hay cambios pendientes</li>
             )}
           </ul>
         </div>
@@ -284,9 +180,9 @@ const EditReservationModal = ({ isOpen, onClose, reservation, onSuccess }) => {
           <button
             type="submit"
             className="btn-primary"
-            disabled={loading || !Object.keys(formData).some(key => formData[key] !== (reservation[key] || ''))}
+            disabled={loading || formData.status === reservation.status}
           >
-            {loading ? 'Guardando...' : 'Guardar cambios'}
+            {loading ? 'Actualizando...' : 'Actualizar Estado'}
           </button>
         </div>
       </form>

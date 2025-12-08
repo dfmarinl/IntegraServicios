@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { createResourceApi } from "../../api/Resource/Resource";
-import { uploadReosurseImage } from "../../api/Resource/ResourceImg"; // Asegúrate de que la ruta sea correcta
+import { createMultipleResourcesApi } from "../../api/Resource/Resource"; // Cambia a la función múltiple
+import { uploadReosurseImage } from "../../api/Resource/ResourceImg";
 import "./CreateResourceForm.css";
 
 const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
@@ -12,10 +12,12 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
     isAvailable: true,
     isActive: true,
   });
+  const [quantity, setQuantity] = useState(1); // Nueva variable para cantidad
   const [featureKey, setFeatureKey] = useState("");
   const [featureValue, setFeatureValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
 
@@ -35,6 +37,12 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleQuantityChange = (e) => {
+    const value = parseInt(e.target.value) || 1;
+    // Limitar entre 1 y 100
+    setQuantity(Math.max(1, Math.min(100, value)));
   };
 
   const handleImageChange = (e) => {
@@ -109,6 +117,7 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       // Validaciones del frontend
@@ -122,6 +131,10 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
 
       if (!formData.typeId) {
         throw new Error("Debe seleccionar un tipo de recurso");
+      }
+
+      if (quantity < 1 || quantity > 100) {
+        throw new Error("La cantidad debe estar entre 1 y 100");
       }
 
       let finalPhotoUrl = formData.photoUrl;
@@ -142,16 +155,19 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
         }
       }
 
+      // Crear datos para múltiples recursos
       const resourceData = {
         name: formData.name.trim(),
         photoUrl: finalPhotoUrl,
         features: formData.features,
         typeId: parseInt(formData.typeId),
+        quantity: quantity, // Agregar cantidad
         isAvailable: true, // Siempre disponible al crear
         isActive: true, // Siempre activo al crear
       };
 
-      const newResource = await createResourceApi(resourceData);
+      // Usar la nueva API para crear múltiples recursos
+      const result = await createMultipleResourcesApi(resourceData);
 
       // Limpiar formulario
       setFormData({
@@ -162,17 +178,21 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
         isAvailable: true,
         isActive: true,
       });
+      setQuantity(1); // Resetear cantidad
       setFeatureKey("");
       setFeatureValue("");
       setImageFile(null);
       setImagePreview("");
 
+      // Mostrar mensaje de éxito
+      setSuccessMessage(`✅ ${result.message} - ${result.count} recursos creados`);
+
       // Notificar éxito al componente padre
       if (onSuccess) {
-        onSuccess(newResource);
+        onSuccess(result);
       }
     } catch (err) {
-      setError(err.message || "Error al crear el recurso");
+      setError(err.message || "Error al crear los recursos");
     } finally {
       setLoading(false);
     }
@@ -181,10 +201,52 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
   return (
     <form onSubmit={handleSubmit} className="create-resource-form">
       {error && <div className="form-error">{error}</div>}
+      {successMessage && <div className="form-success">{successMessage}</div>}
+
+      {/* Campo para cantidad */}
+      <div className="form-group">
+        <label htmlFor="quantity" className="form-label">
+          Cantidad a crear *
+        </label>
+        <div className="quantity-input-container">
+          <input
+            type="number"
+            id="quantity"
+            min="1"
+            max="100"
+            value={quantity}
+            onChange={handleQuantityChange}
+            className="form-input quantity-input"
+            required
+            disabled={loading}
+          />
+          <div className="quantity-buttons">
+            <button
+              type="button"
+              onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+              className="quantity-btn minus"
+              disabled={loading || quantity <= 1}
+            >
+              -
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuantity(prev => Math.min(100, prev + 1))}
+              className="quantity-btn plus"
+              disabled={loading || quantity >= 100}
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div className="form-hint">
+          Número de recursos idénticos a crear. Los nombres serán: "{formData.name || 'Ejemplo'} 1", "{formData.name || 'Ejemplo'} 2", etc.
+        </div>
+      </div>
 
       <div className="form-group">
         <label htmlFor="name" className="form-label">
-          Nombre del Recurso *
+          Nombre base del recurso *
         </label>
         <input
           type="text"
@@ -193,12 +255,12 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
           value={formData.name}
           onChange={handleChange}
           className="form-input"
-          placeholder="Ej: Computadora Portátil Dell XPS 13"
+          placeholder="Ej: Silla de oficina, Computadora Dell, etc."
           required
           disabled={loading}
         />
         <div className="form-hint">
-          Nombre descriptivo y único para identificar el recurso
+          Nombre descriptivo base. Los recursos se crearán con nombres secuenciales
         </div>
       </div>
 
@@ -277,6 +339,7 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
 
         <div className="form-hint">
           Sube una imagen o proporciona una URL. Formatos aceptados: JPG, PNG, GIF. Tamaño máximo: 5MB.
+          Todos los recursos creados tendrán la misma imagen.
         </div>
       </div>
 
@@ -301,7 +364,7 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
           ))}
         </select>
         <div className="form-hint">
-          Selecciona la categoría a la que pertenece este recurso
+          Selecciona la categoría a la que pertenecen estos recursos
         </div>
       </div>
 
@@ -340,14 +403,14 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
             </button>
           </div>
           <div className="form-hint">
-            Agrega características específicas del recurso (ej: capacidad, modelo, especificaciones técnicas)
+            Características que compartirán todos los recursos creados (ej: capacidad, modelo, especificaciones técnicas)
           </div>
         </div>
 
         {/* Lista de características agregadas */}
         {Object.keys(formData.features).length > 0 && (
           <div className="features-list">
-            <p className="features-list-title">Características agregadas:</p>
+            <p className="features-list-title">Características compartidas:</p>
             {Object.entries(formData.features).map(([key, value]) => (
               <div key={key} className="feature-item">
                 <span className="feature-key">{key}:</span>
@@ -381,11 +444,11 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
               disabled={loading}
             />
             <span className="checkbox-custom"></span>
-            <span className="checkbox-text">Recurso disponible para préstamos</span>
+            <span className="checkbox-text">Recursos disponibles para préstamos</span>
           </label>
         </div>
         <div className="form-hint">
-          Si está desmarcado, el recurso no podrá ser reservado temporalmente
+          Si está desmarcado, los recursos no podrán ser reservados temporalmente
         </div>
       </div>
 
@@ -399,7 +462,7 @@ const CreateResourceForm = ({ resourceTypes, onSuccess, onCancel }) => {
           Cancelar
         </button>
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? "Creando..." : "Crear Recurso"}
+          {loading ? "Creando..." : `Crear ${quantity} ${quantity === 1 ? 'Recurso' : 'Recursos'}`}
         </button>
       </div>
     </form>
