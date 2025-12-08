@@ -16,6 +16,14 @@ const Return = sequelize.define("Return", {
   hasFailure: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
+    comment:
+      "Indica si la devolución fue tardía (más de 5 min después del fin)",
+  },
+  hasDamage: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: true,
+    comment: "Indica si el recurso presenta daños al momento de la devolución",
   },
 });
 

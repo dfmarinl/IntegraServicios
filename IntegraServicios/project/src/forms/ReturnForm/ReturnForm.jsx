@@ -67,8 +67,10 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
       const returnData = {
         loanId: formData.loanId,
         returnTime: new Date(formData.returnTime).toISOString(),
-        hasDamage: formData.hasDamage,
+        hasDamage: Boolean(formData.hasDamage), // Asegurar que sea boolean
       };
+
+      console.log("📤 Datos enviados:", returnData); // Para debugging
 
       const response = await createReturnApi(returnData);
 
@@ -252,7 +254,7 @@ const ReturnForm = ({ loan, onSuccess, onCancel }) => {
           <select
             id="hasDamage"
             name="hasDamage"
-            value={formData.hasDamage ? "true" : "false"}
+            value={formData.hasDamage.toString()}
             onChange={(e) =>
               setFormData((prev) => ({
                 ...prev,

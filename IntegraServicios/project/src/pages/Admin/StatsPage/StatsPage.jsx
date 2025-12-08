@@ -255,7 +255,7 @@ const StatsPage = () => {
           {mostReservedData && mostReservedData.data && (
             <Card className="stat-card">
               <div className="stat-card-header">
-                <h2>📋 Recursos Más Reservados (HU-012)</h2>
+                <h2>📋 Recursos Más Reservados</h2>
                 <span className="stat-badge">
                   {mostReservedData.data.length} recursos
                 </span>
@@ -316,7 +316,7 @@ const StatsPage = () => {
           {mostLoanedData && mostLoanedData.data && (
             <Card className="stat-card highlight-card">
               <div className="stat-card-header">
-                <h2>🏆 Recurso Más Prestado (HU-013)</h2>
+                <h2>🏆 Recurso Más Prestado</h2>
                 <span className="stat-badge gold">Destacado</span>
               </div>
 
@@ -391,7 +391,7 @@ const StatsPage = () => {
           {ratingsData && ratingsData.data && (
             <Card className="stat-card">
               <div className="stat-card-header">
-                <h2>⭐ Reporte de Calificaciones (HU-018)</h2>
+                <h2>⭐ Reporte de Calificaciones</h2>
                 <span className="stat-badge">
                   {ratingsData.data.overall?.totalRatings || 0} calificaciones
                 </span>
