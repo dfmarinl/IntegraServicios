@@ -11,9 +11,9 @@ import {
   getMyReservationsApi,
   cancelReservationApi,
 } from "../../api/Reservation/Reservation";
-import { createRatingApi } from "../../api/rating/rating"; // Importa la API de calificaciones
+import { createRatingApi } from "../../api/rating/rating";
 import { generateReservationsPDF } from "../../utils/pdfGenerator";
-import RatingForm from "../../forms/RatingForm/RatingForm"; // Importa el nuevo componente de formulario
+import RatingForm from "../../forms/RatingForm/RatingForm";
 import "./MyReservations.css";
 
 const MyReservations = () => {
@@ -31,6 +31,10 @@ const MyReservations = () => {
   const [ratingModal, setRatingModal] = useState({
     open: false,
     reservation: null,
+  });
+  const [viewRatingModal, setViewRatingModal] = useState({
+    open: false,
+    rating: null,
   });
   const [pdfModal, setPdfModal] = useState({
     open: false,
@@ -68,7 +72,6 @@ const MyReservations = () => {
     setLoading(true);
 
     try {
-      // Preparar filtros para la API
       const apiFilters = {
         page: filters.page,
         limit: filters.limit,
@@ -92,7 +95,6 @@ const MyReservations = () => {
 
       const response = await getMyReservationsApi(apiFilters);
 
-      // Verificar si la respuesta tiene la estructura esperada
       let reservationsData = [];
 
       if (response && response.reservations) {
@@ -103,7 +105,6 @@ const MyReservations = () => {
 
       setReservations(reservationsData);
 
-      // Manejar paginación
       if (response && response.total) {
         setPagination({
           currentPage: response.currentPage || 1,
@@ -126,7 +127,6 @@ const MyReservations = () => {
       return;
     }
 
-    // Si es una reserva repetitiva, mostrar opciones
     if (reservation.isRepetitive) {
       setCancelModal({
         open: true,
@@ -151,7 +151,6 @@ const MyReservations = () => {
 
     setCancelling(true);
     try {
-      // Determinar qué opción de cancelación usar
       let cancelAll = false;
       let cancelFuture = false;
 
@@ -242,7 +241,6 @@ const MyReservations = () => {
     }));
   };
 
-  // Nueva función para abrir el modal de calificación
   const handleOpenRatingModal = (reservation) => {
     if (!canRateReservation(reservation)) {
       showError("Solo se pueden calificar reservas finalizadas");
@@ -251,10 +249,8 @@ const MyReservations = () => {
     setRatingModal({ open: true, reservation });
   };
 
-  // Función para manejar el envío de la calificación
   const handleSubmitRating = async (ratingData) => {
     try {
-      // Agregar el reservationId al ratingData
       const ratingWithReservationId = {
         ...ratingData,
         reservationId: ratingModal.reservation.id,
@@ -265,11 +261,11 @@ const MyReservations = () => {
       if (response.success) {
         showSuccess(response.message || "Calificación enviada exitosamente");
 
-        // Actualizar la reserva para mostrar que ya tiene calificación
+        // Actualizar la reserva para mostrar la nueva calificación
         setReservations((prevReservations) =>
           prevReservations.map((res) =>
             res.id === ratingModal.reservation.id
-              ? { ...res, hasRating: true, rating: response.rating }
+              ? { ...res, Rating: response.rating }
               : res
           )
         );
@@ -284,7 +280,17 @@ const MyReservations = () => {
     }
   };
 
-  // Funciones para PDF
+  // Nueva función para ver calificación existente
+  const handleViewRating = (reservation) => {
+    if (reservation.Rating) {
+      setViewRatingModal({
+        open: true,
+        rating: reservation.Rating,
+        reservation: reservation,
+      });
+    }
+  };
+
   const openPdfModal = () => {
     if (reservations.length === 0) {
       showError("No hay reservas para exportar");
@@ -303,7 +309,7 @@ const MyReservations = () => {
       closePdfModal();
 
       await generateReservationsPDF(reservations, filters, {
-        title: `Mis Reservas- ${new Date().toLocaleDateString("es-ES")}`,
+        title: `Mis Reservas - ${new Date().toLocaleDateString("es-ES")}`,
         filename: `mis-reservas-${new Date().toISOString().split("T")[0]}.pdf`,
         includeFilters: true,
         includeSummary: true,
@@ -318,7 +324,6 @@ const MyReservations = () => {
     }
   };
 
-  // Manejar cambios en filtros
   const handleFilterChange = (name, value) => {
     setFilters((prev) => ({
       ...prev,
@@ -376,7 +381,6 @@ const MyReservations = () => {
     }
   };
 
-  // Determinar si una reserva puede ser cancelada
   const canCancelReservation = (reservation) => {
     const status = reservation.status?.toLowerCase();
 
@@ -398,21 +402,17 @@ const MyReservations = () => {
     }
   };
 
-  // Determinar si una reserva puede ser calificada
   const canRateReservation = (reservation) => {
     const status = reservation.status?.toLowerCase();
-    const hasRating = reservation.hasRating || reservation.Rating; // Verificar si ya tiene calificación
+    const hasRating = reservation.Rating;
 
-    // Solo reservas finalizadas sin calificación pueden calificarse
     return status === "finalizada" && !hasRating;
   };
 
-  // Verificar si una reserva ya tiene calificación
   const hasRating = (reservation) => {
-    return reservation.hasRating || reservation.Rating;
+    return !!reservation.Rating;
   };
 
-  // Obtener texto de estado
   const getStatusText = (status) => {
     const statusLower = status?.toLowerCase();
 
@@ -454,7 +454,41 @@ const MyReservations = () => {
     ) : null;
   };
 
-  // Columnas de la tabla - Actualizadas con botón de calificar
+  // Función para renderizar estrellas
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <span key={`full-${i}`} className="star-filled">
+          ⭐
+        </span>
+      );
+    }
+
+    if (hasHalfStar) {
+      stars.push(
+        <span key="half" className="star-half">
+          ⭐
+        </span>
+      );
+    }
+
+    const emptyStars = 5 - Math.ceil(rating);
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <span key={`empty-${i}`} className="star-empty">
+          ☆
+        </span>
+      );
+    }
+
+    return stars;
+  };
+
+  // Columnas de la tabla
   const columns = [
     {
       key: "resource",
@@ -538,18 +572,26 @@ const MyReservations = () => {
             )}
 
             {alreadyRated && (
-              <span className="rating-display">
-                ⭐ Calificado
-                {(row.Rating?.comment || row.comment) && (
+              <div
+                className="rating-display-container"
+                onClick={() => handleViewRating(row)}
+                title="Ver calificación completa"
+              >
+                <div className="rating-stars-mini">
+                  {renderStars(row.Rating.averageStars)}
+                  <span className="rating-number">
+                    {parseFloat(row.Rating.averageStars).toFixed(1)}
+                  </span>
+                </div>
+                {row.Rating.comment && (
                   <span
-                    className="comment-hint"
-                    title={row.Rating?.comment || row.comment}
+                    className="comment-indicator"
+                    title={row.Rating.comment}
                   >
-                    {" "}
                     💬
                   </span>
                 )}
-              </span>
+              </div>
             )}
 
             {!canCancel && !canRate && !alreadyRated && (
@@ -918,6 +960,102 @@ const MyReservations = () => {
             onSubmit={handleSubmitRating}
             onCancel={() => setRatingModal({ open: false, reservation: null })}
           />
+        )}
+      </GenericModal>
+
+      {/* Modal para ver calificación existente */}
+      <GenericModal
+        isOpen={viewRatingModal.open}
+        onClose={() => setViewRatingModal({ open: false, rating: null })}
+        title="Calificación de la Reserva"
+        size="medium"
+      >
+        {viewRatingModal.rating && (
+          <div className="view-rating-content">
+            <div className="reservation-info-rating">
+              <h4>Información de la Reserva</h4>
+              <p>
+                <strong>Recurso:</strong>{" "}
+                {viewRatingModal.reservation?.Resource?.name ||
+                  viewRatingModal.reservation?.resource?.name ||
+                  "N/A"}
+              </p>
+              <p>
+                <strong>Fecha:</strong>{" "}
+                {formatDisplayDate(viewRatingModal.reservation?.startDateTime)}
+              </p>
+              <p>
+                <strong>Horario:</strong>{" "}
+                {formatDisplayTime(viewRatingModal.reservation?.startDateTime)}{" "}
+                - {formatDisplayTime(viewRatingModal.reservation?.endDateTime)}
+              </p>
+            </div>
+
+            <div className="rating-details">
+              <h4>Detalles de la Calificación</h4>
+
+              <div className="rating-detail-item">
+                <label>Cumplimiento de Horarios:</label>
+                <div className="stars-display">
+                  {renderStars(viewRatingModal.rating.scheduleCompliance)}
+                  <span className="rating-value">
+                    {viewRatingModal.rating.scheduleCompliance}/5
+                  </span>
+                </div>
+              </div>
+
+              <div className="rating-detail-item">
+                <label>Calidad del Recurso:</label>
+                <div className="stars-display">
+                  {renderStars(viewRatingModal.rating.resourceQuality)}
+                  <span className="rating-value">
+                    {viewRatingModal.rating.resourceQuality}/5
+                  </span>
+                </div>
+              </div>
+
+              <div className="rating-detail-item">
+                <label>Amabilidad del Personal:</label>
+                <div className="stars-display">
+                  {renderStars(viewRatingModal.rating.staffKindness)}
+                  <span className="rating-value">
+                    {viewRatingModal.rating.staffKindness}/5
+                  </span>
+                </div>
+              </div>
+
+              <div className="rating-average">
+                <label>Promedio General:</label>
+                <div className="stars-display-large">
+                  {renderStars(viewRatingModal.rating.averageStars)}
+                  <span className="rating-value-large">
+                    {parseFloat(viewRatingModal.rating.averageStars).toFixed(1)}
+                    /5
+                  </span>
+                </div>
+              </div>
+
+              {viewRatingModal.rating.comment && (
+                <div className="rating-comment-display">
+                  <label>Comentario:</label>
+                  <p className="comment-text">
+                    {viewRatingModal.rating.comment}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="view-rating-footer">
+              <Button
+                onClick={() =>
+                  setViewRatingModal({ open: false, rating: null })
+                }
+                variant="primary"
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
         )}
       </GenericModal>
 

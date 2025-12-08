@@ -472,53 +472,53 @@
   .my-reservations-page {
     padding: 10px;
   }
-  
+
   .filters-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .filter-actions {
     justify-content: center;
     margin-top: 10px;
   }
-  
+
   .table-actions {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
   }
-  
+
   .pagination-controls {
     flex-direction: column;
     gap: 10px;
   }
-  
+
   .cancel-buttons,
   .rating-buttons,
   .pdf-modal-buttons {
     flex-direction: column;
   }
-  
+
   .cancel-buttons button,
   .rating-buttons button,
   .pdf-modal-buttons button {
     width: 100%;
   }
-  
+
   .stars {
     gap: 4px;
   }
-  
+
   .star {
     font-size: 28px;
   }
-  
+
   .status-badge {
     min-width: 70px;
     font-size: 11px;
     padding: 4px 8px;
   }
-  
+
   .table-actions button {
     min-width: 70px;
     padding: 4px 8px;
@@ -531,7 +531,7 @@
     flex-direction: column;
     width: 100%;
   }
-  
+
   .filter-actions button {
     width: 100%;
   }
@@ -641,17 +641,329 @@
   .cancel-option {
     padding: 10px;
   }
-  
+
   .option-content p {
     font-size: 12px;
   }
-  
+
   .filters-grid {
     grid-template-columns: 1fr !important;
   }
-  
+
   .filter-actions {
     flex-direction: column;
     gap: 10px;
+  }
+}
+
+.rating-display-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 12px;
+  background-color: #fef3c7;
+  border-radius: 8px;
+  border: 1px solid #fbbf24;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.rating-display-container:hover {
+  background-color: #fde68a;
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
+}
+
+.rating-stars-mini {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rating-stars-mini .star-filled,
+.rating-stars-mini .star-half,
+.rating-stars-mini .star-empty {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.rating-stars-mini .star-filled {
+  color: #f59e0b;
+}
+
+.rating-stars-mini .star-half {
+  color: #fbbf24;
+}
+
+.rating-stars-mini .star-empty {
+  color: #d1d5db;
+}
+
+.rating-number {
+  margin-left: 6px;
+  font-weight: 600;
+  color: #92400e;
+  font-size: 14px;
+}
+
+.comment-indicator {
+  font-size: 14px;
+  cursor: help;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.comment-indicator:hover {
+  opacity: 1;
+}
+
+/* Modal de visualización de calificación */
+.view-rating-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 10px 0;
+}
+
+.reservation-info-rating {
+  background-color: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.reservation-info-rating h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.reservation-info-rating p {
+  margin: 10px 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.reservation-info-rating strong {
+  color: #374151;
+  min-width: 80px;
+  display: inline-block;
+}
+
+.rating-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rating-details h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.rating-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.rating-detail-item label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.stars-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stars-display .star-filled,
+.stars-display .star-half,
+.stars-display .star-empty {
+  font-size: 20px;
+}
+
+.stars-display .star-filled {
+  color: #f59e0b;
+}
+
+.stars-display .star-half {
+  color: #fbbf24;
+}
+
+.stars-display .star-empty {
+  color: #d1d5db;
+}
+
+.rating-value {
+  margin-left: 8px;
+  font-weight: 600;
+  color: #92400e;
+  font-size: 16px;
+}
+
+.rating-average {
+  padding: 20px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 12px;
+  border: 2px solid #fbbf24;
+  text-align: center;
+}
+
+.rating-average label {
+  display: block;
+  font-weight: 600;
+  color: #78350f;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.stars-display-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.stars-display-large .star-filled,
+.stars-display-large .star-half,
+.stars-display-large .star-empty {
+  font-size: 28px;
+}
+
+.stars-display-large .star-filled {
+  color: #f59e0b;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stars-display-large .star-half {
+  color: #fbbf24;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stars-display-large .star-empty {
+  color: #d1d5db;
+}
+
+.rating-value-large {
+  margin-left: 12px;
+  font-weight: 700;
+  color: #78350f;
+  font-size: 24px;
+}
+
+.rating-comment-display {
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.rating-comment-display label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.comment-text {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.view-rating-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Responsive para calificaciones */
+@media (max-width: 768px) {
+  .rating-display-container {
+    min-width: 100px;
+    padding: 6px 10px;
+  }
+
+  .rating-stars-mini .star-filled,
+  .rating-stars-mini .star-half,
+  .rating-stars-mini .star-empty {
+    font-size: 12px;
+  }
+
+  .rating-number {
+    font-size: 12px;
+  }
+
+  .comment-indicator {
+    font-size: 12px;
+  }
+
+  .stars-display .star-filled,
+  .stars-display .star-half,
+  .stars-display .star-empty {
+    font-size: 16px;
+  }
+
+  .rating-value {
+    font-size: 14px;
+  }
+
+  .stars-display-large .star-filled,
+  .stars-display-large .star-half,
+  .stars-display-large .star-empty {
+    font-size: 22px;
+  }
+
+  .rating-value-large {
+    font-size: 20px;
+  }
+
+  .rating-detail-item {
+    padding: 12px;
+  }
+
+  .rating-average {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rating-display-container {
+    min-width: 80px;
+    padding: 4px 8px;
+  }
+
+  .rating-stars-mini .star-filled,
+  .rating-stars-mini .star-half,
+  .rating-stars-mini .star-empty {
+    font-size: 10px;
+  }
+
+  .rating-number {
+    font-size: 11px;
+    margin-left: 4px;
   }
 }
