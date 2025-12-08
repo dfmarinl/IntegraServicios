@@ -22,6 +22,7 @@ import Loader from "../components/common/Loader";
 import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
 import StatsPage from "../pages/Admin/StatsPage/StatsPage";
+import ExternalResources from "../components/User/External/ExternalResources";
 
 // Objeto de mapeo de roles a rutas
 const roleRoutes = {
@@ -223,6 +224,7 @@ const AppRouter = () => {
           <Route index element={<UserHome />} />
           {/* Rutas de recursos - Jerárquicas */}
           <Route path="resources" element={<UnitsView />} />
+          <Route path="resources/external" element={<ExternalResources />} />
           <Route path="resources/browse">
             <Route path="unit/:unitId/types" element={<ResourceTypesView />} />
             <Route
