@@ -156,7 +156,7 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
         message: `La duración de la reserva debe ser múltiplo de ${granularity} minutos`
       };
     }
-
+    /*
     const startMinutes = startDate.getMinutes();
     if (startMinutes % granularity !== 0) {
       return {
@@ -164,7 +164,7 @@ const validateTimeAgainstSchedule = async (resourceId, startDateTime, endDateTim
         message: `La hora de inicio debe ser en intervalos de ${granularity} minutos`
       };
     }
-
+    */
     return { isValid: true };
 
   } catch (error) {
