@@ -35,7 +35,7 @@ const GenericDeleteModal = ({
       <div className="generic-delete-content">
         <div className="warning-icon">⚠️</div>
         <h3 className="warning-title">
-          ¿Estás seguro de que deseas eliminar este {itemName}?
+          ¿Estás seguro de que deseas eliminar este(a) {itemName}?
         </h3>
 
         <div className="item-info">

@@ -379,16 +379,6 @@ const UnitsManagement = () => {
                   </span>
                   <span className="stat-label">Fecha de creación</span>
                 </div>
-                <div className="unit-stat">
-                  <span
-                    className={`status-badge ${
-                      unit.isActive ? "active" : "inactive"
-                    }`}
-                  >
-                    {unit.isActive ? "Activa" : "Inactiva"}
-                  </span>
-                  <span className="stat-label">Estado</span>
-                </div>
               </div>
               <div className="unit-actions">
                 <button
