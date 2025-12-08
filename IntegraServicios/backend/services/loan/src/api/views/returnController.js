@@ -5,21 +5,14 @@ const Resource = require("../../../../../models/Resource");
 const ResourceType = require("../../../../../models/ResourceType");
 const Unit = require("../../../../../models/Unit");
 const User = require("../../../../../models/user");
-const { Op } = require("sequelize");
+const { Op, fn, col, literal } = require("sequelize");
 
 const returnController = {
   // ========== CREAR DEVOLUCIÓN (registrar recepción) ==========
 
   createReturn: async (req, res) => {
     try {
-      const {
-        loanId,
-        returnTime,
-        resourceCondition,
-        notes,
-        hasDamage,
-        damageDescription,
-      } = req.body;
+      const { loanId, returnTime, hasDamage } = req.body;
       const employeeId = req.user.id; // El empleado que recibe el recurso
 
       // Validaciones
@@ -37,7 +30,7 @@ const returnController = {
         });
       }
 
-      // Verificar que el préstamo existe y no tiene devolución registrada
+      // Verificar que el préstamo existe
       const loan = await Loan.findOne({
         where: { id: loanId },
         include: [
@@ -61,6 +54,14 @@ const returnController = {
         });
       }
 
+      // Verificar que la reserva existe
+      if (!loan.Reservation) {
+        return res.status(400).json({
+          success: false,
+          message: "No se encontró la reserva asociada al préstamo",
+        });
+      }
+
       // Verificar que no tenga devolución registrada ya
       const existingReturn = await Return.findOne({
         where: { loanId },
@@ -70,14 +71,20 @@ const returnController = {
         return res.status(400).json({
           success: false,
           message: "Ya existe una devolución registrada para este préstamo",
+          returnRecord: existingReturn,
         });
       }
 
-      // Calcular si hay fallo de servicio (±5 minutos del fin de la reserva)
+      // Calcular si hay fallo de servicio
+      // REGLA: Solo es fallo si se devuelve MÁS DE 5 minutos DESPUÉS del fin
       const reservationEnd = new Date(loan.Reservation.endDateTime);
       const actualReturn = new Date(returnTime);
-      const timeDiff = Math.abs(actualReturn - reservationEnd) / (1000 * 60); // minutos
+      const timeDiff = (actualReturn - reservationEnd) / (1000 * 60); // minutos (positivo si es después, negativo si es antes)
+
+      // Solo marca fallo si la devolución es DESPUÉS y fuera de la ventana
       const hasFailure = timeDiff > 5;
+      const isEarly = actualReturn < reservationEnd;
+      const isOnTime = timeDiff >= 0 && timeDiff <= 5;
 
       // Crear la devolución
       const returnRecord = await Return.create({
@@ -85,7 +92,14 @@ const returnController = {
         returnTime: actualReturn,
         employeeId,
         hasFailure,
+        hasDamage: hasDamage || false,
       });
+
+      // ✅ ACTUALIZAR EL ESTADO DE LA RESERVA A "finalizada"
+      await Reservation.update(
+        { status: "finalizada" },
+        { where: { id: loan.Reservation.id } }
+      );
 
       // Obtener detalles completos para respuesta
       const returnWithDetails = await Return.findByPk(returnRecord.id, {
@@ -96,7 +110,13 @@ const returnController = {
             include: [
               {
                 model: Reservation,
-                attributes: ["id", "startDateTime", "endDateTime", "purpose"],
+                attributes: [
+                  "id",
+                  "startDateTime",
+                  "endDateTime",
+                  "purpose",
+                  "status",
+                ],
                 include: [
                   {
                     model: Resource,
@@ -125,25 +145,34 @@ const returnController = {
         ],
       });
 
+      // Mensaje apropiado según el tipo de devolución
+      let message = "";
+      if (isEarly) {
+        message = "Devolución anticipada registrada exitosamente";
+      } else if (isOnTime) {
+        message = "Devolución registrada exitosamente (dentro de ventana)";
+      } else if (hasFailure) {
+        message =
+          "Devolución registrada con fallo de servicio (devolución tardía)";
+      }
+
       res.status(201).json({
         success: true,
-        message: hasFailure
-          ? "Devolución registrada con fallo de servicio (fuera de lapso)"
-          : "Devolución registrada exitosamente",
+        message: message,
         returnRecord: returnWithDetails,
         timeInfo: {
           reservationEnd: reservationEnd,
           actualReturn: actualReturn,
-          timeDifference: Math.round(timeDiff) + " minutos",
+          timeDifference:
+            Math.abs(Math.round(timeDiff)) +
+            " minutos " +
+            (timeDiff < 0 ? "antes" : "después"),
           hasFailure: hasFailure,
+          isEarly: isEarly,
+          isOnTime: isOnTime,
           withinWindow: !hasFailure,
         },
-        additionalData: {
-          resourceCondition,
-          notes,
-          hasDamage: hasDamage || false,
-          damageDescription: damageDescription || "",
-        },
+        reservationStatus: "finalizada", // Estado actualizado
       });
     } catch (err) {
       console.error("❌ Error al crear devolución:", err);
@@ -189,6 +218,7 @@ const returnController = {
                   "endDateTime",
                   "purpose",
                   "attendees",
+                  "status",
                 ],
                 include: [
                   {
@@ -275,6 +305,7 @@ const returnController = {
                   "endDateTime",
                   "purpose",
                   "attendees",
+                  "status",
                 ],
                 include: [
                   {
@@ -396,14 +427,22 @@ const returnController = {
         returnRecord.Loan.Reservation.endDateTime
       );
       const returnTime = new Date(returnRecord.returnTime);
-      const timeDiff = Math.abs(returnTime - reservationEnd) / (1000 * 60);
+      const timeDiff = (returnTime - reservationEnd) / (1000 * 60);
+
+      const isEarly = returnTime < reservationEnd;
+      const isOnTime = timeDiff >= 0 && timeDiff <= 5;
 
       res.json({
         success: true,
         return: returnRecord,
         statistics: {
-          timeDifference: Math.round(timeDiff) + " minutos",
+          timeDifference:
+            Math.abs(Math.round(timeDiff)) +
+            " minutos " +
+            (timeDiff < 0 ? "antes" : "después"),
           hasFailure: returnRecord.hasFailure,
+          isEarly: isEarly,
+          isOnTime: isOnTime,
           withinWindow: timeDiff <= 5,
           reservationEnd: reservationEnd,
           actualReturn: returnTime,
@@ -452,10 +491,10 @@ const returnController = {
         if (loan && loan.Reservation) {
           const reservationEnd = new Date(loan.Reservation.endDateTime);
           const newReturnTime = new Date(returnTime);
-          const timeDiff =
-            Math.abs(newReturnTime - reservationEnd) / (1000 * 60);
+          const timeDiff = (newReturnTime - reservationEnd) / (1000 * 60);
 
           updateData.returnTime = newReturnTime;
+          // Solo marca fallo si es DESPUÉS y fuera de ventana
           updateData.hasFailure = timeDiff > 5;
         } else {
           updateData.returnTime = new Date(returnTime);
@@ -512,6 +551,12 @@ const returnController = {
           {
             model: Loan,
             attributes: ["id"],
+            include: [
+              {
+                model: Reservation,
+                attributes: ["id"],
+              },
+            ],
           },
         ],
       });
@@ -521,6 +566,14 @@ const returnController = {
           success: false,
           message: "Devolución no encontrada",
         });
+      }
+
+      // ✅ Revertir el estado de la reserva a "confirmada" antes de eliminar
+      if (returnRecord.Loan?.Reservation) {
+        await Reservation.update(
+          { status: "confirmada" },
+          { where: { id: returnRecord.Loan.Reservation.id } }
+        );
       }
 
       // Eliminar la devolución
@@ -576,11 +629,8 @@ const returnController = {
       // Devoluciones por empleado
       const returnsByEmployee = await Return.findAll({
         where: whereConditions,
-        attributes: [
-          "employeeId",
-          [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-        ],
-        group: ["employeeId"],
+        attributes: ["employeeId", [fn("COUNT", col("Return.id")), "count"]],
+        group: ["employeeId", "Employee.id"],
         include: [
           {
             model: User,
@@ -595,18 +645,14 @@ const returnController = {
         where: whereConditions,
         attributes: [
           [
-            sequelize.literal(
-              '"Loan->Reservation->Resource->ResourceType->Unit"."id"'
-            ),
+            literal('"Loan->Reservation->Resource->ResourceType->Unit"."id"'),
             "unitId",
           ],
           [
-            sequelize.literal(
-              '"Loan->Reservation->Resource->ResourceType->Unit"."name"'
-            ),
+            literal('"Loan->Reservation->Resource->ResourceType->Unit"."name"'),
             "unitName",
           ],
-          [sequelize.fn("COUNT", sequelize.col("Return.id")), "count"],
+          [fn("COUNT", col("Return.id")), "count"],
         ],
         include: [
           {
@@ -638,7 +684,10 @@ const returnController = {
             ],
           },
         ],
-        group: ["Loan->Reservation->Resource->ResourceType->Unit.id"],
+        group: [
+          "Loan->Reservation->Resource->ResourceType->Unit.id",
+          "Loan->Reservation->Resource->ResourceType->Unit.name",
+        ],
         raw: true,
       });
 
@@ -743,7 +792,7 @@ const returnController = {
             include: [
               {
                 model: Reservation,
-                attributes: ["id", "endDateTime", "purpose"],
+                attributes: ["id", "endDateTime", "purpose", "status"],
                 include: [
                   {
                     model: Resource,
