@@ -16,6 +16,7 @@ const loanRoutes = require("./services/loan/src/api/routes/loanRoutes");
 const returnRoutes = require("./services/loan/src/api/routes/returnRoutes");
 const ratingRoutes = require("./services/rating/src/api/routes/ratingRoutes");
 const statsRoutes = require("./services/stats/src/api/routes/statsRoutes");
+const publicRoutes = require("./services/resource/src/api/routes/publicRoute");
 
 const availabilityRoutes = require("./services/user/src/api/routes/availabilityRoutes");
 const failureRoutes = require("./services/user/src/api/routes/failureRoutes");
@@ -23,8 +24,26 @@ const failureRoutes = require("./services/user/src/api/routes/failureRoutes");
 const PORT = process.env.PORT || 3001;
 const app = express();
 
-// Middlewares
-app.use(cors());
+// Configuración específica para desarrollo
+const corsOptions = {
+  origin: "*", // Permitir todos en desarrollo
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    "x-api-key", 
+    "Origin", 
+    "X-Requested-With", 
+    "Accept"
+  ],
+  exposedHeaders: ["Content-Length", "X-Request-ID"],
+  credentials: false,
+  maxAge: 86400, // 24 horas
+  optionsSuccessStatus: 204
+};
+
+// Middlewares globales
+app.use(cors(corsOptions)); 
 app.use(express.json());
 
 // Ruta base para verificar conexión
@@ -51,6 +70,7 @@ app.use("/api/loans", loanRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/public", publicRoutes);
 
 app.use("/api/failures", failureRoutes);
 
