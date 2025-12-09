@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getActiveResourceTypesByUnitApi, getResourceTypeApi } from "../../../api/Resource/resourceType";
-import { getUnitApi } from "../../../api/Unit/units";
+import { getUnitApi } from "../../../api/unit/units";
 import Card from "../../common/Card";
 import "./ResourceTypesView.css";
 
