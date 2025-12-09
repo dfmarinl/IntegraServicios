@@ -2,50 +2,74 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../common/Card';
 import {
-  getLabs,
+  getSpaces,
   getCategoryIcon,
   getCategoryColor,
-  getStatusBadge
+  getStatusBadge,
+  formatCapacity
 } from '../../../api/integracion/waysoft-api-client';
 import './ExternalResources.css';
 
 const ExternalResources = () => {
-  const [labs, setLabs] = useState([]);
+  const [spaces, setSpaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedLab, setSelectedLab] = useState(null);
+  const [selectedSpace, setSelectedSpace] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [filters, setFilters] = useState({
+    tipo: 'todos',
+    capacidadMin: '',
+    search: ''
+  });
+  const [stats, setStats] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadExternalLabs();
+    loadSpaces();
   }, []);
 
-  const loadExternalLabs = async () => {
+  const loadSpaces = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 Cargando laboratorios...');
-      const result = await getLabs({
-        status: 'available',
-        limit: 50
-      });
+      console.log('🔄 Cargando espacios desde ReservasPro...');
+      const result = await getSpaces(filters);
       
-      console.log('📊 Resultado de getLabs:', result);
+      console.log('📊 Resultado de getSpaces:', result);
       
       if (result.success) {
-        setLabs(result.data || []);
+        setSpaces(result.data || []);
+        
+        // Calcular estadísticas
+        const statsData = {
+          total: result.data.length,
+          byType: {},
+          totalCapacity: 0
+        };
+        
+        result.data.forEach(space => {
+          // Conteo por tipo
+          if (!statsData.byType[space.tipo]) {
+            statsData.byType[space.tipo] = 0;
+          }
+          statsData.byType[space.tipo]++;
+          
+          // Capacidad total
+          statsData.totalCapacity += space.capacidad;
+        });
+        
+        setStats(statsData);
         
         if (result.data && result.data.length === 0) {
-          setError('No se encontraron laboratorios disponibles');
+          setError('No se encontraron espacios con los filtros aplicados');
         }
       } else {
-        setError(`Error al cargar laboratorios: ${result.error}`);
+        setError(`Error al cargar espacios: ${result.error}`);
       }
       
     } catch (err) {
-      console.error('❌ Error en loadExternalLabs:', err);
+      console.error('❌ Error en loadSpaces:', err);
       setError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
@@ -56,69 +80,162 @@ const ExternalResources = () => {
     navigate('/app/resources/browse');
   };
 
-  const handleLabClick = (lab) => {
-    console.log('🔍 Laboratorio clickeado:', lab);
-    setSelectedLab(lab);
+  const handleSpaceClick = (space) => {
+    console.log('🔍 Espacio clickeado:', space);
+    setSelectedSpace(space);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
-    setSelectedLab(null);
+    setSelectedSpace(null);
   };
 
-  // Función para obtener el código del laboratorio
-  const getLabCode = (lab) => {
-    return lab.code || lab.waysoft_id || lab.id || 'N/A';
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  // Formatear disponibilidad
-  const formatAvailability = (lab) => {
-    if (!lab.current_availability) {
-      return {
-        text: 'Información no disponible',
-        color: '#6B7280',
-        icon: '❓'
-      };
-    }
+  const handleFilterSubmit = (e) => {
+    e.preventDefault();
+    loadSpaces();
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      tipo: 'todos',
+      capacidadMin: '',
+      search: ''
+    });
+    // Recargar sin filtros después de un breve delay
+    setTimeout(() => loadSpaces(), 100);
+  };
+
+  // Función para obtener el estado simulado (para demostración)
+  const getSpaceStatus = (space) => {
+    // Simulamos diferentes estados basados en el ID
+    const statuses = ['available', 'occupied', 'maintenance'];
+    const status = statuses[space.id % 3];
     
-    if (lab.current_availability.is_available) {
-      return {
-        text: '✅ Disponible ahora',
-        color: '#10B981',
-        icon: '✅'
-      };
-    } else if (lab.current_availability.next_available) {
-      const next = lab.current_availability.next_available;
-      return {
-        text: `⏰ Próximo: ${next.day === 'hoy' ? 'Hoy' : next.day} ${next.start}-${next.end}`,
-        color: '#F59E0B',
-        icon: '⏰'
-      };
-    }
-    return {
-      text: '❌ No disponible',
-      color: '#EF4444',
-      icon: '❌'
-    };
+    return getStatusBadge(status);
   };
+
+  // Obtener tipos únicos para el filtro
+  const uniqueTypes = [...new Set(spaces.map(space => space.tipo))];
 
   return (
     <div className="external-resources">
       <div className="external-header">
         <button onClick={handleBackClick} className="back-button">
-          ← Volver a Unidades
+          ← Volver a Recursos
         </button>
         <div className="header-content">
-          <h1>🔗 Recursos Externos</h1>
-          <p>Laboratorios disponibles a través de Waysoft API</p>
+          <h1>🏢 ReservasPro - Espacios Académicos</h1>
+          <p>Gestión centralizada de aulas, laboratorios y auditorios</p>
         </div>
       </div>
+
+      {/* Filtros */}
+      <Card className="filters-card">
+        <div className="filters-header">
+          <h3>🔍 Filtrar Espacios</h3>
+          <button 
+            onClick={handleResetFilters}
+            className="reset-filters-btn"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+        
+        <form onSubmit={handleFilterSubmit} className="filters-form">
+          <div className="filters-grid">
+            <div className="filter-group">
+              <label htmlFor="tipo">Tipo de Espacio</label>
+              <select
+                id="tipo"
+                name="tipo"
+                value={filters.tipo}
+                onChange={handleFilterChange}
+              >
+                <option value="todos">Todos los tipos</option>
+                {uniqueTypes.map((type, index) => (
+                  <option key={index} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label htmlFor="capacidadMin">Capacidad Mínima</label>
+              <input
+                type="number"
+                id="capacidadMin"
+                name="capacidadMin"
+                value={filters.capacidadMin}
+                onChange={handleFilterChange}
+                placeholder="Ej: 20"
+                min="1"
+              />
+            </div>
+            
+            <div className="filter-group">
+              <label htmlFor="search">Buscar</label>
+              <input
+                type="text"
+                id="search"
+                name="search"
+                value={filters.search}
+                onChange={handleFilterChange}
+                placeholder="Nombre o descripción..."
+              />
+            </div>
+            
+            <div className="filter-group">
+              <label>&nbsp;</label>
+              <button type="submit" className="apply-filters-btn">
+                Aplicar Filtros
+              </button>
+            </div>
+          </div>
+        </form>
+        
+        {/* Estadísticas */}
+        {stats && (
+          <div className="stats-section">
+            <div className="stat-item">
+              <span className="stat-label">Total Espacios:</span>
+              <span className="stat-value">{stats.total}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Capacidad Total:</span>
+              <span className="stat-value">{stats.totalCapacity} personas</span>
+            </div>
+            {Object.entries(stats.byType).map(([type, count]) => (
+              <div key={type} className="stat-item">
+                <span className="stat-label">
+                  <span 
+                    className="stat-icon"
+                    style={{ color: getCategoryColor(type) }}
+                  >
+                    {getCategoryIcon(type)}
+                  </span>
+                  {type}:
+                </span>
+                <span className="stat-value">{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {loading ? (
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p>Cargando laboratorios externos...</p>
+          <p>Cargando espacios desde ReservasPro...</p>
         </div>
       ) : error ? (
         <Card className="error-card">
@@ -127,277 +244,301 @@ const ExternalResources = () => {
             <h3>Error</h3>
             <p className="error-message">{error}</p>
             <button 
-              onClick={loadExternalLabs} 
+              onClick={loadSpaces} 
               className="btn-retry"
             >
               Reintentar
             </button>
+            <div className="error-tips">
+              <p>💡 Sugerencias:</p>
+              <ul>
+                <li>Verifica tu conexión a internet</li>
+                <li>Visita https://www.reservaspro.xyz/espacios en tu navegador</li>
+                <li>Intenta con filtros diferentes</li>
+              </ul>
+            </div>
           </div>
         </Card>
       ) : (
         <>
-          <div className="labs-header">
-            <h2>Laboratorios Disponibles ({labs.length})</h2>
-            <p>Haz clic en un laboratorio para ver más detalles</p>
+          <div className="spaces-header">
+            <h2>Espacios Disponibles ({spaces.length})</h2>
+            <p>Haz clic en un espacio para ver más detalles</p>
           </div>
 
-          <div className="labs-grid">
-            {labs.length > 0 ? (
-              labs.map((lab) => {
-                const statusBadge = getStatusBadge(lab.status);
-                const categoryColor = getCategoryColor(lab.category);
-                const categoryIcon = getCategoryIcon(lab.category);
-                const labCode = getLabCode(lab);
-                const availability = formatAvailability(lab);
-                
-                return (
-                  <Card 
-                    key={lab.id} 
-                    className="lab-card"
-                  >
-                    <div className="lab-card-content">
-                      <div className="lab-card-header">
-                        <div 
-                          className="lab-icon"
-                          style={{ color: categoryColor }}
-                        >
-                          {categoryIcon}
-                        </div>
-                        <div className="lab-header-info">
-                          <h3 className="lab-name">{lab.name}</h3>
-                          <div className="lab-codes">
-                            <span className="lab-code">{labCode}</span>
-                            <span className="lab-type">{lab.type}</span>
+          {/* Mostrar espacios agrupados por tipo */}
+          {Object.entries(spaces.reduce((groups, space) => {
+            if (!groups[space.tipo]) {
+              groups[space.tipo] = [];
+            }
+            groups[space.tipo].push(space);
+            return groups;
+          }, {})).map(([tipo, tipoSpaces]) => (
+            <div key={tipo} className="space-type-section">
+              <div className="type-header">
+                <span 
+                  className="type-icon"
+                  style={{ color: getCategoryColor(tipo) }}
+                >
+                  {getCategoryIcon(tipo)}
+                </span>
+                <h3>{tipo} ({tipoSpaces.length})</h3>
+              </div>
+              
+              <div className="spaces-grid">
+                {tipoSpaces.map((space) => {
+                  const status = getSpaceStatus(space);
+                  const spaceColor = getCategoryColor(space.tipo);
+                  const spaceIcon = getCategoryIcon(space.tipo);
+                  
+                  return (
+                    <Card 
+                      key={space.id} 
+                      className="space-card"
+                    >
+                      <div className="space-card-content">
+                        <div className="space-card-header">
+                          <div 
+                            className="space-icon"
+                            style={{ color: spaceColor }}
+                          >
+                            {spaceIcon}
+                          </div>
+                          <div className="space-header-info">
+                            <h3 className="space-name">{space.nombre}</h3>
+                            <div className="space-codes">
+                              <span className="space-id">ID: {space.id}</span>
+                              <span 
+                                className="space-status"
+                                style={{ 
+                                  backgroundColor: `${status.color}15`,
+                                  color: status.color,
+                                  borderColor: `${status.color}30`
+                                }}
+                              >
+                                {status.icon} {status.text}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <p className="lab-description">
-                        {lab.description}
-                      </p>
-                      
-                      <div className="lab-meta">
-                        <span 
-                          className="lab-category"
-                          style={{ 
-                            backgroundColor: `${categoryColor}15`,
-                            color: categoryColor,
-                            borderColor: `${categoryColor}30`
-                          }}
-                        >
-                          {categoryIcon} {lab.category}
-                        </span>
-                        <span 
-                          className="lab-availability"
-                          style={{ 
-                            backgroundColor: `${availability.color}15`,
-                            color: availability.color,
-                            borderColor: `${availability.color}30`
-                          }}
-                        >
-                          {availability.icon} {availability.text}
-                        </span>
-                      </div>
-                      
-                      <div className="lab-details">
-                        <div className="detail-item">
-                          <span className="detail-icon">👥</span>
-                          <span className="detail-text">{lab.capacity || 0} personas</span>
+                        
+                        <p className="space-description">
+                          {space.descripcion}
+                        </p>
+                        
+                        <div className="space-meta">
+                          <span 
+                            className="space-type-badge"
+                            style={{ 
+                              backgroundColor: `${spaceColor}15`,
+                              color: spaceColor,
+                              borderColor: `${spaceColor}30`
+                            }}
+                          >
+                            {spaceIcon} {space.tipo}
+                          </span>
+                          <span className="space-capacity">
+                            👥 {formatCapacity(space.capacidad)}
+                          </span>
                         </div>
-                        <div className="detail-item">
-                          <span className="detail-icon">📍</span>
-                          <span className="detail-text">{lab.location || 'N/A'}</span>
-                        </div>
-                        {lab.convention_info?.institution && (
+                        
+                        {/* Información adicional según el tipo */}
+                        <div className="space-details">
                           <div className="detail-item">
-                            <span className="detail-icon">🏛️</span>
-                            <span className="detail-text">{lab.convention_info.institution}</span>
+                            <span className="detail-icon">🏢</span>
+                            <span className="detail-text">
+                              {space.nombre.includes('Aula') ? 'Edificio Académico' :
+                               space.nombre.includes('Laboratorio') ? 'Edificio de Laboratorios' :
+                               'Edificio Principal'}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                      
-                      {lab.features && lab.features.length > 0 && (
-                        <div className="lab-features">
-                          <div className="features-label">Características:</div>
-                          <div className="features-list">
-                            {lab.features.slice(0, 3).map((feature, index) => (
-                              <span key={index} className="feature-tag">
-                                {feature.replace(/_/g, ' ')}
-                              </span>
-                            ))}
-                            {lab.features.length > 3 && (
-                              <span className="more-features">
-                                +{lab.features.length - 3} más
-                              </span>
-                            )}
+                          
+                          <div className="detail-item">
+                            <span className="detail-icon">📍</span>
+                            <span className="detail-text">
+                              {space.nombre.split(' ')[1]?.charAt(0) || '2'}° Piso
+                            </span>
                           </div>
                         </div>
-                      )}
-                      
-                      <div className="lab-footer">
-                        <button 
-                          className="view-details-btn"
-                          onClick={() => handleLabClick(lab)}
-                        >
-                          Ver detalles completos →
-                        </button>
+                        
+                        <div className="space-footer">
+                          <button 
+                            className="view-details-btn"
+                            onClick={() => handleSpaceClick(space)}
+                          >
+                            Ver detalles →
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
-                );
-              })
-            ) : (
-              <Card className="no-labs-card">
-                <div className="no-labs-content">
-                  <div className="no-labs-icon">🔍</div>
-                  <h3>No se encontraron laboratorios</h3>
-                  <p>No hay recursos externos disponibles en este momento</p>
-                  <button onClick={loadExternalLabs} className="btn-retry">
-                    Actualizar lista
-                  </button>
-                </div>
-              </Card>
-            )}
-          </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </>
       )}
 
-      {/* Modal de detalles SIMPLIFICADO */}
-      {showModal && selectedLab && (
+      {/* Modal de detalles */}
+      {showModal && selectedSpace && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-header-top">
                 <div 
-                  className="modal-lab-icon"
-                  style={{ color: getCategoryColor(selectedLab.category) }}
+                  className="modal-space-icon"
+                  style={{ color: getCategoryColor(selectedSpace.tipo) }}
                 >
-                  {getCategoryIcon(selectedLab.category)}
+                  {getCategoryIcon(selectedSpace.tipo)}
                 </div>
-                <div>
-                  <h2>{selectedLab.name}</h2>
+                <div className="modal-header-info">
+                  <h2>{selectedSpace.nombre}</h2>
                   <div className="modal-subtitle">
-                    <span className="modal-lab-code">{getLabCode(selectedLab)}</span>
-                    <span className="modal-lab-type">{selectedLab.type}</span>
-                    <span className="modal-lab-category">{selectedLab.category}</span>
+                    <span className="modal-space-id">ID: {selectedSpace.id}</span>
+                    <span className="modal-space-type">{selectedSpace.tipo}</span>
                   </div>
                 </div>
                 <button className="modal-close" onClick={closeModal}>×</button>
               </div>
-              
-              {selectedLab.convention_info && (
-                <div className="convention-badge">
-                  <span className="convention-icon">🤝</span>
-                  <span>Convenio con: {selectedLab.convention_info.institution}</span>
-                </div>
-              )}
             </div>
 
             <div className="modal-body">
               {/* Información básica */}
               <div className="modal-section">
                 <h3>📋 Descripción</h3>
-                <p>{selectedLab.description}</p>
+                <p>{selectedSpace.descripcion}</p>
               </div>
 
               {/* Detalles principales */}
               <div className="details-grid">
                 <div className="detail-card">
-                  <h4>📍 Ubicación</h4>
-                  <p>{selectedLab.location}</p>
+                  <h4>🏷️ Tipo</h4>
+                  <div className="type-display">
+                    <span 
+                      className="type-badge"
+                      style={{ 
+                        backgroundColor: `${getCategoryColor(selectedSpace.tipo)}15`,
+                        color: getCategoryColor(selectedSpace.tipo)
+                      }}
+                    >
+                      {getCategoryIcon(selectedSpace.tipo)} {selectedSpace.tipo}
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="detail-card">
                   <h4>👥 Capacidad</h4>
-                  <p>{selectedLab.capacity} personas</p>
+                  <div className="capacity-display">
+                    <span className="capacity-value">{selectedSpace.capacidad}</span>
+                    <span className="capacity-unit">personas</span>
+                  </div>
                 </div>
                 
                 <div className="detail-card">
                   <h4>📊 Estado</h4>
                   <div className="availability-status">
                     <span className="availability-icon">
-                      {formatAvailability(selectedLab).icon}
+                      {getSpaceStatus(selectedSpace).icon}
                     </span>
-                    <span style={{ color: formatAvailability(selectedLab).color }}>
-                      {formatAvailability(selectedLab).text}
+                    <span style={{ color: getSpaceStatus(selectedSpace).color }}>
+                      {getSpaceStatus(selectedSpace).text}
                     </span>
                   </div>
                 </div>
                 
-                {selectedLab.metadata?.rating && (
-                  <div className="detail-card">
-                    <h4>⭐ Rating</h4>
-                    <p>{selectedLab.metadata.rating}/5.0</p>
+                <div className="detail-card">
+                  <h4>🏢 Ubicación</h4>
+                  <div className="location-info">
+                    <p>Edificio: {
+                      selectedSpace.nombre.includes('Aula') ? 'Académico' :
+                      selectedSpace.nombre.includes('Laboratorio') ? 'Laboratorios' :
+                      'Principal'
+                    }</p>
+                    <p>Piso: {selectedSpace.nombre.split(' ')[1]?.charAt(0) || '2'}°</p>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Características */}
-              {selectedLab.features && selectedLab.features.length > 0 && (
-                <div className="modal-section">
-                  <h3>🌟 Características</h3>
-                  <div className="features-list-modal">
-                    {selectedLab.features.map((feature, index) => (
-                      <span key={index} className="feature-tag-modal">
-                        {feature.replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                  </div>
+              {/* Características según tipo */}
+              <div className="modal-section">
+                <h3>🌟 Equipamiento</h3>
+                <div className="features-list-modal">
+                  {/* Equipamiento común */}
+                  <span className="feature-tag-modal">💡 Iluminación LED</span>
+                  <span className="feature-tag-modal">🪑 Mobiliario ajustable</span>
+                  <span className="feature-tag-modal">🖥️ Proyector multimedia</span>
+                  <span className="feature-tag-modal">🔌 Conexiones eléctricas</span>
+                  
+                  {/* Equipamiento específico por tipo */}
+                  {selectedSpace.tipo === 'Auditorio' && (
+                    <>
+                      <span className="feature-tag-modal">🎤 Sistema de sonido profesional</span>
+                      <span className="feature-tag-modal">🎭 Escenario amplio</span>
+                      <span className="feature-tag-modal">💺 Asientos acolchonados</span>
+                      <span className="feature-tag-modal">📹 Sistema de videoconferencia</span>
+                    </>
+                  )}
+                  
+                  {selectedSpace.tipo.includes('Laboratorio de Computación') && (
+                    <>
+                      <span className="feature-tag-modal">💻 25 computadoras de última generación</span>
+                      <span className="feature-tag-modal">🌐 Internet de alta velocidad</span>
+                      <span className="feature-tag-modal">🔌 Estaciones de carga USB-C</span>
+                      <span className="feature-tag-modal">🖨️ Impresora láser</span>
+                    </>
+                  )}
+                  
+                  {selectedSpace.tipo.includes('Laboratorio de Física') && (
+                    <>
+                      <span className="feature-tag-modal">🔭 Equipo especializado en física</span>
+                      <span className="feature-tag-modal">⚡ Mesas antiestáticas</span>
+                      <span className="feature-tag-modal">🧪 Instrumentos de medición precisos</span>
+                      <span className="feature-tag-modal">🔬 Microscopios electrónicos</span>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* Información de convenio */}
-              {selectedLab.convention_info && (
-                <div className="modal-section convention-section">
-                  <h3>🤝 Información del Convenio</h3>
-                  <div className="convention-details">
-                    <div className="convention-item">
-                      <strong>Institución:</strong> {selectedLab.convention_info.institution}
-                    </div>
-                    <div className="convention-item">
-                      <strong>Tipo de convenio:</strong> {selectedLab.convention_info.agreement_type}
-                    </div>
-                    <div className="convention-item">
-                      <strong>Válido hasta:</strong> {selectedLab.convention_info.valid_until}
-                    </div>
-                    <div className="convention-item">
-                      <strong>Contacto:</strong> {selectedLab.convention_info.contact_person}
-                    </div>
-                    <div className="convention-note">
-                      💡 Este laboratorio está disponible sin costo por convenio académico
-                    </div>
+              {/* Horarios sugeridos */}
+              <div className="modal-section">
+                <h3>🕐 Horarios de Uso</h3>
+                <div className="schedule-suggestions">
+                  <div className="schedule-item">
+                    <span className="schedule-day">Lunes a Viernes</span>
+                    <span className="schedule-time">7:00 AM - 9:00 PM</span>
+                  </div>
+                  <div className="schedule-item">
+                    <span className="schedule-day">Sábados</span>
+                    <span className="schedule-time">8:00 AM - 6:00 PM</span>
+                  </div>
+                  <div className="schedule-item">
+                    <span className="schedule-day">Domingos</span>
+                    <span className="schedule-time">9:00 AM - 2:00 PM</span>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Imágenes */}
-              {selectedLab.images && selectedLab.images.length > 0 && (
-                <div className="modal-section">
-                  <h3>🖼️ Imágenes</h3>
-                  <div className="images-grid">
-                    {selectedLab.images.slice(0, 2).map((image, index) => (
-                      <div key={index} className="image-container">
-                        <img 
-                          src={image} 
-                          alt={`${selectedLab.name} - Imagen ${index + 1}`}
-                          className="lab-image"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.parentElement.innerHTML = '🖼️ Imagen no disponible';
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Políticas de uso */}
+              <div className="modal-section important-notes">
+                <h3>📌 Políticas de Uso</h3>
+                <ul className="notes-list">
+                  <li>✅ Reserva mínima: 1 hora</li>
+                  <li>✅ Reserva máxima: 4 horas por día</li>
+                  <li>✅ Se requiere reserva previa por sistema</li>
+                  <li>✅ Presentar identificación al ingresar</li>
+                  <li>✅ Reportar cualquier daño al personal</li>
+                  <li>✅ Dejar el espacio ordenado después de su uso</li>
+                </ul>
+              </div>
             </div>
 
             <div className="modal-footer">
               <button className="btn-secondary" onClick={closeModal}>
                 Cerrar
               </button>
-              
+              <button className="btn-primary">
+                📅 Reservar este espacio
+              </button>
             </div>
           </div>
         </div>
