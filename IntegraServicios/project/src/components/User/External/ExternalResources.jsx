@@ -77,7 +77,7 @@ const ExternalResources = () => {
   };
 
   const handleBackClick = () => {
-    navigate('/app/resources/browse');
+    navigate('/app/resources');
   };
 
   const handleSpaceClick = (space) => {
