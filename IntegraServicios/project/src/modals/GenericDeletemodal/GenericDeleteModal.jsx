@@ -1,6 +1,6 @@
 import React from "react";
 import GenericModal from "../GenericModal/GenericModal";
-import "./GenericDeleteModal.css";
+import "./GenericDeletemodal.css";
 
 const GenericDeleteModal = ({
   isOpen,
