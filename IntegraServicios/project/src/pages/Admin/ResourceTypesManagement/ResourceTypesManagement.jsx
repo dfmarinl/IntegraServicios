@@ -7,7 +7,7 @@ import {
 } from "../../../api/Resource/resourceType";
 import { getActiveUnitsApi } from "../../../api/unit/units";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
-import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
+import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
 import CreateResourceTypeForm from "../../../forms/CreateResourceTypeForm/CreateResourceTypeForm";
 import EditResourceTypeForm from "../../../forms/EditResourceTypeForm/EditResourceTypeForm";
 import ResourceConfigModal from "../../../modals/ResourceConfigModal/ResourceConfigModal";
