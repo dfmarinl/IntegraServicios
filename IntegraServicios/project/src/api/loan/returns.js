@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:3001/api/returns";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = `${API_BASE}/api/returns`;
+
 
 // Crear devolución (registrar recepción)
 export const createReturnApi = async (returnData) => {
