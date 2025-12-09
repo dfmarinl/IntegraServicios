@@ -7,7 +7,7 @@ import {
 } from "../../../api/Resource/Resource";
 import { getActiveResourceTypesApi } from "../../../api/Resource/resourceType";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
-import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
+import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
 import CreateResourceForm from "../../../forms/CreateResourceForm/CreateResourceForm";
 import EditResourceForm from "../../../forms/EditResourceForm/EditResourceForm";
 import "./ResourcesManagement.css";
