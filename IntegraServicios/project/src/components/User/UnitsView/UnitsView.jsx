@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getActiveUnitsApi } from "../../../api/Unit/units";
+import { getActiveUnitsApi } from "../../../api/unit/units";
 import Card from "../../common/Card";
 import "./UnitsView.css";
 
