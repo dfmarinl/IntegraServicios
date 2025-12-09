@@ -11,7 +11,7 @@ import { getActiveUnitsApi, getUnitApi } from "../../../api/unit/units";
 import GenericModal from "../../../modals/GenericModal/GenericModal";
 import CreateUserForm from "../../../forms/CreateUserForm/CreateuserForm";
 import EditUserForm from "../../../forms/EditUserForm/EditUserForm";
-import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
+import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
 import "./UsersManagement.css";
 
 const UsersManagement = () => {
