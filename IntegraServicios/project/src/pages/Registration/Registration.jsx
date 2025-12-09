@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import Alert from "../../components/common/Alert";
+import { registerApi } from "../../api/user/auth"; // Importa la función
 import "./Registration.css";
 
 const Registration = () => {
@@ -16,7 +17,6 @@ const Registration = () => {
     direction: "",
     password: "",
     confirmPassword: "",
-    // El rol siempre será "estudiante" por defecto
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -62,20 +62,11 @@ const Registration = () => {
         rol: "estudiante", // Rol fijo para todos los registros
       };
 
-      const response = await fetch("http://localhost:3001/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userDataWithRole),
-      });
+      console.log("📤 Datos a enviar:", userDataWithRole);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error en el registro");
-      }
-
-      const result = await response.json();
+      // ✅ USAR LA FUNCIÓN registerApi en lugar de fetch directo
+      const result = await registerApi(userDataWithRole);
+      
       setSuccess("¡Cuenta creada exitosamente! Redirigiendo al login...");
 
       // Redirigir al login después de 2 segundos
@@ -87,7 +78,8 @@ const Registration = () => {
         });
       }, 2000);
     } catch (err) {
-      setError(err.message);
+      console.error("❌ Error en registro:", err);
+      setError(err.message || "Error al crear la cuenta");
     } finally {
       setLoading(false);
     }
@@ -154,7 +146,6 @@ const Registration = () => {
                 max="100"
                 required
               />
-              {/* Se eliminó el Select de rol */}
             </div>
 
             <Input
