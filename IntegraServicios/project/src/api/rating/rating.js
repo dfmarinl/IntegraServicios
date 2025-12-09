@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:3001/api/ratings";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = `${API_BASE}/api/ratings`;
+
 
 // Crear calificación
 export const createRatingApi = async (ratingData) => {

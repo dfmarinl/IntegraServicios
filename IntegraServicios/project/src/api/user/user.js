@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:3001/api/users";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = `${API_BASE}/api/users`;
 
 // Crear usuario
 export const createUserApi = async (userData) => {

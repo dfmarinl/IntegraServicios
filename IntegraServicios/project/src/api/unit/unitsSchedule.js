@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:3001/api/unit-schedules";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = `${API_BASE}/api/unit-schedules`;
+
 
 // Create schedule for a unit
 export const createUnitScheduleApi = async (unitId, scheduleData) => {
