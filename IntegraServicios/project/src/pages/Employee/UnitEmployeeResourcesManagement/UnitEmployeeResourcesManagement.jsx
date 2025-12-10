@@ -6,13 +6,14 @@ import {
   deleteResourceApi,
 } from "../../../api/Resource/Resource";
 import { getActiveResourceTypesApi } from "../../../api/Resource/resourceType";
-import GenericModal from "../../../modals/GenericModal/GenericModal";
-import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
+import { getMeApi } from "../../../api/user/auth";
+import GenericDeleteModal from "../../../modals/GenericDeleteModal/GenericDeleteModal";
 import CreateResourceForm from "../../../forms/CreateResourceForm/CreateResourceForm";
+import GenericModal from "../../../modals/GenericModal/GenericModal";
 import EditResourceForm from "../../../forms/EditResourceForm/EditResourceForm";
-import "./ResourcesManagement.css";
+import "./UnitEmployeeResourcesManagement.css";
 
-const ResourcesManagement = () => {
+const UnitEmployeeResourcesManagement = () => {
   const [allResources, setAllResources] = useState([]);
   const [displayedResources, setDisplayedResources] = useState([]);
   const [allResourceTypes, setAllResourceTypes] = useState([]);
@@ -23,6 +24,9 @@ const ResourcesManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Estado para la unidad del empleado
+  const [userUnit, setUserUnit] = useState(null);
 
   // Estados para búsqueda, filtros y paginación
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,41 +43,69 @@ const ResourcesManagement = () => {
   }, []);
 
   useEffect(() => {
-    if (isSearching || selectedTypeFilter) {
-      handleSearchAndFilter();
-    } else {
-      loadPaginatedResources();
+    if (userUnit) {
+      if (isSearching || selectedTypeFilter) {
+        handleSearchAndFilter();
+      } else {
+        loadPaginatedResources();
+      }
     }
-  }, [currentPage, searchTerm, selectedTypeFilter, isSearching]);
+  }, [currentPage, searchTerm, selectedTypeFilter, isSearching, userUnit]);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Obtener el token del localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No se encontró el token de autenticación");
+      }
+
+      // Obtener datos del usuario actual
+      const userData = await getMeApi(token);
+      setUserUnit(userData.unit);
+
+      // Obtener tipos de recursos activos
       const resourceTypesData = await getActiveResourceTypesApi();
       setAllResourceTypes(resourceTypesData);
 
+      // Obtener todos los recursos activos
       const resourcesData = await getActiveResourcesApi();
-      setAllResources(resourcesData);
 
-      await loadPaginatedResources();
+      // Filtrar solo los recursos de la unidad del usuario
+      const unitResources = resourcesData.filter(
+        (resource) => resource.ResourceType?.Unit?.id === userData.unit.id
+      );
+      setAllResources(unitResources);
+
+      await loadPaginatedResources(userData.unit.id);
     } catch (err) {
       console.error("Error al cargar datos iniciales:", err);
-      setError("Error al cargar los datos");
+      setError(err.message || "Error al cargar los datos");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPaginatedResources = async () => {
-    if (isSearching || selectedTypeFilter) return;
+  const loadPaginatedResources = async (unitId = userUnit?.id) => {
+    if (isSearching || selectedTypeFilter || !unitId) return;
 
     try {
       const response = await getResourcesPaginatedApi(currentPage, limit);
-      setDisplayedResources(response.resources);
-      setTotalPages(response.totalPages);
-      setTotalResources(response.total);
+
+      // Filtrar recursos por la unidad del usuario
+      const unitResources = response.resources.filter(
+        (resource) => resource.ResourceType?.Unit?.id === unitId
+      );
+
+      setDisplayedResources(unitResources);
+
+      // Recalcular paginación basada en recursos filtrados
+      const totalFiltered = allResources.length;
+      setTotalPages(Math.ceil(totalFiltered / limit));
+      setTotalResources(totalFiltered);
     } catch (err) {
       console.error("Error al cargar recursos paginados:", err);
       setError("Error al cargar los recursos");
@@ -192,31 +224,6 @@ const ResourcesManagement = () => {
     }
   };
 
-  // Estadísticas
-  const managementCards = [
-    {
-      title: "Recursos Totales",
-      value: allResources.length,
-      icon: "🖥️",
-      color: "#2563eb",
-      description: "Total de recursos en el sistema",
-    },
-    {
-      title: "Tipos Activos",
-      value: allResourceTypes.length,
-      icon: "📋",
-      color: "#16a34a",
-      description: "Tipos de recurso disponibles",
-    },
-    {
-      title: "Recursos Disponibles",
-      value: allResources.filter((resource) => resource.isAvailable).length,
-      icon: "✅",
-      color: "#ea580c",
-      description: "Recursos listos para uso",
-    },
-  ];
-
   const actionCards = [
     {
       title: "Crear Nuevo Recurso",
@@ -243,32 +250,11 @@ const ResourcesManagement = () => {
   }
 
   return (
-    <div className="resources-management">
+    <div className="unit-employee-resources-management">
       <h1 className="page-title">Gestión de Recursos</h1>
       <p className="page-subtitle">
-        Administra los recursos disponibles en el sistema
+        Administra los recursos de {userUnit?.name || "tu unidad"}
       </p>
-
-      {/* Estadísticas */}
-      <div className="stats-grid">
-        {managementCards.map((stat) => (
-          <Card key={stat.title} className="stat-card">
-            <div className="stat-content">
-              <div
-                className="stat-icon"
-                style={{ backgroundColor: stat.color }}
-              >
-                {stat.icon}
-              </div>
-              <div className="stat-details">
-                <p className="stat-title">{stat.title}</p>
-                <p className="stat-value">{stat.value}</p>
-                <p className="stat-description">{stat.description}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
 
       {/* Acción de Crear */}
       <div className="management-actions">
@@ -299,7 +285,7 @@ const ResourcesManagement = () => {
       <div className="resources-overview">
         <div className="resources-header">
           <div className="resources-title-section">
-            <h2>Recursos Existentes</h2>
+            <h2>Recursos de la Unidad</h2>
 
             {/* Filtros y búsqueda */}
             <div className="filters-container">
@@ -387,8 +373,6 @@ const ResourcesManagement = () => {
                     (t) => t.id === parseInt(selectedTypeFilter)
                   )?.name
                 }"`}
-              {(searchTerm || selectedTypeFilter) &&
-                " (búsqueda en todos los recursos activos)"}
             </p>
           </div>
         )}
@@ -496,7 +480,7 @@ const ResourcesManagement = () => {
         {/* Mensaje cuando no hay resultados */}
         {displayedResources.length === 0 && !loading && (
           <div className="no-results">
-            <p>No se encontraron recursos</p>
+            <p>No se encontraron recursos en tu unidad</p>
           </div>
         )}
 
@@ -574,4 +558,4 @@ const ResourcesManagement = () => {
   );
 };
 
-export default ResourcesManagement;
+export default UnitEmployeeResourcesManagement;

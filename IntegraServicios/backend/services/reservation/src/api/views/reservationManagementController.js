@@ -6,7 +6,7 @@ const User = require("../../../../../models/user");
 const Loan = require("../../../../../models/Loan");
 const Rating = require("../../../../../models/Rating");
 const Return = require("../../../../../models/Return");
-const { Op } = require("sequelize");
+const { Op, sequelize } = require("sequelize");
 
 const reservationManagementController = {
   // ========== DASHBOARD Y ESTADÍSTICAS ==========
@@ -31,7 +31,7 @@ const reservationManagementController = {
         return acc;
       }, {});
 
-      // Reservas recientes con joins seguros
+      // Reservas recientes con joins seguros - INCLUYENDO UNIT
       const recentReservations = await Reservation.findAll({
         order: [["createdAt", "DESC"]],
         limit: 10,
@@ -47,6 +47,12 @@ const reservationManagementController = {
               {
                 model: ResourceType,
                 attributes: ["id", "name"],
+                include: [
+                  {
+                    model: Unit,
+                    attributes: ["id", "name", "description"],
+                  },
+                ],
               },
             ],
           },
@@ -75,6 +81,9 @@ const reservationManagementController = {
             id: r.Resource.id,
             name: r.Resource.name,
             type: r.Resource.ResourceType ? r.Resource.ResourceType.name : null,
+            unit: r.Resource.ResourceType?.Unit
+              ? r.Resource.ResourceType.Unit.name
+              : null,
           },
         })),
       };
@@ -148,7 +157,7 @@ const reservationManagementController = {
 
       const offset = (page - 1) * limit;
 
-      // CONSULTA SEGURA - solo campos que existen
+      // CONSULTA SEGURA - INCLUYENDO UNIT
       const { count, rows: reservations } = await Reservation.findAndCountAll({
         where: whereConditions,
         include: [
@@ -162,7 +171,7 @@ const reservationManagementController = {
             include: [
               {
                 model: ResourceType,
-                attributes: ["id", "name"],
+                attributes: ["id", "name", "description"],
                 include: [
                   {
                     model: Unit,
@@ -251,9 +260,6 @@ const reservationManagementController = {
       }
 
       // Obtener IDs de reservas que ya tienen DEVOLUCIÓN registrada
-      // Solo excluir las que ya completaron todo el ciclo
-      const Return = require("../../../../../models/Return");
-
       const completedReservations = await Reservation.findAll({
         attributes: ["id"],
         include: [
@@ -265,7 +271,7 @@ const reservationManagementController = {
               {
                 model: Return,
                 attributes: ["id"],
-                required: true, // Solo las que tienen devolución
+                required: true,
               },
             ],
           },
@@ -318,7 +324,7 @@ const reservationManagementController = {
           {
             model: Loan,
             attributes: ["id", "deliveryTime", "hasFailure", "employeeId"],
-            required: false, // LEFT JOIN
+            required: false,
             include: [
               {
                 model: User,
@@ -351,12 +357,12 @@ const reservationManagementController = {
         const withinDeliveryWindow = timeDiff <= 5 && timeDiff >= -5;
 
         // Determinar estado del proceso
-        let processStatus = "pending_delivery"; // Esperando entrega
+        let processStatus = "pending_delivery";
         if (reservation.Loan) {
           if (reservation.Loan.Return) {
-            processStatus = "completed"; // Completado (no debería aparecer aquí)
+            processStatus = "completed";
           } else {
-            processStatus = "pending_return"; // Esperando devolución
+            processStatus = "pending_return";
           }
         }
 
@@ -408,7 +414,7 @@ const reservationManagementController = {
 
       console.log("🔍 Obteniendo detalles de reserva ID:", id);
 
-      // CONSULTA SEGURA - solo campos que existen
+      // CONSULTA SEGURA - INCLUYENDO UNIT
       const reservation = await Reservation.findByPk(id, {
         include: [
           {
@@ -462,7 +468,7 @@ const reservationManagementController = {
         });
       }
 
-      // Obtener información relacionada (opcional)
+      // Obtener información relacionada
       const loan = await Loan.findOne({
         where: { reservationId: id },
         include: [
@@ -771,6 +777,18 @@ const reservationManagementController = {
           {
             model: Resource,
             attributes: ["id", "name", "photoUrl"],
+            include: [
+              {
+                model: ResourceType,
+                attributes: ["id", "name"],
+                include: [
+                  {
+                    model: Unit,
+                    attributes: ["id", "name"],
+                  },
+                ],
+              },
+            ],
           },
         ],
         order: [["startDateTime", "DESC"]],
@@ -797,7 +815,6 @@ const reservationManagementController = {
     try {
       console.log("📊 Generando reporte");
 
-      // Estadísticas básicas
       const totalReservations = await Reservation.count();
       const reservations = await Reservation.findAll({
         limit: 100,
@@ -805,6 +822,22 @@ const reservationManagementController = {
           {
             model: User,
             attributes: ["id", "firstName", "lastName", "email", "rol"],
+          },
+          {
+            model: Resource,
+            attributes: ["id", "name"],
+            include: [
+              {
+                model: ResourceType,
+                attributes: ["id", "name"],
+                include: [
+                  {
+                    model: Unit,
+                    attributes: ["id", "name"],
+                  },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -825,6 +858,11 @@ const reservationManagementController = {
             name: `${r.User.firstName} ${r.User.lastName}`,
             email: r.User.email,
             rol: r.User.rol,
+          },
+          resource: {
+            name: r.Resource.name,
+            type: r.Resource.ResourceType?.name,
+            unit: r.Resource.ResourceType?.Unit?.name,
           },
         })),
       };
@@ -861,7 +899,6 @@ const reservationManagementController = {
         });
       }
 
-      // Actualizar cada reserva
       const results = [];
       for (const id of reservationIds) {
         try {
