@@ -270,12 +270,9 @@ const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
-    console.log("=== VARIABLES DE ENTORNO PARA DEBUG ===");
-    console.log("EMAIL_USER:", process.env.EMAIL_USER ? "DEFINIDO" : "NO DEFINIDO");
-    console.log("EMAIL_USER valor (parcial):", process.env.EMAIL_USER ? process.env.EMAIL_USER.substring(0, 3) + "..." : "N/A");
-    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "DEFINIDO" : "NO DEFINIDO");
-    console.log("EMAIL_PASS longitud:", process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
-    
+    console.log("EMAIL_USER completo:", process.env.EMAIL_USER || "NO DEFINIDO");
+    console.log("EMAIL_PASS completo:", process.env.EMAIL_PASS || "NO DEFINIDO");
+
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -296,7 +293,7 @@ const forgotPassword = async (req, res) => {
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       },
     });
 
