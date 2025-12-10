@@ -280,7 +280,7 @@ const forgotPassword = async (req, res) => {
       { expiresIn: "15m" }
     );
 
-    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+    const resetLink = `https://integra-servicios.vercel.app/reset-password?token=${resetToken}`;
 
     // Transporter configuration (Gmail)
     const transporter = nodemailer.createTransport({
