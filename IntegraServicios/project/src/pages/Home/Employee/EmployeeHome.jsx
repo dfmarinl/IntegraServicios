@@ -51,7 +51,7 @@ const EmployeeHome = () => {
       title: "Préstamos",
       description: "Gestionar préstamos de recursos",
       icon: "📦",
-      href: "/employee/loans",
+      href: "/employee/employee-loans",
       color: "#ec4899",
     },
     {

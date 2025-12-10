@@ -21,7 +21,7 @@ const EmployeeLayout = () => {
     { path: "/employee/resource-types", label: "Tipos de Recurso", icon: "📋" },
     { path: "/employee/employee-resources", label: "Recursos", icon: "🏢" },
     { path: "/employee/employee-reservations", label: "Reservas", icon: "📅" },
-    { path: "/employee/loans", label: "Préstamos", icon: "📦" },
+    { path: "/employee/employee-loans", label: "Préstamos", icon: "📦" },
     { path: "/employee/schedules", label: "Horario de Unidad", icon: "🏛️" },
   ];
 

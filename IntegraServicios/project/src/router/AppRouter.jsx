@@ -27,7 +27,8 @@ import ExternalResources from "../components/User/External/ExternalResources";
 import EmployeeScheduleManagement from "../pages/Employee/EmployeeScheduleManagement/EmployeeScheduleManagement";
 import EmployeeResourceTypesManagement from "../pages/Employee/EmployeeResourceTypesManagement/EmployeeResourceTypesManagement";
 import UnitEmployeeResourcesManagement from "../pages/Employee/UnitEmployeeResourcesManagement/UnitEmployeeResourcesManagement";
-import UnitEmployeeReservationsManagement from "../pages/Employee/UnitEmployeeReservationsManagement/UnitEmployeeReservationsManagement"; // Nuevo import
+import UnitEmployeeReservationsManagement from "../pages/Employee/EmployeeReservationsManagement/EmployeeReservationsManagement";
+import UnitLoansManagement from "../pages/Employee/UnitLoansManagement/UnitLoansManagement"; // Nuevo import
 
 // Objeto de mapeo de roles a rutas
 const roleRoutes = {
@@ -182,18 +183,10 @@ const AppRouter = () => {
           <Route
             path="employee-reservations"
             element={<UnitEmployeeReservationsManagement />}
-          />{" "}
-          {/* Nueva ruta */}
-          <Route path="stats" element={<StatsPage />} />
-          <Route
-            path="loans"
-            element={
-              <div className="page-placeholder">
-                <h1>Gestión de Préstamos</h1>
-                <p>Página en construcción</p>
-              </div>
-            }
           />
+          <Route path="employee-loans" element={<UnitLoansManagement />} />{" "}
+          {/* Nueva ruta - reemplaza placeholder */}
+          <Route path="stats" element={<StatsPage />} />
           <Route
             path="returns"
             element={

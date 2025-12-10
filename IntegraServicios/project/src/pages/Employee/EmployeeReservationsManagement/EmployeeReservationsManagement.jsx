@@ -1,31 +1,25 @@
 import { useState, useEffect } from "react";
-import Card from "../../../components/common/Card";
 import {
-  getReservationDashboardApi,
   getAllReservationsWithDetailsApi,
   getReservationDetailsApi,
   updateReservationApi,
   deleteReservationApi,
-  manageRepeatSeriesApi,
   searchReservationsApi,
-  calculateQuickStats,
 } from "../../../api/Reservation/reservationManagementApi";
 import { getMeApi } from "../../../api/user/auth";
 import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
-import GenericModal from "../../../modals/GenericModal/GenericModal";
 import ReservationDetailsModal from "../../../modals/ReservationDetailsModal/ReservationDetailsModal";
 import EditReservationModal from "../../../modals/EditReservationModal/EditReservationModal";
-import ManageRepeatSeriesModal from "../../../modals/ManageRepeatSeriesModal/ManageRepeatSeriesModal";
-import "./UnitEmployeeReservationsManagement.css";
+import SearchReservationsModal from "../../../modals/SearchReservationsModal/SearchReservationsModal";
+import "./EmployeeReservationsManagement.css";
 
-const UnitEmployeeReservationsManagement = () => {
+const EmployeeReservationsManagement = () => {
   // Estados principales
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Estado para la unidad del empleado
-  const [userUnit, setUserUnit] = useState(null);
+  const [employeeData, setEmployeeData] = useState(null);
+  const [employeeUnitId, setEmployeeUnitId] = useState(null);
 
   // Estados para selección y detalles
   const [selectedReservation, setSelectedReservation] = useState(null);
@@ -49,67 +43,99 @@ const UnitEmployeeReservationsManagement = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isManageSeriesModalOpen, setIsManageSeriesModalOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   // Estados para operaciones
   const [operationLoading, setOperationLoading] = useState(false);
-  const [stats, setStats] = useState(null);
 
-  // Cargar datos iniciales
+  // Cargar datos del empleado al montar el componente
   useEffect(() => {
-    loadInitialData();
+    loadEmployeeData();
   }, []);
 
+  // Cargar reservas cuando cambian los filtros, página o se obtiene el unitId
   useEffect(() => {
-    if (userUnit) {
+    if (employeeUnitId !== null) {
       loadReservations();
     }
-  }, [currentPage, filters, userUnit]);
+  }, [currentPage, filters, employeeUnitId]);
 
-  const loadInitialData = async () => {
+  const loadEmployeeData = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      // Obtener el token del localStorage
       const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No se encontró el token de autenticación");
-      }
+      const response = await getMeApi(token);
 
-      // Obtener datos del usuario actual
-      const userData = await getMeApi(token);
-      setUserUnit(userData.unit);
+      console.log("👤 Datos del empleado:", response);
+
+      setEmployeeData(response);
+
+      if (response.unitId) {
+        setEmployeeUnitId(response.unitId);
+        console.log(
+          "🏢 Unidad del empleado:",
+          response.unitId,
+          "-",
+          response.unit?.name
+        );
+      } else {
+        setError("No se encontró una unidad asignada para este empleado");
+        setLoading(false);
+      }
     } catch (err) {
-      console.error("Error al cargar datos iniciales:", err);
-      setError(err.message || "Error al cargar los datos");
-    } finally {
+      console.error("Error al cargar datos del empleado:", err);
+      setError(err.message || "Error al cargar datos del empleado");
       setLoading(false);
     }
   };
 
   const loadReservations = async () => {
+    if (!employeeUnitId) return;
+
     try {
       setLoading(true);
       setError(null);
 
-      // Construir filtros incluyendo la unidad del usuario
-      const queryFilters = {
+      // ✅ FILTRO CRÍTICO: Enviar unitId en los parámetros de la petición
+      const response = await getAllReservationsWithDetailsApi({
         ...filters,
-        unitId: userUnit.id, // Filtro por unidad del empleado
+        unitId: employeeUnitId, // 🔒 Filtrar en el backend por la unidad del empleado
         page: currentPage,
         limit: limit,
-      };
+      });
 
-      const response = await getAllReservationsWithDetailsApi(queryFilters);
+      console.log(
+        "📋 Reservas recibidas del backend para unidad",
+        employeeUnitId,
+        ":",
+        response
+      );
 
-      setReservations(response.reservations);
+      // ✅ DOBLE FILTRO DE SEGURIDAD: Filtrar en frontend también
+      // Esto asegura que SOLO se muestren reservas de la unidad del empleado
+      const filteredReservations = response.reservations.filter(
+        (reservation) => {
+          const reservationUnitId =
+            reservation.Resource?.ResourceType?.Unit?.id;
+          const matches = reservationUnitId === employeeUnitId;
+
+          if (!matches) {
+            console.warn(
+              `⚠️ Reserva #${reservation.id} no pertenece a la unidad ${employeeUnitId} (pertenece a ${reservationUnitId})`
+            );
+          }
+
+          return matches;
+        }
+      );
+
+      console.log(
+        "✅ Reservas filtradas para mostrar:",
+        filteredReservations.length
+      );
+
+      setReservations(filteredReservations);
       setTotalPages(response.pagination.totalPages);
-      setTotalItems(response.pagination.total);
-
-      // Calcular estadísticas rápidas
-      const quickStats = calculateQuickStats(response.reservations);
-      setStats(quickStats);
+      setTotalItems(filteredReservations.length); // Usar el count filtrado
     } catch (err) {
       console.error("Error al cargar reservas:", err);
       setError(err.message || "Error al cargar las reservas");
@@ -159,27 +185,41 @@ const UnitEmployeeReservationsManagement = () => {
     }
   };
 
-  // Manejar gestión de series repetitivas
-  const handleManageSeries = (reservation) => {
-    if (reservation.isRepetitive) {
-      setSelectedReservation(reservation);
-      setIsManageSeriesModalOpen(true);
-    }
-  };
-
-  // Confirmar gestión de serie
-  const handleManageSeriesConfirm = async (action, config) => {
+  // Manejar búsqueda avanzada
+  const handleSearchSubmit = async (criteria) => {
     try {
-      setOperationLoading(true);
-      const seriesId = selectedReservation.purpose; // Usamos purpose como ID de serie
-      await manageRepeatSeriesApi(seriesId, action, config);
-      setIsManageSeriesModalOpen(false);
-      setSelectedReservation(null);
-      loadReservations();
+      setLoading(true);
+
+      // ✅ FILTRO CRÍTICO: Agregar unitId a la búsqueda
+      const searchCriteriaWithUnit = {
+        ...criteria,
+        unitId: employeeUnitId, // 🔒 Filtrar por la unidad del empleado
+      };
+
+      console.log("🔍 Buscando con criterios:", searchCriteriaWithUnit);
+
+      const results = await searchReservationsApi(searchCriteriaWithUnit);
+
+      // ✅ DOBLE FILTRO DE SEGURIDAD en búsqueda también
+      const filteredResults = results.reservations.filter(
+        (reservation) =>
+          reservation.Resource?.ResourceType?.Unit?.id === employeeUnitId
+      );
+
+      console.log(
+        "🔍 Resultados de búsqueda filtrados:",
+        filteredResults.length
+      );
+
+      setReservations(filteredResults);
+      setTotalItems(filteredResults.length);
+      setTotalPages(1);
+
+      setIsSearchModalOpen(false);
     } catch (err) {
-      setError(err.message || "Error al gestionar serie");
+      setError(err.message || "Error en búsqueda");
     } finally {
-      setOperationLoading(false);
+      setLoading(false);
     }
   };
 
@@ -259,18 +299,41 @@ const UnitEmployeeReservationsManagement = () => {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p>Cargando reservas...</p>
+        <p>Cargando reservas de tu unidad...</p>
+      </div>
+    );
+  }
+
+  if (!employeeUnitId && !loading) {
+    return (
+      <div className="error-container">
+        <div className="error-icon">⚠️</div>
+        <h2>No se pudo cargar la información</h2>
+        <p>{error || "No tienes una unidad asignada"}</p>
       </div>
     );
   }
 
   return (
-    <div className="unit-employee-reservations-management">
+    <div className="employee-reservations-management">
       <div className="page-header">
-        <h1 className="page-title">Gestión de Reservas</h1>
-        <p className="page-subtitle">
-          Administra las reservas de {userUnit?.name || "tu unidad"}
-        </p>
+        <div className="page-header-content">
+          <div>
+            <h1 className="page-title">Gestión de Reservas</h1>
+            <p className="page-subtitle">
+              Administra las reservas de tu unidad
+            </p>
+          </div>
+          {employeeData && (
+            <div className="unit-info-badge">
+              <div className="unit-icon">🏢</div>
+              <div className="unit-details">
+                <span className="unit-label">Unidad</span>
+                <strong className="unit-name">{employeeData.unit?.name}</strong>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}
@@ -337,7 +400,9 @@ const UnitEmployeeReservationsManagement = () => {
       {/* Lista de reservas */}
       <div className="reservations-section">
         <div className="section-header">
-          <h2>Reservas de la Unidad ({totalItems})</h2>
+          <h2>
+            Reservas de {employeeData?.unit?.name || "tu unidad"} ({totalItems})
+          </h2>
           <div className="header-actions">
             <span className="selected-count">
               {selectedReservations.length} seleccionadas
@@ -359,133 +424,138 @@ const UnitEmployeeReservationsManagement = () => {
           </div>
         )}
 
-        <div className="reservations-table-container">
-          <table className="reservations-table">
-            <thead>
-              <tr>
-                <th style={{ width: "50px" }}>
-                  <input
-                    type="checkbox"
-                    checked={
-                      selectedReservations.length === reservations.length &&
-                      reservations.length > 0
-                    }
-                    onChange={handleSelectAll}
-                  />
-                </th>
-                <th>ID</th>
-                <th>Recurso</th>
-                <th>Usuario</th>
-                <th>Fecha/Hora</th>
-                <th>Duración</th>
-                <th>Estado</th>
-                <th>Tipo</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reservations.map((reservation) => (
-                <tr key={reservation.id} className="reservation-row">
-                  <td>
+        {reservations.length === 0 && !loading ? (
+          <div className="no-results">
+            <div className="no-results-icon">📭</div>
+            <h3>No hay reservas</h3>
+            <p>
+              No se encontraron reservas para tu unidad con los filtros
+              aplicados
+            </p>
+          </div>
+        ) : (
+          <div className="reservations-table-container">
+            <table className="reservations-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "50px" }}>
                     <input
                       type="checkbox"
-                      checked={selectedReservations.some(
-                        (r) => r.id === reservation.id
-                      )}
-                      onChange={() => handleSelectReservation(reservation)}
+                      checked={
+                        selectedReservations.length === reservations.length &&
+                        reservations.length > 0
+                      }
+                      onChange={handleSelectAll}
                     />
-                  </td>
-                  <td className="reservation-id">#{reservation.id}</td>
-                  <td>
-                    <div className="resource-info">
-                      <strong>{reservation.Resource?.name}</strong>
-                      <small>{reservation.Resource?.ResourceType?.name}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="user-info">
-                      <strong>
-                        {reservation.User?.firstName}{" "}
-                        {reservation.User?.lastName}
-                      </strong>
-                      <small>{reservation.User?.email}</small>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="datetime-info">
-                      <div>
-                        {new Date(
-                          reservation.startDateTime
-                        ).toLocaleDateString()}
-                      </div>
-                      <small>
-                        {new Date(reservation.startDateTime).toLocaleTimeString(
-                          [],
-                          { hour: "2-digit", minute: "2-digit" }
-                        )}
-                      </small>
-                    </div>
-                  </td>
-                  <td>
-                    {Math.round(
-                      (new Date(reservation.endDateTime) -
-                        new Date(reservation.startDateTime)) /
-                        (1000 * 60 * 60)
-                    )}
-                    h
-                  </td>
-                  <td>{renderStatusBadge(reservation.status)}</td>
-                  <td>
-                    {reservation.isRepetitive ? (
-                      <span className="badge-repetitive">🔄 Repetitiva</span>
-                    ) : (
-                      <span className="badge-single">⭐ Única</span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        onClick={() => handleViewDetails(reservation)}
-                        className="btn-icon"
-                        title="Ver detalles"
-                      >
-                        👁️
-                      </button>
-                      <button
-                        onClick={() => handleEditReservation(reservation)}
-                        className="btn-icon"
-                        title="Editar"
-                      >
-                        ✏️
-                      </button>
-                      {reservation.isRepetitive && (
-                        <button
-                          onClick={() => handleManageSeries(reservation)}
-                          className="btn-icon"
-                          title="Gestionar serie"
-                        >
-                          🔄
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDeleteClick(reservation)}
-                        className="btn-icon btn-icon-danger"
-                        title="Eliminar"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </td>
+                  </th>
+                  <th>ID</th>
+                  <th>Recurso</th>
+                  <th>Usuario</th>
+                  <th>Fecha/Hora</th>
+                  <th>Duración</th>
+                  <th>Estado</th>
+                  <th>Tipo</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mensaje cuando no hay reservas */}
-        {reservations.length === 0 && !loading && (
-          <div className="no-results">
-            <p>No se encontraron reservas en tu unidad</p>
+              </thead>
+              <tbody>
+                {reservations.map((reservation) => (
+                  <tr key={reservation.id} className="reservation-row">
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedReservations.some(
+                          (r) => r.id === reservation.id
+                        )}
+                        onChange={() => handleSelectReservation(reservation)}
+                      />
+                    </td>
+                    <td className="reservation-id">#{reservation.id}</td>
+                    <td>
+                      <div className="resource-info">
+                        <strong>{reservation.Resource?.name}</strong>
+                        <small>
+                          {reservation.Resource?.ResourceType?.name}
+                          {reservation.Resource?.ResourceType?.Unit && (
+                            <>
+                              {" "}
+                              • {reservation.Resource.ResourceType.Unit.name}
+                            </>
+                          )}
+                        </small>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="user-info">
+                        <strong>
+                          {reservation.User?.firstName}{" "}
+                          {reservation.User?.lastName}
+                        </strong>
+                        <small>{reservation.User?.email}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="datetime-info">
+                        <div>
+                          {new Date(
+                            reservation.startDateTime
+                          ).toLocaleDateString("es-ES")}
+                        </div>
+                        <small>
+                          {new Date(
+                            reservation.startDateTime
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </small>
+                      </div>
+                    </td>
+                    <td>
+                      {Math.round(
+                        (new Date(reservation.endDateTime) -
+                          new Date(reservation.startDateTime)) /
+                          (1000 * 60 * 60)
+                      )}
+                      h
+                    </td>
+                    <td>{renderStatusBadge(reservation.status)}</td>
+                    <td>
+                      {reservation.isRepetitive ? (
+                        <span className="badge-repetitive">🔄 Repetitiva</span>
+                      ) : (
+                        <span className="badge-single">⭐ Única</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          onClick={() => handleViewDetails(reservation)}
+                          className="btn-icon"
+                          title="Ver detalles"
+                        >
+                          👁️
+                        </button>
+                        <button
+                          onClick={() => handleEditReservation(reservation)}
+                          className="btn-icon"
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(reservation)}
+                          className="btn-icon btn-icon-danger"
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -576,15 +646,14 @@ const UnitEmployeeReservationsManagement = () => {
         loading={operationLoading}
       />
 
-      <ManageRepeatSeriesModal
-        isOpen={isManageSeriesModalOpen}
-        onClose={() => setIsManageSeriesModalOpen(false)}
-        onConfirm={handleManageSeriesConfirm}
-        reservation={selectedReservation}
+      <SearchReservationsModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onSubmit={handleSearchSubmit}
         loading={operationLoading}
       />
     </div>
   );
 };
 
-export default UnitEmployeeReservationsManagement;
+export default EmployeeReservationsManagement;

@@ -1,11 +1,19 @@
-.unit-employee-reservations-management {
+.employee-reservations-management {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
 }
 
+/* Page Header */
 .page-header {
   margin-bottom: 2rem;
+}
+
+.page-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
 }
 
 .page-title {
@@ -18,6 +26,102 @@
 .page-subtitle {
   color: #6b7280;
   font-size: 1.1rem;
+}
+
+/* Unit Info Badge */
+.unit-info-badge {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.unit-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.unit-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.unit-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.unit-name {
+  font-size: 1.125rem;
+  color: white;
+  font-weight: 600;
+}
+
+/* Quick Actions */
+.quick-actions {
+  margin-bottom: 2rem;
+}
+
+.action-button {
+  width: 100%;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.action-button:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+}
+
+.action-button-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.action-button-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.action-button-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.action-button-description {
+  font-size: 0.875rem;
+  color: #6b7280;
 }
 
 /* Filters Section */
@@ -109,6 +213,29 @@
 .selected-count {
   font-size: 0.875rem;
   color: #6b7280;
+}
+
+/* No Results */
+.no-results {
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.no-results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.no-results h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.no-results p {
+  color: #6b7280;
+  font-size: 1rem;
 }
 
 /* Table */
@@ -322,6 +449,31 @@
   }
 }
 
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.error-icon {
+  font-size: 4rem;
+}
+
+.error-container h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.error-container p {
+  color: #6b7280;
+  text-align: center;
+}
+
 .error-message {
   padding: 1rem;
   background-color: #fee2e2;
@@ -348,13 +500,6 @@
 
 .btn-retry:hover {
   background-color: #b91c1c;
-}
-
-.no-results {
-  text-align: center;
-  padding: 3rem;
-  color: #6b7280;
-  font-size: 1rem;
 }
 
 /* Button styles */
@@ -387,13 +532,22 @@
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-  .unit-employee-reservations-management {
+  .employee-reservations-management {
     padding: 1.5rem;
+  }
+
+  .page-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .unit-info-badge {
+    width: 100%;
   }
 }
 
 @media (max-width: 768px) {
-  .unit-employee-reservations-management {
+  .employee-reservations-management {
     padding: 1rem;
   }
 
@@ -433,9 +587,24 @@
   .pagination-pages {
     order: -1;
   }
+
+  .action-button {
+    padding: 1.25rem;
+  }
+
+  .action-button-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
 }
 
 @media (max-width: 640px) {
+  .unit-info-badge {
+    flex-direction: column;
+    text-align: center;
+  }
+
   .filter-group label {
     font-size: 0.8125rem;
   }
@@ -487,4 +656,8 @@
 .pagination-btn:active:not(:disabled),
 .pagination-page:active {
   transform: scale(0.98);
+}
+
+.action-button:active {
+  transform: translateY(0);
 }

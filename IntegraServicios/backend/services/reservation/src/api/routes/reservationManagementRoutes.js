@@ -7,6 +7,7 @@ const {
 } = require("../../../../user/src/middleware/authentication");
 
 // ========== RUTAS DE DASHBOARD Y ESTADÍSTICAS ==========
+// ✅ PRIMERO: Rutas estáticas específicas
 
 // Dashboard general de reservas
 router.get(
@@ -32,40 +33,6 @@ router.get(
   verifyToken,
   authorizeRoles("administrador", "empleado_unidad"),
   reservationManagementController.getActiveReservationsForLoans
-);
-
-// Obtener detalles completos de una reserva específica
-router.get(
-  "/:id/details",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  reservationManagementController.getReservationDetails
-);
-
-// Actualizar reserva (admin - edición completa)
-router.put(
-  "/:id/update",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  reservationManagementController.updateReservation
-);
-
-// Eliminar reserva (admin - con justificación)
-router.delete(
-  "/:id/delete",
-  verifyToken,
-  authorizeRoles("administrador"),
-  reservationManagementController.deleteReservation
-);
-
-// ========== RUTAS PARA SERIES REPETITIVAS (ADMIN) ==========
-
-// Gestionar series de reservas repetitivas
-router.put(
-  "/repeat-series/:seriesId/manage",
-  verifyToken,
-  authorizeRoles("administrador", "empleado_unidad"),
-  reservationManagementController.manageRepeatSeries
 );
 
 // ========== RUTAS DE BÚSQUEDA AVANZADA ==========
@@ -96,6 +63,43 @@ router.put(
   verifyToken,
   authorizeRoles("administrador"),
   reservationManagementController.bulkUpdateReservations
+);
+
+// ========== RUTAS PARA SERIES REPETITIVAS (ADMIN) ==========
+
+// Gestionar series de reservas repetitivas
+router.put(
+  "/repeat-series/:seriesId/manage",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  reservationManagementController.manageRepeatSeries
+);
+
+// ========== RUTAS CON PARÁMETROS DINÁMICOS ==========
+// ⚠️ AL FINAL: Rutas con parámetros dinámicos /:id
+
+// Obtener detalles completos de una reserva específica
+router.get(
+  "/:id/details",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  reservationManagementController.getReservationDetails
+);
+
+// Actualizar reserva (admin - edición completa)
+router.put(
+  "/:id/update",
+  verifyToken,
+  authorizeRoles("administrador", "empleado_unidad"),
+  reservationManagementController.updateReservation
+);
+
+// Eliminar reserva (admin - con justificación)
+router.delete(
+  "/:id/delete",
+  verifyToken,
+  authorizeRoles("administrador"),
+  reservationManagementController.deleteReservation
 );
 
 module.exports = router;

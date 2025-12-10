@@ -166,7 +166,7 @@ const ReservationsManagement = () => {
   const handleManageSeriesConfirm = async (action, config) => {
     try {
       setOperationLoading(true);
-      const seriesId = selectedReservation.purpose; // Usamos purpose como ID de serie
+      const seriesId = selectedReservation.purpose;
       await manageRepeatSeriesApi(seriesId, action, config);
       setIsManageSeriesModalOpen(false);
       setSelectedReservation(null);
@@ -187,7 +187,7 @@ const ReservationsManagement = () => {
       const results = await searchReservationsApi(criteria);
       setReservations(results.reservations);
       setTotalItems(results.count);
-      setTotalPages(1); // La búsqueda no usa paginación
+      setTotalPages(1);
 
       setIsSearchModalOpen(false);
     } catch (err) {
@@ -211,7 +211,6 @@ const ReservationsManagement = () => {
         const filename = generateExportFilename("reporte_reservas", "pdf");
         downloadFile(report, filename, "application/pdf");
       } else {
-        // Para JSON, podrías mostrar un modal con el reporte
         console.log("Reporte generado:", report);
       }
 
@@ -580,7 +579,12 @@ const ReservationsManagement = () => {
                   <td>
                     <div className="resource-info">
                       <strong>{reservation.Resource?.name}</strong>
-                      <small>{reservation.Resource?.ResourceType?.name}</small>
+                      <small>
+                        {reservation.Resource?.ResourceType?.name}
+                        {reservation.Resource?.ResourceType?.Unit && (
+                          <> • {reservation.Resource.ResourceType.Unit.name}</>
+                        )}
+                      </small>
                     </div>
                   </td>
                   <td>
