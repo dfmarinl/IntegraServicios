@@ -270,8 +270,7 @@ const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
-    console.log("EMAIL_USER completo:", process.env.EMAIL_USER || "NO DEFINIDO");
-    console.log("EMAIL_PASS completo:", process.env.EMAIL_PASS || "NO DEFINIDO");
+
 
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -287,17 +286,13 @@ const forgotPassword = async (req, res) => {
 
     // Transporter configuration (Gmail)
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // true para 465, false para otros puertos
+      host: process.env.BREVO_HOST,
+      port: process.env.BREVO_PORT,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.BREVO_USER,
+        pass: process.env.BREVO_PASS,
       },
-      tls: {
-        ciphers:'SSLv3',
-        rejectUnauthorized: false
-      }
     });
 
     
