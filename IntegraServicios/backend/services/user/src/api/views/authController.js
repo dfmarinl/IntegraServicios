@@ -2,6 +2,7 @@ const { User } = require("../../../../../models");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
+const sequelize = require("../../../../../config/database"); // Asegúrate de importar sequelize
 
 // User registration
 const register = async (req, res) => {
@@ -61,7 +62,7 @@ const register = async (req, res) => {
     console.error("Registration error details:", error);
     res.status(500).json({
       message: "Error registering user",
-      error: error.message, // ← Agrega esto
+      error: error.message,
     });
   }
 };
@@ -108,11 +109,24 @@ const getMe = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // For now, return only user data without related entities
-    // You can add reservations, loans, etc. when those models exist
+    // Si el usuario tiene unitId, obtener información de la unidad
+    let unitData = null;
+    if (user.unitId) {
+      const [units] = await sequelize.query(
+        `SELECT id, name, description, granularity, "isActive" 
+         FROM "Units" 
+         WHERE id = :unitId AND "isActive" = true`,
+        {
+          replacements: { unitId: user.unitId },
+          type: sequelize.QueryTypes.SELECT,
+        }
+      );
+      unitData = units || null;
+    }
+
     res.status(200).json({
       ...user.toJSON(),
-      // Future: add reservations, loans history, etc.
+      unit: unitData, // Agregar información de la unidad
       reservations: [],
       activeLoans: [],
     });
@@ -266,7 +280,7 @@ const forgotPassword = async (req, res) => {
       { expiresIn: "15m" }
     );
 
-    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`; // Update frontend URL
+    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
 
     // Transporter configuration (Gmail)
     const transporter = nodemailer.createTransport({
@@ -276,7 +290,7 @@ const forgotPassword = async (req, res) => {
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        rejectUnauthorized: false, // ⚠️ Development only
+        rejectUnauthorized: false,
       },
     });
 

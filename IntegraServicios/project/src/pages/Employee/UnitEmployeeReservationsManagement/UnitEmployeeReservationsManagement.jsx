@@ -1,0 +1,590 @@
+import { useState, useEffect } from "react";
+import Card from "../../../components/common/Card";
+import {
+  getReservationDashboardApi,
+  getAllReservationsWithDetailsApi,
+  getReservationDetailsApi,
+  updateReservationApi,
+  deleteReservationApi,
+  manageRepeatSeriesApi,
+  searchReservationsApi,
+  calculateQuickStats,
+} from "../../../api/Reservation/reservationManagementApi";
+import { getMeApi } from "../../../api/user/auth";
+import GenericDeleteModal from "../../../modals/GenericDeletemodal/GenericDeleteModal";
+import GenericModal from "../../../modals/GenericModal/GenericModal";
+import ReservationDetailsModal from "../../../modals/ReservationDetailsModal/ReservationDetailsModal";
+import EditReservationModal from "../../../modals/EditReservationModal/EditReservationModal";
+import ManageRepeatSeriesModal from "../../../modals/ManageRepeatSeriesModal/ManageRepeatSeriesModal";
+import "./UnitEmployeeReservationsManagement.css";
+
+const UnitEmployeeReservationsManagement = () => {
+  // Estados principales
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Estado para la unidad del empleado
+  const [userUnit, setUserUnit] = useState(null);
+
+  // Estados para selección y detalles
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [selectedReservations, setSelectedReservations] = useState([]);
+
+  // Estados para filtros y paginación
+  const [filters, setFilters] = useState({
+    status: "all",
+    resourceId: "",
+    userId: "",
+    isRepetitive: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 10;
+
+  // Estados para modales
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isManageSeriesModalOpen, setIsManageSeriesModalOpen] = useState(false);
+
+  // Estados para operaciones
+  const [operationLoading, setOperationLoading] = useState(false);
+  const [stats, setStats] = useState(null);
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (userUnit) {
+      loadReservations();
+    }
+  }, [currentPage, filters, userUnit]);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Obtener el token del localStorage
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No se encontró el token de autenticación");
+      }
+
+      // Obtener datos del usuario actual
+      const userData = await getMeApi(token);
+      setUserUnit(userData.unit);
+    } catch (err) {
+      console.error("Error al cargar datos iniciales:", err);
+      setError(err.message || "Error al cargar los datos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadReservations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Construir filtros incluyendo la unidad del usuario
+      const queryFilters = {
+        ...filters,
+        unitId: userUnit.id, // Filtro por unidad del empleado
+        page: currentPage,
+        limit: limit,
+      };
+
+      const response = await getAllReservationsWithDetailsApi(queryFilters);
+
+      setReservations(response.reservations);
+      setTotalPages(response.pagination.totalPages);
+      setTotalItems(response.pagination.total);
+
+      // Calcular estadísticas rápidas
+      const quickStats = calculateQuickStats(response.reservations);
+      setStats(quickStats);
+    } catch (err) {
+      console.error("Error al cargar reservas:", err);
+      setError(err.message || "Error al cargar las reservas");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Manejar detalles de reserva
+  const handleViewDetails = async (reservation) => {
+    try {
+      setOperationLoading(true);
+      const details = await getReservationDetailsApi(reservation.id);
+      setSelectedReservation(details.reservation);
+      setIsDetailsModalOpen(true);
+    } catch (err) {
+      setError(err.message || "Error al cargar detalles");
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  // Manejar edición de reserva
+  const handleEditReservation = (reservation) => {
+    setSelectedReservation(reservation);
+    setIsEditModalOpen(true);
+  };
+
+  // Manejar eliminación de reserva
+  const handleDeleteClick = (reservation) => {
+    setSelectedReservation(reservation);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Confirmar eliminación
+  const handleDeleteConfirm = async () => {
+    try {
+      setOperationLoading(true);
+      await deleteReservationApi(selectedReservation.id);
+      setIsDeleteModalOpen(false);
+      setSelectedReservation(null);
+      loadReservations();
+    } catch (err) {
+      setError(err.message || "Error al eliminar reserva");
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  // Manejar gestión de series repetitivas
+  const handleManageSeries = (reservation) => {
+    if (reservation.isRepetitive) {
+      setSelectedReservation(reservation);
+      setIsManageSeriesModalOpen(true);
+    }
+  };
+
+  // Confirmar gestión de serie
+  const handleManageSeriesConfirm = async (action, config) => {
+    try {
+      setOperationLoading(true);
+      const seriesId = selectedReservation.purpose; // Usamos purpose como ID de serie
+      await manageRepeatSeriesApi(seriesId, action, config);
+      setIsManageSeriesModalOpen(false);
+      setSelectedReservation(null);
+      loadReservations();
+    } catch (err) {
+      setError(err.message || "Error al gestionar serie");
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  // Manejar selección de reservas
+  const handleSelectReservation = (reservation) => {
+    const isSelected = selectedReservations.some(
+      (r) => r.id === reservation.id
+    );
+    if (isSelected) {
+      setSelectedReservations(
+        selectedReservations.filter((r) => r.id !== reservation.id)
+      );
+    } else {
+      setSelectedReservations([...selectedReservations, reservation]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedReservations.length === reservations.length) {
+      setSelectedReservations([]);
+    } else {
+      setSelectedReservations([...reservations]);
+    }
+  };
+
+  // Manejar cambios de filtro
+  const handleFilterChange = (filterName, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterName]: value,
+    }));
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      status: "all",
+      resourceId: "",
+      userId: "",
+      isRepetitive: "",
+      startDate: "",
+      endDate: "",
+    });
+    setCurrentPage(1);
+  };
+
+  // Función para renderizar el estado con colores
+  const renderStatusBadge = (status) => {
+    const statusConfig = {
+      pendiente: { label: "Pendiente", color: "#f59e0b", bg: "#fef3c7" },
+      activa: { label: "Activa", color: "#10b981", bg: "#d1fae5" },
+      finalizada: { label: "Finalizada", color: "#6b7280", bg: "#f3f4f6" },
+      cancelada: { label: "Cancelada", color: "#ef4444", bg: "#fee2e2" },
+    };
+
+    const config = statusConfig[status] || {
+      label: status,
+      color: "#6b7280",
+      bg: "#f3f4f6",
+    };
+
+    return (
+      <span
+        className="status-badge"
+        style={{
+          color: config.color,
+          backgroundColor: config.bg,
+          borderColor: config.color,
+        }}
+      >
+        {config.label}
+      </span>
+    );
+  };
+
+  if (loading && reservations.length === 0) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Cargando reservas...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="unit-employee-reservations-management">
+      <div className="page-header">
+        <h1 className="page-title">Gestión de Reservas</h1>
+        <p className="page-subtitle">
+          Administra las reservas de {userUnit?.name || "tu unidad"}
+        </p>
+      </div>
+
+      {/* Filtros */}
+      <div className="filters-section">
+        <div className="filters-header">
+          <h2>Filtros</h2>
+          <button onClick={clearFilters} className="btn-outline btn-sm">
+            Limpiar Filtros
+          </button>
+        </div>
+        <div className="filters-grid">
+          <div className="filter-group">
+            <label>Estado</label>
+            <select
+              value={filters.status}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="activa">Activa</option>
+              <option value="finalizada">Finalizada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label>Tipo</label>
+            <select
+              value={filters.isRepetitive}
+              onChange={(e) =>
+                handleFilterChange("isRepetitive", e.target.value)
+              }
+              className="filter-select"
+            >
+              <option value="">Todos los tipos</option>
+              <option value="true">Repetitivas</option>
+              <option value="false">Únicas</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label>Desde</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => handleFilterChange("startDate", e.target.value)}
+              className="filter-input"
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Hasta</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => handleFilterChange("endDate", e.target.value)}
+              className="filter-input"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de reservas */}
+      <div className="reservations-section">
+        <div className="section-header">
+          <h2>Reservas de la Unidad ({totalItems})</h2>
+          <div className="header-actions">
+            <span className="selected-count">
+              {selectedReservations.length} seleccionadas
+            </span>
+            <button onClick={handleSelectAll} className="btn-outline btn-sm">
+              {selectedReservations.length === reservations.length
+                ? "Deseleccionar todo"
+                : "Seleccionar todo"}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error-message">
+            {error}
+            <button onClick={loadReservations} className="btn-retry">
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        <div className="reservations-table-container">
+          <table className="reservations-table">
+            <thead>
+              <tr>
+                <th style={{ width: "50px" }}>
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedReservations.length === reservations.length &&
+                      reservations.length > 0
+                    }
+                    onChange={handleSelectAll}
+                  />
+                </th>
+                <th>ID</th>
+                <th>Recurso</th>
+                <th>Usuario</th>
+                <th>Fecha/Hora</th>
+                <th>Duración</th>
+                <th>Estado</th>
+                <th>Tipo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reservations.map((reservation) => (
+                <tr key={reservation.id} className="reservation-row">
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedReservations.some(
+                        (r) => r.id === reservation.id
+                      )}
+                      onChange={() => handleSelectReservation(reservation)}
+                    />
+                  </td>
+                  <td className="reservation-id">#{reservation.id}</td>
+                  <td>
+                    <div className="resource-info">
+                      <strong>{reservation.Resource?.name}</strong>
+                      <small>{reservation.Resource?.ResourceType?.name}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="user-info">
+                      <strong>
+                        {reservation.User?.firstName}{" "}
+                        {reservation.User?.lastName}
+                      </strong>
+                      <small>{reservation.User?.email}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="datetime-info">
+                      <div>
+                        {new Date(
+                          reservation.startDateTime
+                        ).toLocaleDateString()}
+                      </div>
+                      <small>
+                        {new Date(reservation.startDateTime).toLocaleTimeString(
+                          [],
+                          { hour: "2-digit", minute: "2-digit" }
+                        )}
+                      </small>
+                    </div>
+                  </td>
+                  <td>
+                    {Math.round(
+                      (new Date(reservation.endDateTime) -
+                        new Date(reservation.startDateTime)) /
+                        (1000 * 60 * 60)
+                    )}
+                    h
+                  </td>
+                  <td>{renderStatusBadge(reservation.status)}</td>
+                  <td>
+                    {reservation.isRepetitive ? (
+                      <span className="badge-repetitive">🔄 Repetitiva</span>
+                    ) : (
+                      <span className="badge-single">⭐ Única</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        onClick={() => handleViewDetails(reservation)}
+                        className="btn-icon"
+                        title="Ver detalles"
+                      >
+                        👁️
+                      </button>
+                      <button
+                        onClick={() => handleEditReservation(reservation)}
+                        className="btn-icon"
+                        title="Editar"
+                      >
+                        ✏️
+                      </button>
+                      {reservation.isRepetitive && (
+                        <button
+                          onClick={() => handleManageSeries(reservation)}
+                          className="btn-icon"
+                          title="Gestionar serie"
+                        >
+                          🔄
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteClick(reservation)}
+                        className="btn-icon btn-icon-danger"
+                        title="Eliminar"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mensaje cuando no hay reservas */}
+        {reservations.length === 0 && !loading && (
+          <div className="no-results">
+            <p>No se encontraron reservas en tu unidad</p>
+          </div>
+        )}
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="pagination-btn"
+            >
+              ← Anterior
+            </button>
+
+            <div className="pagination-pages">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`pagination-page ${
+                      currentPage === pageNum ? "active" : ""
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="pagination-btn"
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Modales */}
+      <ReservationDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        reservation={selectedReservation}
+      />
+
+      <EditReservationModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        reservation={selectedReservation}
+        onSuccess={() => {
+          setIsEditModalOpen(false);
+          loadReservations();
+        }}
+      />
+
+      <GenericDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        item={selectedReservation}
+        title="Eliminar Reserva"
+        itemName="reserva"
+        itemDisplayField="id"
+        warningMessage="Esta acción cancelará la reserva y no se puede deshacer."
+        additionalWarning={
+          selectedReservation?.isRepetitive
+            ? "⚠️ Esta es una reserva repetitiva. Solo se eliminará esta ocurrencia específica."
+            : null
+        }
+        confirmButtonText="Sí, Eliminar Reserva"
+        cancelButtonText="Cancelar"
+        loading={operationLoading}
+      />
+
+      <ManageRepeatSeriesModal
+        isOpen={isManageSeriesModalOpen}
+        onClose={() => setIsManageSeriesModalOpen(false)}
+        onConfirm={handleManageSeriesConfirm}
+        reservation={selectedReservation}
+        loading={operationLoading}
+      />
+    </div>
+  );
+};
+
+export default UnitEmployeeReservationsManagement;

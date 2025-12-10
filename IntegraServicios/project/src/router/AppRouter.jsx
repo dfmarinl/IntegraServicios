@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import AdminLayout from "../layouts/AdminLayout";
+import EmployeeLayout from "../layouts/EmployeeLayout";
 import UserLayout from "../layouts/UserLayout";
 import Login from "../pages/Login/Login";
 import Registration from "../pages/Registration/Registration";
@@ -23,6 +24,10 @@ import ForgotPassword from "../pages/Login/ForgotPassword";
 import ResetPassword from "../pages/Login/ResetPassword";
 import StatsPage from "../pages/Admin/StatsPage/StatsPage";
 import ExternalResources from "../components/User/External/ExternalResources";
+import EmployeeScheduleManagement from "../pages/Employee/EmployeeScheduleManagement/EmployeeScheduleManagement";
+import EmployeeResourceTypesManagement from "../pages/Employee/EmployeeResourceTypesManagement/EmployeeResourceTypesManagement";
+import UnitEmployeeResourcesManagement from "../pages/Employee/UnitEmployeeResourcesManagement/UnitEmployeeResourcesManagement";
+import UnitEmployeeReservationsManagement from "../pages/Employee/UnitEmployeeReservationsManagement/UnitEmployeeReservationsManagement"; // Nuevo import
 
 // Objeto de mapeo de roles a rutas
 const roleRoutes = {
@@ -133,8 +138,7 @@ const AppRouter = () => {
           <Route path="reservations" element={<ReservationsManagement />} />
           <Route path="loans" element={<LoansManagement />} />
           <Route path="users" element={<UsersManagement />} />
-          <Route path="stats" element={<StatsPage />} />{" "}
-          {/* Nueva ruta de estadísticas */}
+          <Route path="stats" element={<StatsPage />} />
           <Route
             path="employees"
             element={
@@ -160,15 +164,27 @@ const AppRouter = () => {
           path="/employee"
           element={
             <ProtectedRoute allowedRoles={["empleado_unidad"]}>
-              <UserLayout />
+              <EmployeeLayout />
             </ProtectedRoute>
           }
         >
           <Route index element={<EmployeeHome />} />
-          <Route path="resources" element={<ResourcesList />} />
-          <Route path="reservations" element={<MyReservations />} />
-          <Route path="stats" element={<StatsPage />} />{" "}
-          {/* Nueva ruta de estadísticas */}
+          {/* Rutas de empleado */}
+          <Route path="schedules" element={<EmployeeScheduleManagement />} />
+          <Route
+            path="resource-types"
+            element={<EmployeeResourceTypesManagement />}
+          />
+          <Route
+            path="employee-resources"
+            element={<UnitEmployeeResourcesManagement />}
+          />
+          <Route
+            path="employee-reservations"
+            element={<UnitEmployeeReservationsManagement />}
+          />{" "}
+          {/* Nueva ruta */}
+          <Route path="stats" element={<StatsPage />} />
           <Route
             path="loans"
             element={
@@ -243,8 +259,7 @@ const AppRouter = () => {
             }
           />
           <Route path="reservations" element={<MyReservations />} />
-          <Route path="stats" element={<StatsPage />} />{" "}
-          {/* Nueva ruta de estadísticas */}
+          <Route path="stats" element={<StatsPage />} />
         </Route>
 
         {/* Ruta independiente para estadísticas (accesible desde cualquier layout) */}
